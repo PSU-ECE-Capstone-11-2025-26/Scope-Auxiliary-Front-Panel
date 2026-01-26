@@ -32,7 +32,7 @@ class UARTBridge:
         line: bytes = self.serial.readline()
         self.queue.put(line)
 
-    def _write(self, msg: str) -> None:
+    def _write(self, msg: bytes) -> None:
         if not self.serial or not self.serial.is_open:
             return
         self.serial.write(msg)
