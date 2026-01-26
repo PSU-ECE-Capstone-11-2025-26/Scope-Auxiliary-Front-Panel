@@ -19,7 +19,7 @@ class UARTBridge:
         Initialize a connection with the UART interface.
         :return: True if the connection was successful, False otherwise.
         """
-        self.serial = serial.Serial(self.port, self.baudrate)
+        self.serial = serial.Serial(self.port, self.baudrate, timeout=1)
         return True
 
     def read(self) -> None:
