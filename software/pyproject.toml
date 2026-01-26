@@ -34,7 +34,7 @@ dev = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["tek-afp*"]
+include = ["tekafp*"]
 
 [tool.ruff]
 target-version = "py312"
@@ -55,3 +55,6 @@ line-ending = "lf"
 
 [tool.uv]
 default-groups = ["build", "dev"]
+
+[pytest]
+addopts = ["--import-mode=importlib"]
