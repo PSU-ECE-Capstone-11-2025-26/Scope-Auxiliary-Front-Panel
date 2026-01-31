@@ -1,8 +1,10 @@
-# A simple UART smoke test script.
-# It opens a serial port and continuously reads lines,
-# printing the raw bytes and the decoded string.
-# Connections: GP16 (TX) on Pico to GPIO 15 (RXD) on Pi 4 with a common ground.
-# Works perfectly. 
+"""
+- A simple UART smoke test script.
+- It opens a serial port and continuously reads lines,
+- printing the raw bytes and the decoded string.
+- Connections: GP16 (TX) on Pico to GPIO 15 (RXD) on Pi 4 with a common ground.
+- Works perfectly. 
+"""
 
 import serial
 
