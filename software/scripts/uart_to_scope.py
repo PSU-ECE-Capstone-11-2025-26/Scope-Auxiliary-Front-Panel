@@ -1,6 +1,9 @@
 """
 uart_to_scope.py
 
+Author: Antonio Hernandez Olivares (anton32@pdx.edu)
+Date: 1/30/26
+
 - Reads newline-terminated UART event lines from a Pico via tekafp UARTBridge
 - Decodes messages with tekafp.input.Input.from_bytes
 - Maps specific prototype IDs to Tektronix MSO SCPI commands via PyVISA
