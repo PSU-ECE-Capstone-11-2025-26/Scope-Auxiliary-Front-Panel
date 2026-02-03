@@ -15,8 +15,5 @@ def test_uart_read() -> None:
     bridge = UARTBridge("/dev/serial0")
     bridge.connect()
     bridge._write(msg)
-    bridge.read()
-    raw: bytes = bytes(0)
-    if not bridge.queue.empty():
-        raw = bridge.queue.get(timeout=0.1)
+    raw: bytes = bridge.get()
     assert raw == msg
