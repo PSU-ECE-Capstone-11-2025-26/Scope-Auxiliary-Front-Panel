@@ -1,5 +1,3 @@
-import asyncio
-from concurrent.futures import ThreadPoolExecutor
 from queue import Empty, Queue, ShutDown
 import threading
 from typing import Optional
@@ -34,24 +32,8 @@ class UARTBridge:
         self.timeout: Optional[float] = timeout
         self.write_timeout: Optional[float] = write_timeout
         self.serial: serial.Serial | None = None
-        # self._loop: asyncio.AbstractEventLoop = asyncio.get_event_loop()
-        self._read_executor: ThreadPoolExecutor = ThreadPoolExecutor(max_workers=1)
-        self._tasks: set[asyncio.Task] = set()
         self._thread = None
         self._close_thread = False
-
-    # async def _read_worker(self) -> None:
-    #     while True:
-    #         data: bytes = await self._loop.run_in_executor(
-    #             self._read_executor,
-    #             self.serial.readline,
-    #             -1
-    #         )
-    #         if data:
-    #             self._queue.put(data)
-    #
-    # async def _start_workers(self) -> None:
-    #     self._tasks.add(asyncio.create_task(self._read_worker()))
 
     def _thread_main(self) -> None:
         while not self._close_thread:
