@@ -12,8 +12,11 @@ def test_uart_read() -> None:
     # GPIO 14 connected to GPIO 15 (UART0)
     msg: bytes = b'testing123\n'
 
-    bridge = UARTBridge("/dev/serial0")
+    bridge = UARTBridge("/dev/serial0", timeout=5, write_timeout=5)
     bridge.connect()
-    bridge._write(msg)
-    raw: bytes = bridge.get()
+    write_status = bridge._write(msg)
+    assert write_status
+    # if this takes longer even half a second, something is wrong!
+    raw: bytes = bridge.get(timeout=0.5)
+    bridge.close()
     assert raw == msg
