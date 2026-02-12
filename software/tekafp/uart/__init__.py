@@ -1,7 +1,6 @@
 from queue import Empty, Queue, ShutDown
 import threading
 from typing import Optional
-from warnings import deprecated
 
 import serial
 
@@ -27,6 +26,7 @@ class UARTBridge:
             write_timeout: Optional[float] = None,
     ) -> None:
         self._queue: Queue[bytes] = Queue()
+        self._write_queue: Queue[bytes] = Queue()
         self.port: str = port
         self.baudrate: int = baudrate
         self.timeout: Optional[float] = timeout
@@ -37,12 +37,30 @@ class UARTBridge:
 
     def _thread_main(self) -> None:
         while not self._close_thread:
+            # writing
+            try:
+                data = self._write_queue.get_nowait()
+            except Empty:
+                pass
+            except ShutDown:
+                pass
+            else:
+                try:
+                    self.serial.write(data)
+                except serial.SerialTimeoutException:
+                    self._write_queue.put(data)
+                self._write_queue.task_done()
+
+            # reading
             data: bytes = self.serial.readline()
             if data:
-                try:
-                    self._queue.put(data)
-                except ShutDown:
-                    break
+                if data.endswith(b'\n'):
+                    try:
+                        self._queue.put(data)
+                    except ShutDown:
+                        break
+                else:
+                    print("UART error: incomplete message")
 
     def connect(self) -> bool:
         """
@@ -89,7 +107,7 @@ class UARTBridge:
         :param timeout: if timeout is greater than zero,
         blocks for at most 'timeout' seconds.
         :return: if data is available, returns data, otherwise returns None.
-        :rtype bytes, optional
+        :rtype: bytes, optional
         """
         try:
             data: bytes
@@ -104,15 +122,30 @@ class UARTBridge:
         except ShutDown:
             return None
 
-    @deprecated("Blocking read no longer required")
-    def read(self) -> None:
-        pass
+    def queue_write(self, data: bytes) -> None:
+        """
+        Queue a write operation to happen asynchronously.
+        :type data: bytes
+        :param data: the message to send
+        """
+        try:
+            self._write_queue.put(data)
+        except ShutDown:
+            pass
 
-    def _write(self, msg: bytes) -> bool:
+    def write_sync(self, data: bytes) -> bool:
+        """
+        A synchronous write to the UART interface. This will block until the write
+        operation is complete.
+        :type data: bytes
+        :param data: the message to send
+        :return: True if successful, False otherwise.
+        :rtype: bool
+        """
         if not self.serial or not self.serial.is_open:
             return False
         try:
-            self.serial.write(msg)
+            self.serial.write(data)
             return True
         except serial.SerialTimeoutException:
             return False
