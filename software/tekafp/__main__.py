@@ -44,7 +44,7 @@ def connect_scope() -> MessageBasedResource:
 
 
 def connect_uart() -> UARTBridge:
-    bridge = UARTBridge(PORT, baudrate=BAUD)
+    bridge = UARTBridge(PORT, baudrate=BAUD, timeout=1, write_timeout=1)
     if not bridge.connect():
         raise RuntimeError(f"Failed to open UART on {PORT}")
     print(f"Connected UART: {PORT} @ {BAUD}")
@@ -145,13 +145,8 @@ def main() -> None:
 
     try:
         while True:
-            # Reads one line into bridge.queue
-            bridge.read()
-
-            # Drain queue: if multiple lines arrived quickly, handle them all now
-            while not bridge.queue.empty():
-                raw = bridge.queue.get()
-
+            raw = bridge.get()
+            if raw:
                 try:
                     inp = Input.from_bytes(raw)
                 except Exception as e:
@@ -164,6 +159,7 @@ def main() -> None:
         print("\nExiting...")
     finally:
         scope.close()
+        bridge.close()
 
 
 if __name__ == "__main__":
