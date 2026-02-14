@@ -5,6 +5,7 @@ from pyvisa.resources import MessageBasedResource
 
 from tekafp.input import Input
 from tekafp.uart import UARTBridge
+from tekafp.util import clamp, parse_resp
 
 
 # UART config
@@ -49,10 +50,6 @@ def connect_uart() -> UARTBridge:
         raise RuntimeError(f"Failed to open UART on {PORT}")
     print(f"Connected UART: {PORT} @ {BAUD}")
     return bridge
-
-
-def clamp(x: float, lo: float, hi: float) -> float:
-    return max(lo, min(hi, x))
 
 
 class Controller:
@@ -103,6 +100,33 @@ class Controller:
         self.scope.write(f"HORIZONTAL:POSITION {new}")
         print(f"[SCOPE] horizontal position (%): {cur:.2f} -> {new:.2f}")
 
+    def encoder_trigger_level(self, detents: int) -> None:
+        # TODO: ask antonio how he landed on HORIZ_STEP_PCT (need value for trigger lvl)
+        ch = self.active_ch
+        ab = "A"
+        query = f"TRIGGER:{ab}:LEVEL:CH{ch}"
+        cur: float = parse_resp(self.scope.query(query + "?"), float)
+
+        new = cur + detents * HORIZ_STEP_PCT
+        new = clamp(new, 0.0, 100.0)
+
+        self.scope.write(query + f" {new}")
+        print(f"[SCOPE] trigger level (%): {cur:.2f} -> {new:.2f}")
+
+    def next_trigger_slope(self) -> None:
+        cur: str = parse_resp(self.scope.query("TRIGGER:A:EDGE:SLOPE?"), str).upper()
+        new: str = ""
+        match cur:
+            case "RISE":
+                new = "FALL"
+            case "FALL":
+                new = "EITHER"
+            case "EITHER":
+                new = "RISE"
+            case _:
+                raise AssertionError("Invalid trigger slope. Something is wrong!")
+        self.scope.write(f"TRIGGER:A:EDGE:SLOPE {new}")
+
     # UART event handler
     def handle_input(self, inp: Input) -> None:
         """
@@ -134,6 +158,34 @@ class Controller:
             detents = int(val)
             if detents:
                 self.adjust_horizontal_position(detents)
+            return
+
+        # trigger level encoder
+        if msg_id == "TL1":
+            detents = int(val)
+            if detents:
+                self.encoder_trigger_level(detents)
+            return
+        # trigger level push
+        if msg_id == "TL0":
+            self.scope.write("TRIGGER:A: SETLevel")
+            return
+
+        # trigger force
+        if msg_id == "TF0":
+            self.scope.write("TRIGGER FORCE")
+            return
+
+        # trigger slope type
+        if msg_id == "TS0":
+            self.next_trigger_slope()
+            return
+
+        # trigger mode
+        if msg_id == "TM0":
+            cur: str = parse_resp(self.scope.query("TRIGGER:A:MODE?"), str).upper()
+            new: str = "AUTO" if cur == "NORMAL" else "NORMAL"
+            self.scope.write(f"TRIGGER:A:MODE {new}")
             return
 
 def main() -> None:
