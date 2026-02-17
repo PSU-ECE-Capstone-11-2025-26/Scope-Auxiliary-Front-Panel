@@ -101,13 +101,13 @@ class Controller:
         print(f"[SCOPE] horizontal position (%): {cur:.2f} -> {new:.2f}")
 
     def encoder_trigger_level(self, detents: int) -> None:
-        # TODO: ask antonio how he landed on HORIZ_STEP_PCT (need value for trigger lvl)
         ch = self.active_ch
         ab = "A"
         query = f"TRIGGER:{ab}:LEVEL:CH{ch}"
         cur: float = parse_resp(self.scope.query(query + "?"), float)
 
-        new = cur + detents * HORIZ_STEP_PCT
+        trigger_scale: float = 0.4
+        new = cur + detents * trigger_scale
         new = clamp(new, 0.0, 100.0)
 
         self.scope.write(query + f" {new}")
