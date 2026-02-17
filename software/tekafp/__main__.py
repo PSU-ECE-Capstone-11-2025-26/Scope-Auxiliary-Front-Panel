@@ -108,7 +108,7 @@ class Controller:
 
         trigger_scale: float = 0.4
         new = cur + detents * trigger_scale
-        new = clamp(new, 0.0, 100.0)
+        new = clamp(new, -100.0, 100.0)
 
         self.scope.write(query + f" {new}")
         print(f"[SCOPE] trigger level (%): {cur:.2f} -> {new:.2f}")
