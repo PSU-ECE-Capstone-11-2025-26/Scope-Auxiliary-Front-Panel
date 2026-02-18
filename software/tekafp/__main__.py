@@ -60,38 +60,44 @@ class Controller:
     def __init__(self, scope: MessageBasedResource) -> None:
         self.scope: MessageBasedResource = scope
 
-        # first item is LRU, last is MRU, therefore MRU is the active channel.
-        # if a channel is in this list, it is enabled
-        self._channel_lru: List[int] = []
+        self._channels: dict[int, bool] = {ch: False for ch in range(1, 9)}
+        self._source_channel: int = 0
 
-    def is_channel_enabled(self, channel: int) -> bool:
-        return channel in self._channel_lru
-
-    @property
-    def active_channel(self) -> int:
-        """Get the currently active channel."""
-        return 0 if len(self._channel_lru) == 0 else self._channel_lru[-1]
-
-    # Scope helpers
     def set_channel_display(self, channel: int) -> None:
-        state: bool = self.is_channel_enabled(channel)
-        if state:
-            # enabled
-            if self.active_channel == channel:
-                # enabled and active => disable it
-                self._channel_lru.pop()
-            else:
-                # enabled and NOT active => select it
-                self._channel_lru.remove(channel)
-                self._channel_lru.append(channel)
+        if channel not in range(1, 9):
+            return
+        last_state: bool = self._channels[channel]
+
+        if self._source_channel == channel:
+            # enabled and source => disable, select highest enabled as active
+            self._channels[channel] = False
+            highest: int = 0
+            for k, v in self._channels.items():
+                if v:
+                    highest = k
+                    if k > channel:
+                        break
+            self._source_channel = highest
+        elif last_state:
+            # enabled => set as source
+            self._source_channel = channel
         else:
-            # disabled
-            self._channel_lru.append(channel)
-        state = self.is_channel_enabled(channel)
-        self.scope.write(f"DISPLAY:GLOBAL:CH{channel}:STATE {1 if state else 0}")
+            # disabled => enable, set as source
+            self._channels[channel] = True
+            self._source_channel = channel
+
+        if self._source_channel == 0:
+            self.scope.write("DISPLAY:SELECT:SOURCE:NONE")
+        else:
+            self.scope.write(f"DISPLAY:SELECT:SOURCE:CH{self._source_channel}")
+
+        if last_state != self._channels[channel]:
+            self.scope.write(
+                f"DISPLAY:GLOBAL:CH{channel}:STATE {int(self._channels[channel])}"
+            )
 
         print(
-            f"[SCOPE] CH{channel} display -> {'ON' if state else 'OFF'} (active_ch={self.active_channel})"  # noqa: E501
+            f"[SCOPE] CH{channel} display -> {self._channels[channel]} (source={self._source_channel})"  # noqa: E501
         )
 
     def adjust_vertical_position(self, detents: int) -> None:
