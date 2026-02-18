@@ -101,9 +101,11 @@ class Controller:
         print(f"[SCOPE] horizontal position (%): {cur:.2f} -> {new:.2f}")
 
     def encoder_trigger_level(self, detents: int) -> None:
-        ch = self.active_ch
+        # FIXME: the MSO has both A (primary) and B (delay) triggers for sequencing.
+        # for now, default to A
         ab = "A"
-        query = f"TRIGGER:{ab}:LEVEL:CH{ch}"
+        source: str = parse_resp(self.scope.query(f"TRIGGER:{ab}:EDGE:SOURCE?"), str)
+        query = f"TRIGGER:{ab}:LEVEL:CH{source}"
         cur: float = parse_resp(self.scope.query(query + "?"), float)
 
         trigger_scale: float = 0.4
