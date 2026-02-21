@@ -42,6 +42,8 @@ class ScopeState(TypedDict):
     run: bool
     zoom_enabled: bool
 
-class AFPScope(TypedDict):
-    scope: MessageBasedResource
-    state: ScopeState
+class AFPScope:
+
+    def __init__(self, visa: MessageBasedResource, state: ScopeState) -> None:
+        self.visa: MessageBasedResource = visa
+        self.state: ScopeState = state

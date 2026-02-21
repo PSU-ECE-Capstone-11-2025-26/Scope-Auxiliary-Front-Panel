@@ -19,7 +19,12 @@ from tekafp.registry import Registry
 
 control_registry: Registry[str, ControlType] = Registry()
 
-control_registry.register("VP1", EncoderControl())
+control_registry.register("VP1", EncoderControl(
+    "CH{ch}:POSITION?",
+    "CH{ch}:POSITION {value}",
+    1.0,
+    (-10.0, 10.0)
+))
 
 def func(scope: MessageBasedResource, state: dict[str, str], inp: Input,
          **kwargs: int) -> None:
