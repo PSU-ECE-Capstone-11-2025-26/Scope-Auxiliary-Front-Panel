@@ -234,7 +234,7 @@ class Controller:
     def handle_input(self, inp: Input) -> None:
         """
         inp.id is expected to be strings like:
-          V10..V80, KA1/KA0, KB1/KB0, etc.
+          V10..V80, VP1/VP0, HP1/HP0, etc.
         inp.value for encoders is expected +/-1 per detent.
         inp.value for toggles is expected 0/1 (latched state).
         """
@@ -248,15 +248,15 @@ class Controller:
             self.set_channel_display(ch)
             return
 
-        # Encoder 1 rotation => vertical position of current active channel
-        if msg_id == "KA1":
+        # Encoder 1 rotation: vertical position of current active channel
+        if msg_id == "VP1":
             detents = int(val)  # should be +1 / -1
             if detents:
                 self.adjust_vertical_position(detents)
             return
 
-        # Encoder 2 rotation => horizontal position (global)
-        if msg_id == "KB1":
+        # Encoder 2 rotation: horizontal position (global)
+        if msg_id == "HP1":
             detents = int(val)
             if detents:
                 self.adjust_horizontal_position(detents)
