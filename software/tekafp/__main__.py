@@ -56,31 +56,48 @@ class Controller:
     def __init__(self, scope: MessageBasedResource) -> None:
         self.scope: MessageBasedResource = scope
 
-        # Track CH1..CH6 on/off state to support "current active channel"
-        self.ch_enabled = {ch: False for ch in range(1, 7)}
-        self.active_ch = 1  # Default if nothing has been enabled yet
+        self._channels: dict[int, bool] = {ch: False for ch in range(1, 9)}
+        self._source_channel: int = 0
 
-    # Scope helpers
-    def set_channel_display(self, ch: int, on: bool) -> None:
-        # DISplay:GLObal:CH<x>:STATE {ON|OFF|0|1}
-        self.scope.write(f"DISPLAY:GLOBAL:CH{ch}:STATE {1 if on else 0}")
+    def set_channel_display(self, channel: int) -> None:
+        if channel not in range(1, 9):
+            return
+        last_state: bool = self._channels[channel]
 
-        self.ch_enabled[ch] = on
-        if on:
-            self.active_ch = ch
+        if self._source_channel == channel:
+            # enabled and source => disable, select highest enabled as active
+            self._channels[channel] = False
+            highest: int = 0
+            for k, v in self._channels.items():
+                if v:
+                    highest = k
+                    if k > channel:
+                        break
+            self._source_channel = highest
+        elif last_state:
+            # enabled => set as source
+            self._source_channel = channel
         else:
-            # If we turned off the active channel, pick another enabled one (lowest #)
-            # else default to 1
-            if self.active_ch == ch:
-                enabled = [c for c, state in self.ch_enabled.items() if state]
-                self.active_ch = enabled[0] if enabled else 1
+            # disabled => enable, set as source
+            self._channels[channel] = True
+            self._source_channel = channel
+
+        if self._source_channel == 0:
+            self.scope.write("DISPLAY:SELECT:SOURCE:NONE")
+        else:
+            self.scope.write(f"DISPLAY:SELECT:SOURCE:CH{self._source_channel}")
+
+        if last_state != self._channels[channel]:
+            self.scope.write(
+                f"DISPLAY:GLOBAL:CH{channel}:STATE {int(self._channels[channel])}"
+            )
 
         print(
-            f"[SCOPE] CH{ch} display -> {'ON' if on else 'OFF'} (active_ch={self.active_ch})"  # noqa: E501
+            f"[SCOPE] CH{channel} display -> {self._channels[channel]} (source={self._source_channel})"  # noqa: E501
         )
 
     def adjust_vertical_position(self, detents: int) -> None:
-        ch = self.active_ch
+        ch = self._source_channel
         cur = float(self.scope.query(f"CH{ch}:POSITION?").strip().split()[-1])
 
         new = cur + detents * VERT_STEP_DIVS
@@ -133,7 +150,7 @@ class Controller:
     def toggle_run_stop(self) -> None:
         resp = self.scope.query("ACQUIRE:STATE?").strip().upper()
 
-        # Tek scopes may return RUN/STOP, ON/OFF, or 1/0 
+        # Tek scopes may return RUN/STOP, ON/OFF, or 1/0
         if resp in ("RUN", "ON", "1"):
             self.scope.write("ACQUIRE:STATE STOP")
             print("[SCOPE] Run/Stop -> STOP")
@@ -147,7 +164,7 @@ class Controller:
     def handle_input(self, inp: Input) -> None:
         """
         inp.id is expected to be strings like:
-          V10..V60, KA1/KA0, KB1/KB0, etc.
+          V10..V80, KA1/KA0, KB1/KB0, etc.
         inp.value for encoders is expected +/-1 per detent.
         inp.value for toggles is expected 0/1 (latched state).
         """
@@ -155,11 +172,10 @@ class Controller:
         msg_id = str(inp.id)
         val = inp.value
 
-        # Channel toggles: V10..V60 => CH1..CH6 display on/off
-        if msg_id in ("V10", "V20", "V30", "V40", "V50", "V60"):
+        # Channel Selection
+        if msg_id in ("V10", "V20", "V30", "V40", "V50", "V60", "V70", "V80"):
             ch = int(msg_id[1])  # 'V10' -> 1, 'V60' -> 6
-            on = bool(int(val))
-            self.set_channel_display(ch, on)
+            self.set_channel_display(ch)
             return
 
         # Encoder 1 rotation => vertical position of current active channel
@@ -203,7 +219,7 @@ class Controller:
             new: str = "AUTO" if cur == "NORMAL" else "NORMAL"
             self.scope.write(f"TRIGGER:A:MODE {new}")
             return
-        
+
         # Run/Stop button
         if msg_id == "AR0":
             self.toggle_run_stop()
