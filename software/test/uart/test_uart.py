@@ -1,22 +1,22 @@
-from os import uname
-
-import pytest
+import serial
 
 from tekafp.uart import UARTBridge
 
 
-@pytest.mark.skipif(uname().nodename != "tek-afp",
-                    reason="Hostname != tek-afp: test must run on a testbench")
 def test_uart_read() -> None:
-    # Requires UART set up on the Pi and the pins to be connected in loopback
-    # GPIO 14 connected to GPIO 15 (UART0)
     msg: bytes = b'testing123\n'
 
-    bridge = UARTBridge("/dev/serial0")
+    bridge = UARTBridge("/dev/serial0", timeout=1, write_timeout=1)
+    # overwrite the default serial with a loopback url
+    bridge.serial = serial.serial_for_url(
+        "loop://",
+        baudrate=115200,
+        do_not_open=True,
+        timeout=bridge.timeout,
+        write_timeout=bridge.write_timeout
+    )
     bridge.connect()
-    bridge._write(msg)
-    bridge.read()
-    raw: bytes = bytes(0)
-    if not bridge.queue.empty():
-        raw = bridge.queue.get(timeout=0.1)
+    bridge.queue_write(msg)
+    raw: bytes = bridge.get(timeout=3)
     assert raw == msg
+    bridge.close()
