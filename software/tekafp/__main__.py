@@ -136,9 +136,9 @@ class Controller:
         # Tek scopes may return RUN/STOP, ON/OFF, or 1/0 
         if resp in ("RUN", "ON", "1"):
             self.scope.write("ACQUIRE:STATE STOP")
-            print("[SCOPE] STOP")
+            print("[SCOPE] Run/Stop -> STOP")
             return
-        if resp in ("STOP", "OFF", "0"):
+        else:
             self.scope.write("ACQUIRE:STATE RUN")
             print("[SCOPE] Run/Stop -> RUN")
             return
