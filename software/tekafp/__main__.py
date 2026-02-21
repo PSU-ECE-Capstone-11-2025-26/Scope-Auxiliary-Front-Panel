@@ -20,6 +20,32 @@ SCOPE_TIMEOUT_MS = 5000
 VERT_STEP_DIVS = 0.10  # Vertical position step per encoder detent (+/-1)
 HORIZ_STEP_PCT = 1.0  # Horizontal position step in percent (0..~100) per detent
 
+# Vertical scale sequences follow a 1/2/5 pattern per Tektronix spec
+# e.g. 100mV, 200mV, 500mV, 1V, 2V, 5V, 10V, ...
+VERT_SCALE_STEPS = [
+    1e-3, 2e-3, 5e-3,
+    10e-3, 20e-3, 50e-3,
+    100e-3, 200e-3, 500e-3,
+    1.0, 2.0, 5.0,
+    10.0, 20.0, 50.0,
+    100.0,
+]
+
+# Horizontal scale sequences follow a 1/2/4 pattern per Tektronix spec
+# e.g. 1ns, 2ns, 4ns, 10ns, 20ns, 40ns, 100ns, ...
+HORIZ_SCALE_STEPS = [
+    1e-9, 2e-9, 4e-9,
+    10e-9, 20e-9, 40e-9,
+    100e-9, 200e-9, 400e-9,
+    1e-6, 2e-6, 4e-6,
+    10e-6, 20e-6, 40e-6,
+    100e-6, 200e-6, 400e-6,
+    1e-3, 2e-3, 4e-3,
+    10e-3, 20e-3, 40e-3,
+    100e-3, 200e-3, 400e-3,
+    1.0, 2.0, 4.0, 10.0,
+]
+
 
 def connect_scope() -> MessageBasedResource:
     rm = pyvisa.ResourceManager(PYVISA_BACKEND)
@@ -117,6 +143,31 @@ class Controller:
         self.scope.write(f"HORIZONTAL:POSITION {new}")
         print(f"[SCOPE] horizontal position (%): {cur:.2f} -> {new:.2f}")
 
+    def adjust_vertical_scale(self, detents: int) -> None:
+        ch = self._source_channel
+        if ch == 0:
+            print("[SCOPE] No active channel selected, ignoring vertical scale.")
+            return
+        cur = float(self.scope.query(f"CH{ch}:SCALE?").strip().split()[-1])
+
+        nearest = min(range(len(VERT_SCALE_STEPS)), key=lambda i: abs(VERT_SCALE_STEPS[i] - cur))
+        new_idx = clamp(nearest + detents, 0, len(VERT_SCALE_STEPS) - 1)
+        new = VERT_SCALE_STEPS[new_idx]
+
+        self.scope.write(f"CH{ch}:SCALE {new}")
+        print(f"[SCOPE] CH{ch} vertical scale: {cur:.3e} -> {new:.3e} V/div")
+
+
+    def adjust_horizontal_scale(self, detents: int) -> None:
+        cur = float(self.scope.query("HORIZONTAL:MODE:SCALE?").strip().split()[-1])
+
+        nearest = min(range(len(HORIZ_SCALE_STEPS)), key=lambda i: abs(HORIZ_SCALE_STEPS[i] - cur))
+        new_idx = clamp(nearest + detents, 0, len(HORIZ_SCALE_STEPS) - 1)
+        new = HORIZ_SCALE_STEPS[new_idx]
+
+        self.scope.write(f"HORIZONTAL:MODE:SCALE {new}")
+        print(f"[SCOPE] horizontal scale: {cur:.3e} -> {new:.3e} s/div")
+
     def encoder_trigger_level(self, detents: int) -> None:
         # FIXME: the MSO has both A (primary) and B (delay) triggers for sequencing.
         # for now, default to A
@@ -209,6 +260,20 @@ class Controller:
             detents = int(val)
             if detents:
                 self.adjust_horizontal_position(detents)
+            return
+
+        # Encoder VS1 rotation: vertical scale of current source channel (1/2/5 steps)
+        if msg_id == "VS1":
+            detents = int(val)
+            if detents: 
+                self.adjust_vertical_scale(detents)
+            return
+        
+        # Encoder HS1 rotation: horizontal timebase scale (1/2/4 steps)
+        if msg_id == "HS1":
+            detents = int(val)
+            if detents: 
+                self.adjust_horizontal_scale(detents)
             return
 
         # trigger level encoder
