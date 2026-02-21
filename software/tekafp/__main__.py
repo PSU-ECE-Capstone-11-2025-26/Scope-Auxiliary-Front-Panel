@@ -129,6 +129,20 @@ class Controller:
                 raise AssertionError("Invalid trigger slope. Something is wrong!")
         self.scope.write(f"TRIGGER:A:EDGE:SLOPE {new}")
 
+    # Toggle the scope's Run/Stop state
+    def toggle_run_stop(self) -> None:
+        resp = self.scope.query("ACQUIRE:STATE?").strip().upper()
+
+        # Tek scopes may return RUN/STOP, ON/OFF, or 1/0 
+        if resp in ("RUN", "ON", "1"):
+            self.scope.write("ACQUIRE:STATE STOP")
+            print("[SCOPE] STOP")
+            return
+        if resp in ("STOP", "OFF", "0"):
+            self.scope.write("ACQUIRE:STATE RUN")
+            print("[SCOPE] Run/Stop -> RUN")
+            return
+
     # UART event handler
     def handle_input(self, inp: Input) -> None:
         """
@@ -188,6 +202,14 @@ class Controller:
             cur: str = parse_resp(self.scope.query("TRIGGER:A:MODE?"), str).upper()
             new: str = "AUTO" if cur == "NORMAL" else "NORMAL"
             self.scope.write(f"TRIGGER:A:MODE {new}")
+            return
+        
+        # Run/Stop button
+        if msg_id == "AR0":
+            if int(val) == 1:
+                self.toggle_run_stop()
+            else:
+                self.toggle_run_stop() 
             return
 
 def main() -> None:
