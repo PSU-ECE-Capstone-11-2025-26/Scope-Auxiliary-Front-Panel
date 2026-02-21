@@ -118,11 +118,6 @@ control_registry: Registry[str, ControlType] = Registry()
 
 control_registry.register("VP1", EncoderControl())
 
-def register(key: str, func: ControlType) -> None:
-    pass
-
 def func(scope: MessageBasedResource, state: dict[str, str], inp: Input,
          **kwargs: int) -> None:
     pass
-
-register("VP1", func)
