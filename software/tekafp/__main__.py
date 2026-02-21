@@ -206,10 +206,7 @@ class Controller:
         
         # Run/Stop button
         if msg_id == "AR0":
-            if int(val) == 1:
-                self.toggle_run_stop()
-            else:
-                self.toggle_run_stop() 
+            self.toggle_run_stop()
             return
 
 def main() -> None:
