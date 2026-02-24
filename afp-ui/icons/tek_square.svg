@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="89.501" height="89.508" viewBox="0 0 89.501 89.508">
+  <g id="logo_tk_footer" transform="translate(-333.88 -243.88)">
+    <g id="Group_241" data-name="Group 241" transform="translate(333.88 243.88)">
+      <path id="Path_20" data-name="Path 20" d="M378.63,243.88a44.75,44.75,0,1,0,44.75,44.75A44.749,44.749,0,0,0,378.63,243.88Zm-25.069,25.61h36.833l-6.131,9.048H373.833v15.395l-10.3,15.2V278.538h-9.97Zm38.85,42.683-7.37-12.16,5.95-8.782L403.7,312.173Zm-17.621,0H363.5l28.916-42.683h11.288Z" transform="translate(-333.88 -243.88)" fill="#fff"/>
+      <g id="Group_240" data-name="Group 240" transform="translate(74.128 85.006)">
+        <path id="Path_21" data-name="Path 21" d="M438.278,362.384h-1.5v-.5h3.595v.5h-1.5v3.991h-.6v-3.991Z" transform="translate(-436.78 -361.88)" fill="#fff"/>
+        <path id="Path_22" data-name="Path 22" d="M442.477,361.89h.821l1.419,3.775,1.419-3.775h.821v4.5h-.569v-3.739h-.014l-1.4,3.739h-.511l-1.4-3.739h-.014v3.739h-.569v-4.5Z" transform="translate(-438.371 -361.883)" fill="#fff"/>
+      </g>
+    </g>
+    <path id="Path_23" data-name="Path 23" d="M386.288,322.113H375l28.909-42.683H415.2Z" transform="translate(-11.498 -9.94)" fill="#1cb5d8"/>
+  </g>
+</svg>

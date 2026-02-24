@@ -1,0 +1,53 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[animation]
+
+compatibility/default_parent_skeleton_in_mesh_instance_3d=true
+
+[application]
+
+config/name="afp-ui"
+config/description="Touchscreen friendly user interface for Tektronix Auxiliary Front Panel."
+config/version="0.0.1"
+run/main_scene="uid://c6068oplqakdp"
+config/use_custom_user_dir=true
+config/custom_user_dir_name="Tektronix/AFP"
+config/features=PackedStringArray("4.6", "C#", "GL Compatibility")
+run/max_fps=60
+run/low_processor_mode=true
+config/icon="uid://crlgyhtg7hx"
+
+[autoload]
+
+Global="*uid://cx0gxqix3xvk0"
+
+[display]
+
+window/size/viewport_width=800
+window/size/viewport_height=480
+window/size/resizable=false
+
+[dotnet]
+
+project/assembly_name="afp-ui"
+
+[gui]
+
+theme/custom="uid://dnpqf5n3n4s8q"
+
+[input_devices]
+
+pointing/emulate_touch_from_mouse=true
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"

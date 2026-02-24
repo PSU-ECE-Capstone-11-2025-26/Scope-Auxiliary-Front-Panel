@@ -1,0 +1,23 @@
+[gd_scene format=3 uid="uid://bbjkiji0sl7mt"]
+
+[ext_resource type="Script" uid="uid://be1ui7587gf0t" path="res://View/Home.cs" id="1_tt30a"]
+
+[node name="Home" type="VBoxContainer" unique_id=1823192803]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_tt30a")
+metadata/_tab_index = 0
+
+[node name="ScrollContainer" type="ScrollContainer" parent="." unique_id=1863768254]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="SelectedScopes" type="Tree" parent="ScrollContainer" unique_id=859540660]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+columns = 3
+column_titles_visible = true
