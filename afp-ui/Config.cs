@@ -1,5 +1,3 @@
-using Godot;
-
 namespace AFP;
 
 public class Config
