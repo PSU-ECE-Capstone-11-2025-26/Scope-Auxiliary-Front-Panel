@@ -7,7 +7,7 @@
 [ext_resource type="PackedScene" uid="uid://crlrix2vhkkqh" path="res://View/scopes.tscn" id="4_1bvp3"]
 [ext_resource type="Script" uid="uid://k81upwwlvj8g" path="res://Resources/TabConfig.cs" id="4_4c57u"]
 [ext_resource type="Texture2D" uid="uid://uf47ui0s0gbp" path="res://icons/ListSelect.svg" id="5_efxa6"]
-[ext_resource type="PackedScene" uid="uid://f11s6kxp5jcj" path="res://toast.tscn" id="5_lquwl"]
+[ext_resource type="PackedScene" uid="uid://f11s6kxp5jcj" path="res://Components/toast.tscn" id="5_lquwl"]
 [ext_resource type="Texture2D" uid="uid://87tb7wbykssr" path="res://icons/Info.svg" id="6_dg77c"]
 [ext_resource type="Texture2D" uid="uid://cebugcksdw586" path="res://icons/Gear.svg" id="7_ycdy4"]
 
