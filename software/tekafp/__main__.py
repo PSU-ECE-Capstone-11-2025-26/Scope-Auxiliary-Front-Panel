@@ -159,7 +159,7 @@ class Controller:
             # then use 1/10th of it as the fine step
             nearest = min(range(len(VERT_SCALE_STEPS)), key=lambda i: abs(VERT_SCALE_STEPS[i] - cur))
             coarse_step = VERT_SCALE_STEPS[nearest]
-            fine_step = coarse_step / 10.0
+            fine_step = coarse_step / 20.0
             new = cur + detents * fine_step
             # Clamp between the two surrounding coarse steps
             lower = VERT_SCALE_STEPS[max(nearest - 1, 0)]
@@ -176,6 +176,7 @@ class Controller:
 
     def adjust_horizontal_scale(self, detents: int) -> None:
         cur = float(self.scope.query("HORIZONTAL:MODE:SCALE?").strip().split()[-1])
+        print(f"[DEBUG] horiz_fine={self._horiz_fine}, horiz_fine_val={self._horiz_fine_val}, cur={cur:.3e}")
 
         if self._horiz_fine:
             # On the first fine detent after entering fine mode, seed from the scope's value
@@ -185,7 +186,7 @@ class Controller:
             # Fine mode: same 1/10th logic as vertical
             nearest = min(range(len(HORIZ_SCALE_STEPS)), key=lambda i: abs(HORIZ_SCALE_STEPS[i] - self._horiz_fine_val))
             coarse_step = HORIZ_SCALE_STEPS[nearest]
-            fine_step = coarse_step / 10.0
+            fine_step = coarse_step / 20.0
             new = self._horiz_fine_val + detents * fine_step
             lower = HORIZ_SCALE_STEPS[max(nearest - 1, 0)]
             upper = HORIZ_SCALE_STEPS[min(nearest + 1, len(HORIZ_SCALE_STEPS) - 1)]
@@ -298,14 +299,14 @@ class Controller:
         if msg_id == "KA1":
             detents = int(val)
             if detents: 
-                self.adjust_vertical_scale(detents)
+                self.adjust_vertical_scale(-detents)
             return
         
         # Encoder HS1 rotation: horizontal timebase scale (1/2/4 steps)
         if msg_id == "KB1":
             detents = int(val)
             if detents: 
-                self.adjust_horizontal_scale(detents)
+                self.adjust_horizontal_scale(-detents)
             return
 
         # VS0: toggle fine mode for vertical scale encoder
