@@ -87,6 +87,7 @@ class Controller:
 
         self._vert_fine: bool = False # fine mode toggle for vertical scale
         self._horiz_fine: bool = False # fine mode toggle for horizontal scale
+        self._horiz_fine_val: float | None = None # tracks fine position internally
 
     def set_channel_display(self, channel: int) -> None:
         if channel not in range(1, 9):
@@ -177,21 +178,27 @@ class Controller:
         cur = float(self.scope.query("HORIZONTAL:MODE:SCALE?").strip().split()[-1])
 
         if self._horiz_fine:
+            # On the first fine detent after entering fine mode, seed from the scope's value
+            if self._horiz_fine_val is None:
+                self._horiz_fine_val = cur  
+
             # Fine mode: same 1/10th logic as vertical
-            nearest = min(range(len(HORIZ_SCALE_STEPS)), key=lambda i: abs(HORIZ_SCALE_STEPS[i] - cur))
+            nearest = min(range(len(HORIZ_SCALE_STEPS)), key=lambda i: abs(HORIZ_SCALE_STEPS[i] - self._horiz_fine_val))
             coarse_step = HORIZ_SCALE_STEPS[nearest]
             fine_step = coarse_step / 10.0
-            new = cur + detents * fine_step
+            new = self._horiz_fine_val + detents * fine_step
             lower = HORIZ_SCALE_STEPS[max(nearest - 1, 0)]
             upper = HORIZ_SCALE_STEPS[min(nearest + 1, len(HORIZ_SCALE_STEPS) - 1)]
             new = clamp(new, lower, upper)
+            self._horiz_fine_val = new  # persist for next detent
         else: 
+            self._horiz_fine_val = None # reset whenever we're back in coarse
             nearest = min(range(len(HORIZ_SCALE_STEPS)), key=lambda i: abs(HORIZ_SCALE_STEPS[i] - cur))
             new_idx = clamp(nearest + detents, 0, len(HORIZ_SCALE_STEPS) - 1)
             new = HORIZ_SCALE_STEPS[new_idx]
 
         self.scope.write(f"HORIZONTAL:MODE:SCALE {new}")
-        print(f"[SCOPE] horizontal scale ({'fine' if self._horiz_fine else 'coarse'}): {cur:.3e} -> {new:.3e} s/div")
+        print(f"[SCOPE] horizontal scale ({'fine' if self._horiz_fine else 'coarse'}): {self._horiz_fine_val if self._horiz_fine else cur:.3e} -> {new:.3e} s/div")
 
     def encoder_trigger_level(self, detents: int) -> None:
         # FIXME: the MSO has both A (primary) and B (delay) triggers for sequencing.
@@ -273,14 +280,14 @@ class Controller:
             self.set_channel_display(ch)
             return
 
-        # Encoder 1 rotation: vertical position of current active channel
+        # Encoder VP1 rotation: vertical position of current active channel
         if msg_id == "VP1":
             detents = int(val)  # should be +1 / -1
             if detents:
                 self.adjust_vertical_position(detents)
             return
 
-        # Encoder 2 rotation: horizontal position (global)
+        # Encoder HP1 rotation: horizontal position (global)
         if msg_id == "HP1":
             detents = int(val)
             if detents:
@@ -288,29 +295,31 @@ class Controller:
             return
 
         # Encoder VS1 rotation: vertical scale of current source channel (1/2/5 steps)
-        if msg_id == "VS1":
+        if msg_id == "KA1":
             detents = int(val)
             if detents: 
                 self.adjust_vertical_scale(detents)
             return
         
         # Encoder HS1 rotation: horizontal timebase scale (1/2/4 steps)
-        if msg_id == "HS1":
+        if msg_id == "KB1":
             detents = int(val)
             if detents: 
                 self.adjust_horizontal_scale(detents)
             return
 
         # VS0: toggle fine mode for vertical scale encoder
-        if msg_id == "VS0":
-            self._vert_fine = not self._vert_fine
-            print(f"[SCOPE] Vertical scale fine mode -> {'ON' if self._vert_fine else 'OFF'}")
+        if msg_id == "KA0":
+            if int(val) == 1: 
+                self._vert_fine = not self._vert_fine
+                print(f"[SCOPE] Vertical scale fine mode -> {'ON' if self._vert_fine else 'OFF'}")
             return
 
         # HS0: toggle fine mode for horizontal scale encoder
-        if msg_id == "HS0":
-            self._horiz_fine = not self._horiz_fine
-            print(f"[SCOPE] Horizontal scale fine mode -> {'ON' if self._horiz_fine else 'OFF'}")
+        if msg_id == "KB0":
+            if int(val) == 1: 
+                self._horiz_fine = not self._horiz_fine
+                print(f"[SCOPE] Horizontal scale fine mode -> {'ON' if self._horiz_fine else 'OFF'}")
             return
 
         # trigger level encoder
