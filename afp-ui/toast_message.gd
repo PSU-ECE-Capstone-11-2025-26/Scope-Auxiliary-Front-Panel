@@ -8,8 +8,8 @@ enum Type {
 }
 
 var _icons: Dictionary[Type, Texture2D] = {
-	Type.INFO: preload("res://icons/NodeInfo.svg"),
-	Type.WARN: preload("res://icons/NodeWarning.svg"),
+	Type.INFO: preload("res://icons/Info.svg"),
+	Type.WARN: preload("res://icons/Warning.svg"),
 	Type.ERROR: preload("res://icons/Error.svg"),
 }
 
