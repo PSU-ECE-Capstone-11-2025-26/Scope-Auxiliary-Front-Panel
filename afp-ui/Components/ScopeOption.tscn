@@ -1,0 +1,17 @@
+[gd_scene format=3 uid="uid://d3pe3thcjbqb4"]
+
+[ext_resource type="Script" uid="uid://w7j81qlqdvql" path="res://Components/ScopeOption.cs" id="1_nr3hc"]
+
+[node name="ScopeOption" type="HBoxContainer" unique_id=973258444]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_nr3hc")
+
+[node name="CheckBox" type="CheckBox" parent="." unique_id=685476852]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="." unique_id=656117553]
+layout_mode = 2

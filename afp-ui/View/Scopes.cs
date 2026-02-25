@@ -1,38 +1,37 @@
+using AFP.Components;
 using Godot;
 
 namespace AFP.View;
 
+struct Scope(string idn, bool enabled)
+{
+	private string _idn = idn;
+	private bool _enabled = enabled;
+}
+
 public partial class Scopes : ScrollContainer
 {
-    private TreeItem _root;
-    private Tree _tree;
+	[Export]
+	private PackedScene _scopeOptionScene;
+	private VBoxContainer _list;
+	private ButtonGroup _group;
 
     public override void _Ready()
     {
-        _tree = GetNode<Tree>("VBoxContainer/Tree");
-        _root = _tree.CreateItem();
-        _tree.HideRoot = true;
-        _tree.SetColumnTitle(0,  "EN");
-        _tree.SetColumnTitle(1, "IDN");
-        _tree.ColumnTitlesVisible = true;
-        _tree.SetColumnCustomMinimumWidth(0, 20);
-        _tree.SetColumnExpand(0, false);
-        _tree.SetColumnExpand(1, true);
-
+	    _list = GetNode<VBoxContainer>("ScopesList");
+	    _group = new ButtonGroup();
+	    _group.AllowUnpress = true;
         for (var i = 0; i < 5; i++)
         {
-            AddScope(false, "USB0::0x0699::0x0363::C102912::INSTR");
-            AddScope(false, "TCPIP::192.168.0.1::INSTR");
+            AddScope("USB0::0x0699::0x0363::C102912::INSTR", true);
+            AddScope("TCPIP::192.168.0.1::INSTR", false);
         }
     }
 
-    private void AddScope(bool enabled, string idn)
+    private void AddScope(string idn, bool enabled)
     {
-        TreeItem sc = _tree.CreateItem(_root);
-        sc.SetCellMode(0, TreeItem.TreeCellMode.Check);
-        sc.SetChecked(0, enabled);
-        sc.SetEditable(0, true);
-        sc.SetSelectable(1, false);
-        sc.SetText(1, idn);
+	    var s = _scopeOptionScene.Instantiate<ScopeOption>();
+	    s.Init(idn, enabled, _group);
+	    _list.AddChild(s);
     }
 }

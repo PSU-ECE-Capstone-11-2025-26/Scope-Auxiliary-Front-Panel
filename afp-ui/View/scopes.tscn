@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://crlrix2vhkkqh"]
 
 [ext_resource type="Script" uid="uid://dcurvmukapf45" path="res://View/Scopes.cs" id="1_2bpkd"]
+[ext_resource type="PackedScene" uid="uid://d3pe3thcjbqb4" path="res://Components/ScopeOption.tscn" id="2_vsqdn"]
 
 [node name="ScrollContainer" type="ScrollContainer" unique_id=550140721]
 anchors_preset = 15
@@ -9,16 +10,9 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_2bpkd")
+_scopeOptionScene = ExtResource("2_vsqdn")
 
-[node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=1941851574]
+[node name="ScopesList" type="VBoxContainer" parent="." unique_id=1941851574]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-
-[node name="Tree" type="Tree" parent="VBoxContainer" unique_id=705078223]
-layout_mode = 2
-size_flags_vertical = 3
-columns = 2
-column_titles_visible = true
-hide_folding = true
-hide_root = true
