@@ -4,8 +4,8 @@ namespace AFP;
 
 public partial class Main : Control
 {
-    
-    private const float DisplaySize = 5.0f;
+    // specs from https://4dsystems.com.au/products/gen4-4dpi-70ct-clb/
+    private const float DisplaySize = 7.0f;
     private const int DisplayWidth = 800;
     private const int DisplayHeight = 480;
 

@@ -7,5 +7,5 @@ public partial class TabConfig : Resource
 {
 
     [Export] public Texture2D Icon { get; set; }
-    [Export] public int MaxIconWidth { get; set; } = 25;
+    [Export] public int MaxIconWidth { get; set; } = 35;
 }
