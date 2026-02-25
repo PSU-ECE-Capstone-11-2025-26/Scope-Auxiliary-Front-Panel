@@ -8,16 +8,19 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+size_flags_vertical = 3
 script = ExtResource("1_tt30a")
 metadata/_tab_index = 0
 
-[node name="ScrollContainer" type="ScrollContainer" parent="." unique_id=1863768254]
+[node name="RichTextLabel" type="RichTextLabel" parent="." unique_id=1371944250]
 layout_mode = 2
-size_flags_vertical = 3
+bbcode_enabled = true
+text = "	[b][color=#1DB5D8]TEKTRONIX[/color][/b] AUXILIARY FRONT PANEL
+"
+fit_content = true
 
-[node name="SelectedScopes" type="Tree" parent="ScrollContainer" unique_id=859540660]
+[node name="Tree" type="Tree" parent="." unique_id=638129857]
+clip_contents = false
 layout_mode = 2
-size_flags_horizontal = 3
 size_flags_vertical = 3
-columns = 3
-column_titles_visible = true
+columns = 2
