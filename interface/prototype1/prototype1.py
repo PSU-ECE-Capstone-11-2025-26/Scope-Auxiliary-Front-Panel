@@ -7,12 +7,16 @@ Prototype control scanner -> UART event stream
 Message format (newline terminated):
   <ID>:<VALUE>\n
 
-Semantics:
+Semantics (PRESS-ONLY):
 - Encoders: ID:+1 / ID:-1 per detent step
-- Encoder push: ID:1 on press, ID:0 on release
-- Momentary buttons (macros): ID:1 on press, ID:0 on release
-- Channel select buttons (toggle): ID:0/1 (new latched state) on press
-- Channel LEDs: follow the latched state for CH1..CH6
+- Encoder push: ID:1 on press (NO release)
+- Buttons (macros + channels): ID:1 on press (NO release)
+- Indicators: Pico updates indicators ONLY from UART RX commands sent by Pi.
+
+Indicator ID convention:
+  Indicator IDs are the control ID prefixed with 'I'
+    e.g. V10  is CH1 button press event (Pico->Pi)
+         IV10 is CH1 indicator command (Pi->Pico)
 
 Notes:
 - Inputs are active-low (PULL_UP): pressed == 0, released == 1
@@ -20,12 +24,9 @@ Notes:
 """
 
 # ---------------- UART CONFIG ----------------
-# We repurpose CH7/CH8 BUTTON pins for UART0:
-#   UART0 TX: GP0, GP12, GP16
-#   UART0 RX: GP1, GP13, GP17
 UART_ID = 0
-UART_TX = 16   # was CH7 button
-UART_RX = 17   # was CH8 button
+UART_TX = 16
+UART_RX = 17
 BAUD    = 115200
 
 uart = UART(UART_ID, BAUD, tx=Pin(UART_TX), rx=Pin(UART_RX))
@@ -40,8 +41,6 @@ def send(btn_id, value):
         print(msg, end="")
 
 # ---------------- Quadrature decode LUT ----------------
-# index = (old_state<<2) | new_state, where state = (A<<1)|B
-# LUT[index] returns +1/-1 for valid quarter-steps; 0 for invalid transitions.
 LUT = [0]*16
 LUT[0b0001] = +1
 LUT[0b0010] = -1
@@ -93,13 +92,14 @@ def update_encoder(e):
                 e["acc"] += e["STEP"]
                 send(e["id_rot"], -1)
 
-    # push switch (momentary)
+    # push switch (PRESS ONLY)
     v = e["sw"].value()
     now = utime.ticks_ms()
     if v != e["last_sw"] and utime.ticks_diff(now, e["t_sw"]) > DEBOUNCE_MS:
         e["t_sw"] = now
         e["last_sw"] = v
-        send(e["id_sw"], 1 if v == 0 else 0)
+        if v == 0:  # pressed
+            send(e["id_sw"], 1)
 
 # ---------------- Button helpers ----------------
 def make_button(gpio, btn_id, name=None):
@@ -112,31 +112,20 @@ def make_button(gpio, btn_id, name=None):
         "t": utime.ticks_ms()
     }
 
-def update_button_edge(b):
-    """Momentary button: emit 1 on press, 0 on release."""
+def update_button_press_only(b):
+    """Button: emit 1 on press only (NO release)."""
     v = b["pin"].value()
     now = utime.ticks_ms()
     if v != b["last"] and utime.ticks_diff(now, b["t"]) > DEBOUNCE_MS:
         b["t"] = now
         b["last"] = v
-        send(b["id"], 1 if v == 0 else 0)
-
-def pressed_event(b):
-    """True only on a debounced press (active-low)."""
-    v = b["pin"].value()
-    now = utime.ticks_ms()
-    if v != b["last"] and utime.ticks_diff(now, b["t"]) > DEBOUNCE_MS:
-        b["t"] = now
-        b["last"] = v
-        return (v == 0)
-    return False
+        if v == 0:  # pressed
+            send(b["id"], 1)
 
 # ---------------- PIN MAP + ID MAP ----------------
-# Encoders (IDs from your list):
 enc1 = make_encoder(a_pin=1, b_pin=2, sw_pin=0, id_rot="KA1", id_sw="KA0", DIR=-1, STEP=4, name="EN1")
 enc2 = make_encoder(a_pin=4, b_pin=5, sw_pin=3, id_rot="KB1", id_sw="KB0", DIR=-1, STEP=4, name="EN2")
 
-# Macros (momentary): M10..M40
 macros = [
     make_button(6, "M10", "MACRO1"),
     make_button(7, "M20", "MACRO2"),
@@ -144,19 +133,14 @@ macros = [
     make_button(9, "M40", "MACRO4"),
 ]
 
-# Channel buttons (toggle) — keep CH1..CH6 only
 CH_BTN_PINS = [10,11,12,13,14,15]            # CH1..CH6
 CH_IDS      = ["V10","V20","V30","V40","V50","V60"]
 ch_btn = [make_button(CH_BTN_PINS[i], CH_IDS[i], f"CH{i+1}") for i in range(6)]
 
-# Channel LEDs — keep CH1..CH6 only (but you can still leave 27/28 wired physically)
 CH_LED_PINS_ALL = [18,19,20,21,22,26,27,28]  # CH1..CH8 LED pins (wired)
 CH_LED_PINS = CH_LED_PINS_ALL[:6]            # active LEDs: CH1..CH6
 ch_led = [Pin(pin, Pin.OUT) for pin in CH_LED_PINS]
 
-# Set this to match your LED wiring:
-# True: GPIO HIGH turns LED ON (GPIO->res->LED->GND)
-# False: GPIO LOW turns LED ON (3V3->res->LED->GPIO sink)
 ACTIVE_HIGH = True
 
 def led_write(i, on):
@@ -165,7 +149,7 @@ def led_write(i, on):
     else:
         ch_led[i].value(0 if on else 1)
 
-# state for channel LEDs (0=off, 1=on) for CH1..CH6
+# cache (mirrors Pi commands; NOT used for decisions)
 ch_state = [0]*6
 for i in range(6):
     led_write(i, False)
@@ -180,11 +164,11 @@ def print_gpio_assignments():
     print("  EN2: A=GP{} B=GP{} SW=GP{}  -> {} (turn), {} (push)".format(
         enc2["a_pin"], enc2["b_pin"], enc2["sw_pin"], enc2["id_rot"], enc2["id_sw"]))
 
-    print("\nMacros (momentary):")
+    print("\nMacros (press-only):")
     for b in macros:
         print("  GP{} -> {}".format(b["gpio"], b["id"]))
 
-    print("\nChannel buttons (toggle):")
+    print("\nChannel buttons (press-only):")
     for i in range(6):
         print("  CH{} GP{} -> {}".format(i+1, CH_BTN_PINS[i], CH_IDS[i]))
 
@@ -200,18 +184,62 @@ if DEBUG_ECHO:
 
 send("BOOT", 1)
 
+# ---------------- UART RECEIVE (Pi/Scope -> Pico Indicators) ----------------
+def handle_uart_message(line):
+    """
+    Expecting:
+        <ID>:<VALUE>
+
+    Indicator IDs are prefixed with 'I'
+      e.g. IV10:1  -> turn CH1 indicator ON
+           IV20:0  -> turn CH2 indicator OFF
+    """
+    try:
+        msg = line.strip()
+        if not msg:
+            return
+
+        parts = msg.split(":")
+        if len(parts) != 2:
+            return
+
+        msg_id, value = parts[0], parts[1]
+
+        if not msg_id.startswith("I"):
+            return
+
+        base_id = msg_id[1:]   # "IV10" -> "V10"
+        state = int(value)
+
+        if base_id in CH_IDS:
+            idx = CH_IDS.index(base_id)
+            ch_state[idx] = state
+            led_write(idx, state)
+
+    except Exception as e:
+        if DEBUG_ECHO:
+            print("UART parse error:", e)
+
+def poll_uart():
+    while uart.any():
+        line = uart.readline()
+        if line:
+            try:
+                handle_uart_message(line.decode())
+            except:
+                pass
+
+# ---------------- Main Loop ----------------
 while True:
     update_encoder(enc1)
     update_encoder(enc2)
 
     for b in macros:
-        update_button_edge(b)
+        update_button_press_only(b)
 
-    # Toggle each channel LED on button press (CH1..CH6)
-    for i, b in enumerate(ch_btn):
-        if pressed_event(b):
-            ch_state[i] ^= 1
-            led_write(i, ch_state[i])
-            send(CH_IDS[i], ch_state[i])  # send new latched state
+    for b in ch_btn:
+        update_button_press_only(b)
+
+    poll_uart()
 
     utime.sleep_ms(1)
