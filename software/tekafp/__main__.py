@@ -159,6 +159,11 @@ class Controller:
             self.scope.write("ACQUIRE:STATE RUN")
             print("[SCOPE] Run/Stop -> RUN")
             return
+        
+    # Run the scope's AutoSet feature
+    def autoset(self) -> None:
+        self.scope.write("AUTOSET EXECUTE")
+        print("[SCOPE] AutoSet executed")
 
     # Toggle the scope's Fast Acquire state
     def toggle_fast_acquire(self) -> None:
@@ -242,6 +247,11 @@ class Controller:
         # Fast Acquire button
         if msg_id == "AF0":
             self.toggle_fast_acquire()
+            return
+
+        # AutoSet button
+        if msg_id == "XA0":
+            self.autoset()
             return
 
 def main() -> None:
