@@ -160,6 +160,20 @@ class Controller:
             print("[SCOPE] Run/Stop -> RUN")
             return
 
+    # Toggle the scope's Fast Acquire state
+    def toggle_fast_acquire(self) -> None:
+        resp = self.scope.query("FASTACQ:STATE?").strip().upper()
+
+        # Tek scopes may return headers, e.g. ":FASTACQ:STATE 1"
+        if resp.endswith("1") or resp.endswith("ON"):
+            self.scope.write("FASTACQ:STATE OFF")
+            print("[SCOPE] Fast Acquire -> OFF")
+            return
+        else:
+            self.scope.write("FASTACQ:STATE ON")
+            print("[SCOPE] Fast Acquire -> ON")
+            return
+
     # UART event handler
     def handle_input(self, inp: Input) -> None:
         """
@@ -223,6 +237,11 @@ class Controller:
         # Run/Stop button
         if msg_id == "AR0":
             self.toggle_run_stop()
+            return
+        
+        # Fast Acquire button
+        if msg_id == "AF0":
+            self.toggle_fast_acquire()
             return
 
 def main() -> None:
