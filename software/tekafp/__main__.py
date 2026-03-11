@@ -159,6 +159,11 @@ class Controller:
             self.scope.write("ACQUIRE:STATE RUN")
             print("[SCOPE] Run/Stop -> RUN")
             return
+        
+    # Run the scope's AutoSet feature
+    def autoset(self) -> None:
+        self.scope.write("AUTOSET EXECUTE")
+        print("[SCOPE] AutoSet executed")
 
     # UART event handler
     def handle_input(self, inp: Input) -> None:
@@ -223,6 +228,11 @@ class Controller:
         # Run/Stop button
         if msg_id == "AR0":
             self.toggle_run_stop()
+            return
+
+        # AutoSet button
+        if msg_id == "XA0":
+            self.autoset()
             return
 
 def main() -> None:
