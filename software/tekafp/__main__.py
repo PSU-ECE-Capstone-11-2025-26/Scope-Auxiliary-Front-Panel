@@ -187,7 +187,7 @@ class Controller:
         val = inp.value
 
         # Channel Selection
-        if msg_id in ("AF0", "V20", "V30", "V40", "V50", "V60", "V70", "V80"):
+        if msg_id in ("V10", "V20", "V30", "V40", "V50", "V60", "V70", "V80"):
             ch = int(msg_id[1])  # 'V10' -> 1, 'V60' -> 6
             self.set_channel_display(ch)
             return
@@ -240,7 +240,7 @@ class Controller:
             return
         
         # Fast Acquire button
-        if msg_id == "V10":
+        if msg_id == "AF0":
             self.toggle_fast_acquire()
             return
 
