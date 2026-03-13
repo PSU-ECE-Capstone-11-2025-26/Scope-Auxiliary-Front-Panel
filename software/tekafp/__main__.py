@@ -117,7 +117,7 @@ class Controller:
         if channel not in range(1,9):
             return
 
-        msg = f"V{channel}0:{1 if state else 0}\n".encode("utf-8")
+        msg = f"IV{channel}0:{1 if state else 0}\n".encode("utf-8")
         self.bridge.queue_write(msg)
         print(f"[UART]->PICO] {msg.decode().strip()}")
 
@@ -466,6 +466,7 @@ def main() -> None:
                         pass  # TODO stop recording for slot data.slot
                 case _:
                     print(f"Unknown or incorrect packet type {data.type}")
+
     last_sync = time.monotonic()
     sync_period_s = 0.25
 
