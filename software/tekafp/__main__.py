@@ -1,5 +1,6 @@
 import argparse
 import threading
+import time
 
 import pyvisa
 from pyvisa.resources import MessageBasedResource
@@ -81,8 +82,35 @@ class Controller:
 
         self._channels: dict[int, bool] = {ch: False for ch in range(1, 9)}
         self._source_channel: int = 0
-
         self._vert_fine: bool = False # fine mode toggle for vertical scale
+
+    def get_scope_channel_state(self, channel: int) -> bool:
+        resp = self.scope.query(f"DISPLAY:GLOBAL:CH{channel}:STATE?").strip().upper()
+        return resp.endswith("1") or resp.endswith("ON")
+
+    def sync_channels_from_scope(self) -> None:
+        changed = False
+
+        for ch in range(1, 9):
+            actual = self.get_scope_channel_state(ch)
+            if self._channels[ch] != actual:
+                self._channels[ch] = actual
+                self.send_channel_led(ch, actual)
+                changed = True
+                print(f"[SYNC] CH{ch} -> {actual}")
+
+        # Keep selected source sane if current source is now off
+        if self._source_channel != 0 and not self._channels[self._source_channel]:
+            highest = 0
+            for k, v in self._channels.items():
+                if v:
+                    highest = k
+            self._source_channel = highest
+
+            if changed and self._source_channel == 0:
+                self.scope.write(f"DISPLAY:SELECT:SOURCE:NONE")
+            elif changed:
+                self.scope.write(f"DISPLAY:SELECT:SOURCE:CH{self._source_channel}")
 
     def send_channel_led(self, channel: int, state: bool) -> None:
         # Send indicator update back to Pico
@@ -369,7 +397,6 @@ def main() -> None:
     api_thead.start()
     startup_event.wait()
 
-<<<<<<< HEAD
     # ctrl setup
     rm: pyvisa.ResourceManager = pyvisa.ResourceManager()
     scopes: dict[str, Controller] = {}
@@ -439,11 +466,8 @@ def main() -> None:
                         pass  # TODO stop recording for slot data.slot
                 case _:
                     print(f"Unknown or incorrect packet type {data.type}")
-=======
-    bridge = connect_uart()
-    controller = Controller(scope, bridge)
-    controller.sync_all_channel_leds()
->>>>>>> 79e1ac7 (added startup LED sync between scope and pico)
+    last_sync = time.monotonic()
+    sync_period_s = 0.25
 
     try:
         while True:
@@ -459,6 +483,11 @@ def main() -> None:
             new_packet = get_raw_packet()
             if new_packet:
                 handle_packet(new_packet)
+
+            now = time.monotonic()
+            if scopes and now - last_sync > sync_period_s:
+                list(scopes.values())[0].sync_channels_from_scope()
+                last_sync = now
 
     except KeyboardInterrupt:
         print("\nExiting...")
