@@ -89,9 +89,9 @@ class Controller:
         if channel not in range(1,9):
             return
 
-        msg = f"V{channel}0:{1 if state else 0}\n"
-        self.bridge.write(msg.encode("utf-8"))
-        print(f"[UART]->PICO] {msg.strip()}")
+        msg = f"V{channel}0:{1 if state else 0}\n".encode("utf-8")
+        self.bridge.queue_write(msg)
+        print(f"[UART]->PICO] {msg.decode().strip()}")
 
     def set_channel_display(self, channel: int) -> None:
         if channel not in range(1, 9):
