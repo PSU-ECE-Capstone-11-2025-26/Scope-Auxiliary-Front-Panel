@@ -93,6 +93,10 @@ class Controller:
         self.bridge.queue_write(msg)
         print(f"[UART]->PICO] {msg.decode().strip()}")
 
+    def sync_all_channel_leds(self) -> None:
+        for ch in range(1,9):
+            self.send_channel_led(ch, self._channels[ch])
+
     def set_channel_display(self, channel: int) -> None:
         if channel not in range(1, 9):
             return
@@ -365,6 +369,7 @@ def main() -> None:
     api_thead.start()
     startup_event.wait()
 
+<<<<<<< HEAD
     # ctrl setup
     rm: pyvisa.ResourceManager = pyvisa.ResourceManager()
     scopes: dict[str, Controller] = {}
@@ -434,6 +439,11 @@ def main() -> None:
                         pass  # TODO stop recording for slot data.slot
                 case _:
                     print(f"Unknown or incorrect packet type {data.type}")
+=======
+    bridge = connect_uart()
+    controller = Controller(scope, bridge)
+    controller.sync_all_channel_leds()
+>>>>>>> 79e1ac7 (added startup LED sync between scope and pico)
 
     try:
         while True:
