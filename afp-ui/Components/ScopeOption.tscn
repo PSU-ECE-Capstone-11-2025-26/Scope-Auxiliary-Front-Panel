@@ -15,3 +15,4 @@ layout_mode = 2
 
 [node name="Label" type="Label" parent="." unique_id=656117553]
 layout_mode = 2
+theme_override_font_sizes/font_size = 20

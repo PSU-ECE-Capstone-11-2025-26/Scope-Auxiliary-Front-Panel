@@ -9,7 +9,7 @@ struct Scope(string idn, bool enabled)
 	private bool _enabled = enabled;
 }
 
-public partial class Scopes : ScrollContainer
+public partial class Scopes : VBoxContainer
 {
 	[Export]
 	private PackedScene _scopeOptionScene;
@@ -18,7 +18,7 @@ public partial class Scopes : ScrollContainer
 
     public override void _Ready()
     {
-	    _list = GetNode<VBoxContainer>("ScopesList");
+	    _list = GetNode<VBoxContainer>("%ScopesList");
 	    _group = new ButtonGroup();
 	    _group.AllowUnpress = true;
         for (var i = 0; i < 5; i++)

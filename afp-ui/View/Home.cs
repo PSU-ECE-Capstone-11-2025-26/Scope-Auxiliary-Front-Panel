@@ -13,7 +13,7 @@ public partial class Home : VBoxContainer
 		n.SetText(0, "Status");
 		n.SetText(1, "CONNECTED");
 		n = _root.CreateChild();
-		n.SetText(0, "Channel Count");
+		n.SetText(0, "Available Channels");
 		n.SetText(1, "8");
 	}
 }
