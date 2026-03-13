@@ -10,28 +10,27 @@ public enum ScopeStatus
 	Connecting,
 }
 
+
 public class PacketContainer
 {
-	public List<PacketBase> Packets { get; set; } = [];
+	public required string From { get; set; }
+	public required List<IPacketData> Data { get; set; }
 }
 
-[JsonDerivedType(typeof(ScopeInfoPacket), typeDiscriminator: "ScopeInfoPacket")]
-[JsonDerivedType(typeof(ScopeStatePacket), typeDiscriminator: "ScopeStatePacket")]
-[JsonDerivedType(typeof(ScopeListPacket), typeDiscriminator: "ScopeListPacket")]
-[JsonDerivedType(typeof(MacroRecordPacket), typeDiscriminator: "MacroRecordPacket")]
-[JsonDerivedType(typeof(MacroStatePacket), typeDiscriminator: "MacroStatePacket")]
-[JsonDerivedType(typeof(ScopeActionPacket), typeDiscriminator: "ScopeActionPacket")]
-public class PacketBase
-{
-    public required string From { get; set; }
-}
+[JsonDerivedType(typeof(ScopeInfoPacketData), typeDiscriminator: "ScopeInfo")]
+[JsonDerivedType(typeof(ScopeStatePacketData), typeDiscriminator: "ScopeState")]
+[JsonDerivedType(typeof(ScopeListPacketData), typeDiscriminator: "ScopeList")]
+[JsonDerivedType(typeof(MacroRecordPacketData), typeDiscriminator: "MacroRecord")]
+[JsonDerivedType(typeof(MacroStatePacketData), typeDiscriminator: "MacroState")]
+[JsonDerivedType(typeof(ScopeActionPacketData), typeDiscriminator: "ScopeAction")]
+public interface IPacketData {}
 
-public class ScopeInfoPacket : PacketBase
+public class ScopeInfoPacketData : IPacketData
 {
 	public required ushort ChannelCount { get; set; }
 }
 
-public class ScopeStatePacket : PacketBase
+public class ScopeStatePacketData : IPacketData
 {
 	public required ScopeStatus Status { get; set; }
 	public required bool[] Channels { get; set; }
@@ -43,23 +42,23 @@ public class ScopeStatePacket : PacketBase
 	public required bool ZoomEnabled { get; set; }
 }
 
-public class ScopeListPacket : PacketBase
+public class ScopeListPacketData : IPacketData
 {
 	public required string[] Scopes { get; set; }
 }
 
-public class MacroRecordPacket : PacketBase
+public class MacroRecordPacketData : IPacketData
 {
 	public required bool Record { get; set; }
 	public required ushort Slot { get; set; }
 }
 
-public class MacroStatePacket : PacketBase
+public class MacroStatePacketData : IPacketData
 {
 	public required bool[] Macros { get; set; }
 }
 
-public class ScopeActionPacket : PacketBase
+public class ScopeActionPacketData : IPacketData
 {
 	public required string Action { get; set; }
 	public required string Scope { get; set; }
