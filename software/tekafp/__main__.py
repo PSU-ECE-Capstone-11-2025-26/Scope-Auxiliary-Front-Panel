@@ -125,6 +125,7 @@ class Controller:
             self.scope.write(
                 f"DISPLAY:GLOBAL:CH{channel}:STATE {int(self._channels[channel])}"
             )
+            self.send_channel_led(channel, self._channels[channel]) 
 
         print(
             f"[SCOPE] CH{channel} display -> {self._channels[channel]} (source={self._source_channel})"  # noqa: E501
