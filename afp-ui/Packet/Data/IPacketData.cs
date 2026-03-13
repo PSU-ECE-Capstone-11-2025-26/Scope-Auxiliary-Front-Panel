@@ -1,0 +1,11 @@
+using System.Text.Json.Serialization;
+
+namespace AFP.Packet;
+
+[JsonDerivedType(typeof(ScopeInfoPacketData), typeDiscriminator: "ScopeInfo")]
+[JsonDerivedType(typeof(ScopeStatePacketData), typeDiscriminator: "ScopeState")]
+[JsonDerivedType(typeof(ScopeListPacketData), typeDiscriminator: "ScopeList")]
+[JsonDerivedType(typeof(MacroRecordPacketData), typeDiscriminator: "MacroRecord")]
+[JsonDerivedType(typeof(MacroStatePacketData), typeDiscriminator: "MacroState")]
+[JsonDerivedType(typeof(ScopeActionPacketData), typeDiscriminator: "ScopeAction")]
+public interface IPacketData {}
