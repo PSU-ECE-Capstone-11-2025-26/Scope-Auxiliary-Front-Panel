@@ -83,7 +83,7 @@ class Controller:
         self._source_channel: int = 0
 
         self._vert_fine: bool = False # fine mode toggle for vertical scale
-        
+
     def send_channel_led(self, channel: int, state: bool) -> None:
         # Send indicator update back to Pico
         if channel not in range(1,9):
@@ -383,7 +383,7 @@ def main() -> None:
         scope.write("HORIZONTAL:DELAY:MODE OFF")
         idn = scope.query("*IDN?").strip()
         print("Connected ctrl:", idn)
-        scopes[resource_name] = Controller(scope)
+        scopes[resource_name] = Controller(scope, bridge)
 
     def handle_packet(packet: RawPacket) -> None:
         for pd in packet["data"]:
