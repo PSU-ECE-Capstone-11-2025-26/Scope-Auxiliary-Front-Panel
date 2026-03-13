@@ -107,10 +107,11 @@ class Controller:
                     highest = k
             self._source_channel = highest
 
-            if changed and self._source_channel == 0:
-                self.scope.write(f"DISPLAY:SELECT:SOURCE:NONE")
-            elif changed:
-                self.scope.write(f"DISPLAY:SELECT:SOURCE:CH{self._source_channel}")
+            if changed:
+                if self._source_channel == 0:
+                    self.scope.write("DISPLAY:SELECT:SOURCE:NONE")
+                else:
+                    self.scope.write(f"DISPLAY:SELECT:SOURCE:CH{self._source_channel}")
 
     def send_channel_led(self, channel: int, state: bool) -> None:
         # Send indicator update back to Pico
