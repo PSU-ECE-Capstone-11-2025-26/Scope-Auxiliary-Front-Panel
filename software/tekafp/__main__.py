@@ -122,10 +122,6 @@ class Controller:
         self.bridge.queue_write(msg)
         print(f"[UART->PICO] {msg.decode().strip()}")
 
-    def sync_all_channel_leds(self) -> None:
-        for ch in range(1,9):
-            self.send_channel_led(ch, self._channels[ch])
-
     def set_channel_display(self, channel: int) -> None:
         if channel not in range(1, 9):
             return
