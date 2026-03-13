@@ -415,7 +415,9 @@ def main() -> None:
         scope.write("HORIZONTAL:DELAY:MODE OFF")
         idn = scope.query("*IDN?").strip()
         print("Connected ctrl:", idn)
-        scopes[resource_name] = Controller(scope, bridge)
+        ctrl = Controller(scope, bridge)
+        ctrl.sync_channels_from_scope()
+        scopes[resource_name] = ctrl
 
     def handle_packet(packet: RawPacket) -> None:
         for pd in packet["data"]:
