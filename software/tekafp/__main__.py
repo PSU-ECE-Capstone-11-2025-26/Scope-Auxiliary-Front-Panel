@@ -75,13 +75,23 @@ def connect_uart(mock: bool = False) -> UARTBridge:
 
 
 class Controller:
-    def __init__(self, scope: MessageBasedResource) -> None:
+    def __init__(self, scope: MessageBasedResource, bridge: UARTBridge) -> None:
         self.scope: MessageBasedResource = scope
+        self.bridge: UARTBridge = bridge 
 
         self._channels: dict[int, bool] = {ch: False for ch in range(1, 9)}
         self._source_channel: int = 0
 
         self._vert_fine: bool = False # fine mode toggle for vertical scale
+        
+    def send_channel_led(self, channel: int, state: bool) -> None:
+        # Send indicator update back to Pico
+        if channel not in range(1,9):
+            return
+
+        msg = f"V{channel}0:{1 if state else 0}\n"
+        self.bridge.write(msg.encode("utf-8"))
+        print(f"[UART]->PICO] {msg.strip()}")
 
     def set_channel_display(self, channel: int) -> None:
         if channel not in range(1, 9):
