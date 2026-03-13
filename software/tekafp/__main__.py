@@ -120,7 +120,7 @@ class Controller:
 
         msg = f"IV{channel}0:{1 if state else 0}\n".encode("utf-8")
         self.bridge.queue_write(msg)
-        print(f"[UART]->PICO] {msg.decode().strip()}")
+        print(f"[UART->PICO] {msg.decode().strip()}")
 
     def sync_all_channel_leds(self) -> None:
         for ch in range(1,9):
