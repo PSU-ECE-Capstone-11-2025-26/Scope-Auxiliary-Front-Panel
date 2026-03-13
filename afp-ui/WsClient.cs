@@ -1,3 +1,5 @@
+using System.Text.Json;
+using AFP.Packet;
 using Godot;
 
 namespace AFP;
@@ -46,6 +48,11 @@ public partial class WsClient : Node
 					if (_socket.WasStringPacket())
 					{
 						string packetText = packet.GetStringFromUtf8();
+						var packetObj = JsonSerializer.Deserialize<PacketContainer>(packetText);
+						foreach (IPacketData packetData in packetObj.Data)
+						{
+							GD.Print($"Received packet data of type {packetData.GetType().Name}");
+						}
 					}
 				}
 
