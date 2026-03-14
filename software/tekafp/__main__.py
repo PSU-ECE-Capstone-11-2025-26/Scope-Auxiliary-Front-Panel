@@ -637,11 +637,14 @@ class Controller:
         # zoom encoder
         if msg_id == "HZ1":
             # FIXME: needs to use 1-2-4 increments
-            cur: int = parse_resp(
+            cur: float = parse_resp(
                 self.scope.query("DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:HORIZONTAL:SCALE?"),
-                int
+                float
             )
-            new: int = clamp(cur + inp.value, 0.0, 10.0)
+            if cur <= 1 and inp.value > 0:
+                # match MSO behavior: if the zoom is adjusted, then turn it on
+                self.scope.write("DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:STATE ON")
+            new: int = int(clamp(cur + inp.value, 0.0, 10.0))
             self.scope.write(f"DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:HORIZONTAL:SCALE {new}")
 
         # pan encoder
