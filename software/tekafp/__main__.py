@@ -1,8 +1,10 @@
+import threading
 import time
 
 import pyvisa
 from pyvisa.resources import MessageBasedResource
 
+from tekafp.api_server import run_api_server
 from tekafp.input import Input
 from tekafp.uart import UARTBridge
 from tekafp.util import clamp, parse_resp
@@ -243,7 +245,7 @@ class Controller:
         if msg_id == "AR0":
             self.toggle_run_stop()
             return
-        
+
         # Fast Acquire button
         if msg_id == "AF0":
             self.toggle_fast_acquire()
@@ -260,6 +262,9 @@ def main() -> None:
 
     bridge = connect_uart()
     controller = Controller(scope)
+    print("Starting WebSocket API thread...")
+    api_thead = threading.Thread(target=run_api_server, daemon=True)
+    api_thead.start()
 
     try:
         while True:
