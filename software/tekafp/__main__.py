@@ -466,10 +466,9 @@ def main() -> None:
                 case _:
                     print(f"Unknown or incorrect packet type {data.type}")
 
-    last_sync = time.monotonic()
-    sync_period_s = 0.25
-
     try:
+        last_sync = time.monotonic()
+        sync_period_s = 0.05
         while True:
             raw = bridge.get()
             if scopes and raw:
