@@ -4,7 +4,7 @@ import time
 import pyvisa
 from pyvisa.resources import MessageBasedResource
 
-from tekafp.api_server import run_api_server
+from tekafp.api_server import get_packets, run_api_server
 from tekafp.input import Input
 from tekafp.uart import UARTBridge
 from tekafp.util import clamp, parse_resp
@@ -98,6 +98,9 @@ class Controller:
             f"[SCOPE] CH{channel} display -> {self._channels[channel]} (source={self._source_channel})"  # noqa: E501
         )
 
+    def handle_packet(self, packet: dict) -> None:
+        pass
+
     def adjust_vertical_position(self, detents: int) -> None:
         ch = self._source_channel
         cur = float(self.scope.query(f"CH{ch}:POSITION?").strip().split()[-1])
@@ -161,7 +164,7 @@ class Controller:
             self.scope.write("ACQUIRE:STATE RUN")
             print("[SCOPE] Run/Stop -> RUN")
             return
-        
+
     # Run the scope's AutoSet feature
     def autoset(self) -> None:
         self.scope.write("AUTOSET EXECUTE")
@@ -257,7 +260,7 @@ class Controller:
             return
 
 def main() -> None:
-    scope: MessageBasedResource = connect_scope()
+    scope: MessageBasedResource = None
     print("Connected scope:", scope.query("*IDN?").strip())
 
     bridge = connect_uart()
@@ -277,6 +280,8 @@ def main() -> None:
                     continue
 
                 controller.handle_input(inp)
+            for packet_data in get_packets():
+                controller.handle_packet(packet_data)
 
     except KeyboardInterrupt:
         print("\nExiting...")

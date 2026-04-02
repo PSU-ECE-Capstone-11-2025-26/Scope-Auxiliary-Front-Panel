@@ -15,6 +15,7 @@ classifiers = ["Private :: Do Not Upload"]
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.135.1",
+    "loguru>=0.7.3",
     "pyserial>=3.5",
     "pyusb==1.3.1",
     "pyvisa==1.16.1",
@@ -29,6 +30,7 @@ Repository = "https://github.com/PSU-ECE-Capstone-11-2025-26/demo-repository.git
 build = [
     "setuptools>=80.9.0",
     "pytest>=9.0.2",
+    "httpx>=0.28.0",
 ]
 dev = [
     "ruff>=0.14.11",
