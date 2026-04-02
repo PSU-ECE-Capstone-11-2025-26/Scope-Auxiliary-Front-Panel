@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from starlette.websockets import WebSocket, WebSocketDisconnect
 import uvicorn
 
-from tekafp.api_server.packets import BY_TYPE
+from tekafp.api_server.packets import PacketData
 
 
 app = FastAPI()
@@ -13,15 +13,25 @@ app.state.send_queue = Queue()
 app.state.receive_queue = Queue()
 
 
-def get_packets() -> dict:
+def get_packet() -> dict:
+    """Get a packet from the queue.
+    :return: A packet
+    :rtype: Generator[PacketData, None, None]
+    """
     packet = app.state.receive_queue.get()
-    for data in packet.values():
-        yield BY_TYPE[data["$type"]](data)
+    for data in packet["data"]:
+        cls = PacketData.REGISTRY[data["$type"]]
+        yield cls.from_dict(data)
 
 
-def send_packet(packet: dict) -> None:
+def send_packet_data(data: PacketData) -> None:
+    """Send packet data to the server
+
+    :param data: The packet data to send
+    :type data: PacketData
+    """
     try:
-        app.state.send_queue.put(packet)
+        app.state.send_queue.put(data.to_dict())
     except ShutDown:
         return  # TODO: log warning
 
@@ -41,10 +51,13 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
 
     async def send() -> None:
         while True:
-            packet = await asyncio.to_thread(
+            packet_data = await asyncio.to_thread(
                 websocket.app.state.send_queue.get, timeout=0.5
             )
-            await websocket.send_json(packet)
+            items = [packet_data]
+            while not websocket.app.state.send_queue.empty():
+                items.append(websocket.app.state.send_queue.get_nowait())
+            await websocket.send_json({"from": "server", "data": items})
 
     receive_task = asyncio.create_task(receive())
     send_task = asyncio.create_task(send())
