@@ -10,13 +10,6 @@ SCOPE_ACTION_PACKET = {
     ],
 }
 
-MACRO_RECORD_PACKET = {
-    "from": "client",
-    "data": [
-        {"$type": "MacroRecord", "record": True, "slot": 0},
-    ],
-}
-
 SCOPE_STATE_PACKET = {
     "from": "server",
     "data": [
@@ -49,10 +42,9 @@ def test_websocket_receive() -> None:
 def test_websocket_send() -> None:
     """Items in the send queue are forwarded to the client."""
     client = TestClient(app)
-    app.state.send_queue.put(SCOPE_STATE_PACKET)
+    app.state.send_queue.put(SCOPE_STATE_PACKET["data"][0])
 
     with client.websocket_connect("/ws") as ws:
-        ws.send_json(MACRO_RECORD_PACKET)
         data = ws.receive_json()
 
     assert data == SCOPE_STATE_PACKET
