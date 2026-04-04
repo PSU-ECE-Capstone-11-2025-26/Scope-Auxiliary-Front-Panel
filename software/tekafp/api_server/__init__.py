@@ -1,8 +1,7 @@
 import asyncio
-from queue import Queue, ShutDown
+from queue import Empty, Queue, ShutDown
 
-from fastapi import FastAPI
-from starlette.websockets import WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 import uvicorn
 
 from tekafp.api_server.packets import PacketData
@@ -16,12 +15,12 @@ app.state.receive_queue = Queue()
 def get_packet() -> dict:
     """Get a packet from the queue.
     :return: A packet
-    :rtype: Generator[PacketData, None, None]
+    :rtype: dict
     """
-    packet = app.state.receive_queue.get()
-    for data in packet["data"]:
-        cls = PacketData.REGISTRY[data["$type"]]
-        yield cls.from_dict(data)
+    try:
+        return app.state.receive_queue.get_nowait()
+    except Empty:
+        return {}
 
 
 def send_packet_data(data: PacketData) -> None:
