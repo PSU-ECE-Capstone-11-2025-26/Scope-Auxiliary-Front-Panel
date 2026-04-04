@@ -12,11 +12,11 @@ from tekafp.api_server.packets import (
 
 
 SAMPLE_DATA = [
-    (MacroRecordPacketData, {"record": True, "slot": 2}),
-    (MacroStatePacketData, {"macros": [True, False, True, False]}),
-    (ScopeActionPacketData, {"action": "enable", "scope": "USB0::::::::INSTR"}),
-    (ScopeInfoPacketData, {"channel_count": 8}),
-    (ScopeListPacketData, {"scopes": ["USB0::A::INSTR", "USB0::B::INSTR"]}),
+    (MacroRecordPacketData, {"type": "MacroRecord", "record": True, "slot": 2}),
+    (MacroStatePacketData, {"type": "MacroState", "macros": [True, False, True, False]}),
+    (ScopeActionPacketData, {"type": "ScopeAction", "action": "enable", "scope": "USB0::::::::INSTR"}),
+    (ScopeInfoPacketData, {"type": "ScopeInfo", "channel_count": 8}),
+    (ScopeListPacketData, {"type": "ScopeList", "scopes": ["USB0::A::INSTR", "USB0::B::INSTR"]}),
     (
         ScopeStatePacketData,
         {
@@ -60,7 +60,7 @@ def test_roundtrip(cls: type[PacketData], data: dict) -> None:
 
 
 def test_from_dict_ignores_extra_keys() -> None:
-    data = {"$type": "ScopeInfo", "channel_count": 4, "extra": "ignored"}
+    data = {"type": "ScopeInfo", "channel_count": 4, "extra": "ignored"}
     pkt = ScopeInfoPacketData.from_dict(data)
     assert pkt.channel_count == 4
     assert not hasattr(pkt, "extra")

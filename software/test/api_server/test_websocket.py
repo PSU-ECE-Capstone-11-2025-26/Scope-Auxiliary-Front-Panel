@@ -6,7 +6,7 @@ from tekafp.api_server import app
 SCOPE_ACTION_PACKET = {
     "from": "client",
     "data": [
-        {"$type": "ScopeAction", "action": "enable", "scope": "USB0::::::::INSTR"},
+        {"type": "ScopeAction", "action": "enable", "scope": "USB0::::::::INSTR"},
     ],
 }
 
@@ -14,7 +14,7 @@ SCOPE_STATE_PACKET = {
     "from": "server",
     "data": [
         {
-            "$type": "ScopeState",
+            "type": "ScopeState",
             "status": "connected",
             "channels": [False, False, False, True],
             "source_channel": 0,
