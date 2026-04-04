@@ -4,14 +4,14 @@ from tekafp.api_server import app
 
 
 SCOPE_ACTION_PACKET = {
-    "from": "client",
+    "origin": "client",
     "data": [
         {"type": "ScopeAction", "action": "enable", "scope": "USB0::::::::INSTR"},
     ],
 }
 
 SCOPE_STATE_PACKET = {
-    "from": "server",
+    "origin": "server",
     "data": [
         {
             "type": "ScopeState",

@@ -1,6 +1,10 @@
 from dataclasses import asdict, dataclass, fields
-from typing import ClassVar
+from typing import ClassVar, TypedDict
 
+
+class RawPacket(TypedDict):
+    origin: str
+    data: list[dict]
 
 @dataclass
 class PacketData:
@@ -17,14 +21,13 @@ class PacketData:
         field_names = {f.name for f in fields(cls)}
         return cls(**{k: v for k, v in data.items() if k in field_names})
 
+    @classmethod
+    def decode(cls, data: dict) -> "PacketData":
+        subclass = cls.REGISTRY[data["type"]]
+        return subclass.from_dict(data)
+
     def to_dict(self) -> dict:
         return asdict(self)
-
-
-@dataclass
-class PacketContainer:
-    From: str
-    Data: list[PacketData]
 
 
 @dataclass

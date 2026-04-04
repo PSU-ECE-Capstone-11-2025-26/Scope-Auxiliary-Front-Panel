@@ -1,12 +1,18 @@
 import threading
-import time
 
 import pyvisa
 from pyvisa.resources import MessageBasedResource
 
-from tekafp.api_server import get_packet, run_api_server, send_packet_data
+from tekafp.api_server import (
+    RawPacket,
+    get_raw_packet,
+    run_api_server,
+    send_packet_data,
+    startup_event,
+)
 from tekafp.api_server.packets import (
     MacroRecordPacketData,
+    PacketData,
     ScopeActionPacketData,
     ScopeListPacketData,
 )
@@ -244,7 +250,7 @@ def main() -> None:
     print("Starting WebSocket API thread...")
     api_thead = threading.Thread(target=run_api_server, daemon=True)
     api_thead.start()
-    time.sleep(1)  # wait a second for api thread to start
+    startup_event.wait()
 
     # ctrl setup
     rm: pyvisa.ResourceManager = pyvisa.ResourceManager()
@@ -265,8 +271,9 @@ def main() -> None:
         print("Connected ctrl:", scope.query("*IDN?").strip())
         scopes[idn] = Controller(scope)
 
-    def handle_packet(packet: dict) -> None:
-        for data in packet["data"]:
+    def handle_packet(packet: RawPacket) -> None:
+        for pd in packet["data"]:
+            data = PacketData.decode(pd)
             match data:
                 case ScopeActionPacketData(action=a):
                     match a:
@@ -297,17 +304,18 @@ def main() -> None:
 
     try:
         while True:
-            if scopes:
-                raw = bridge.get()
-                if raw:
-                    try:
-                        inp = Input.from_bytes(raw)
-                    except Exception as e:
-                        print(f"Bad UART message {raw!r}: {e}")
-                        continue
-                    # TODO: iterate all scopes instead to control multiple at once
-                    list(scopes.values())[0].handle_input(inp)
-                handle_packet(get_packet())
+            raw = bridge.get()
+            if scopes and raw:
+                try:
+                    inp = Input.from_bytes(raw)
+                except Exception as e:
+                    print(f"Bad UART message {raw!r}: {e}")
+                    continue
+                # TODO: iterate all scopes instead to control multiple at once
+                list(scopes.values())[0].handle_input(inp)
+            new_packet = get_raw_packet()
+            if new_packet:
+                handle_packet(new_packet)
 
     except KeyboardInterrupt:
         print("\nExiting...")

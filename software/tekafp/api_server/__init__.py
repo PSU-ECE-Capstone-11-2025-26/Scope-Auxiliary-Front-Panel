@@ -1,18 +1,30 @@
 import asyncio
+from contextlib import asynccontextmanager
 from queue import Empty, Queue, ShutDown
+import threading
+from typing import AsyncGenerator, Generator
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 import uvicorn
 
-from tekafp.api_server.packets import PacketData
+from .packets import PacketData, RawPacket
 
 
-app = FastAPI()
+startup_event = threading.Event()
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
+    startup_event.set()
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 app.state.send_queue = Queue()
 app.state.receive_queue = Queue()
 
 
-def get_packet() -> dict:
+def get_raw_packet() -> dict:
     """Get a packet from the queue.
     :return: A packet
     :rtype: dict
