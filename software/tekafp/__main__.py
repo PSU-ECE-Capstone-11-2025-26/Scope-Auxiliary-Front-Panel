@@ -4,8 +4,12 @@ import time
 import pyvisa
 from pyvisa.resources import MessageBasedResource
 
-from tekafp.api_server import PacketData, get_packet, run_api_server
-from tekafp.api_server.packets import MacroRecordPacketData, ScopeActionPacketData
+from tekafp.api_server import get_packet, run_api_server, send_packet_data
+from tekafp.api_server.packets import (
+    MacroRecordPacketData,
+    ScopeActionPacketData,
+    ScopeListPacketData,
+)
 from tekafp.input import Input
 from tekafp.uart import UARTBridge
 from tekafp.util import clamp, parse_resp
@@ -22,29 +26,6 @@ SCOPE_TIMEOUT_MS = 5000
 # Tuning knobs for “feel”
 VERT_STEP_DIVS = 0.10  # Vertical position step per encoder detent (+/-1)
 HORIZ_STEP_PCT = 1.0  # Horizontal position step in percent (0..~100) per detent
-
-
-def connect_scope() -> MessageBasedResource:
-    rm = pyvisa.ResourceManager(PYVISA_BACKEND)
-
-    while True:
-        resources = rm.list_resources()
-        usb = [r for r in resources if r.startswith("USB")]
-
-        if usb:
-            scope: MessageBasedResource = rm.open_resource(usb[0])
-            scope.timeout = SCOPE_TIMEOUT_MS
-            scope.write_termination = "\n"
-            scope.read_termination = "\n"
-
-            # Make sure we're in a mode where horizontal position behaves like the
-            # front panel knob
-            # delay mode OFF => HORizontal:POSition works like HORIZONTAL POSITION knob
-            scope.write("HORIZONTAL:DELAY:MODE OFF")
-            return scope
-
-        print("No USB scope found, retrying in 2s...")
-        time.sleep(2)
 
 
 def connect_uart() -> UARTBridge:
@@ -98,28 +79,6 @@ class Controller:
         print(
             f"[SCOPE] CH{channel} display -> {self._channels[channel]} (source={self._source_channel})"  # noqa: E501
         )
-
-    def handle_packet(self, packet: dict) -> None:
-        data: PacketData
-        for data in packet["data"]:
-            if isinstance(data, ScopeActionPacketData):
-                if data.action == "enable":
-                    pass
-                    # TODO: if no scope is saved, wait to enable controller
-                    # or bridge until a scope is enabled (and connected)
-                elif data.action == "disable":
-                    pass  # TODO
-                else:
-                    print("Invalid scope action")
-            elif isinstance(data, MacroRecordPacketData):
-                if data.record:
-                    pass
-                    # TODO record for slot data.slot
-                    # If a different slot is recording, stop that one first.
-                else:
-                    pass  # TODO stop recording for slot data.slot
-            else:
-                print(f"Unknown or incorrect packet type {data['$type']}")
 
     def adjust_vertical_position(self, detents: int) -> None:
         ch = self._source_channel
@@ -280,34 +239,81 @@ class Controller:
             return
 
 def main() -> None:
-    scope: MessageBasedResource = None
-    print("Connected scope:", scope.query("*IDN?").strip())
-
+    # internal setup
     bridge = connect_uart()
-    controller = Controller(scope)
     print("Starting WebSocket API thread...")
     api_thead = threading.Thread(target=run_api_server, daemon=True)
     api_thead.start()
-    time.sleep(1) # wait a second for api thread to start
+    time.sleep(1)  # wait a second for api thread to start
+
+    # ctrl setup
+    rm: pyvisa.ResourceManager = pyvisa.ResourceManager()
+    scopes: dict[str, Controller] = {}
+
+    def connect_to_scope(idn: str) -> None:
+        scope: MessageBasedResource = rm.open_resource(
+            idn,
+            resource_pyclass=MessageBasedResource,
+            timeout=SCOPE_TIMEOUT_MS,
+            write_termination="\n",
+            read_termination="\n",
+        )
+        # Make sure we're in a mode where horizontal position behaves like the
+        # front panel knob
+        # delay mode OFF => HORizontal:POSition works like HORIZONTAL POSITION knob
+        scope.write("HORIZONTAL:DELAY:MODE OFF")
+        print("Connected ctrl:", scope.query("*IDN?").strip())
+        scopes[idn] = Controller(scope)
+
+    def handle_packet(packet: dict) -> None:
+        for data in packet["data"]:
+            match data:
+                case ScopeActionPacketData(action=a):
+                    match a:
+                        case "enable":
+                            if data.scope not in scopes:
+                                connect_to_scope(data.scope)
+                        case "disable":
+                            if data.scope in scopes:
+                                c = scopes.pop(data.scope)
+                                c.scope.close()
+                        case "list":
+                            send_packet_data(
+                                ScopeListPacketData(
+                                    rm.list_resources("(USB?*::INSTR|TCPIP?*::INSTR)")
+                                )
+                            )
+                        case _:
+                            print(f"Unknown action: {a}")
+                case MacroRecordPacketData():
+                    if data.record:
+                        pass
+                        # TODO record for slot data.slot
+                        # If a different slot is recording, stop that one first.
+                    else:
+                        pass  # TODO stop recording for slot data.slot
+                case _:
+                    print(f"Unknown or incorrect packet type {data.type}")
 
     try:
         while True:
-            raw = bridge.get()
-            if raw:
-                try:
-                    inp = Input.from_bytes(raw)
-                except Exception as e:
-                    print(f"Bad UART message {raw!r}: {e}")
-                    continue
-
-                controller.handle_input(inp)
-            for packet_data in get_packet():
-                controller.handle_packet(packet_data)
+            if scopes:
+                raw = bridge.get()
+                if raw:
+                    try:
+                        inp = Input.from_bytes(raw)
+                    except Exception as e:
+                        print(f"Bad UART message {raw!r}: {e}")
+                        continue
+                    # TODO: iterate all scopes instead to control multiple at once
+                    list(scopes.values())[0].handle_input(inp)
+                handle_packet(get_packet())
 
     except KeyboardInterrupt:
         print("\nExiting...")
     finally:
-        scope.close()
+        for ctrl in scopes.values():
+            ctrl.scope.close()
         bridge.close()
 
 

@@ -5,6 +5,7 @@ from typing import ClassVar
 @dataclass
 class PacketData:
     REGISTRY: ClassVar[dict[str, type["PacketData"]]] = {}
+    type: str
 
     def __init_subclass__(cls, **kwargs: object) -> None:
         super().__init_subclass__(**kwargs)

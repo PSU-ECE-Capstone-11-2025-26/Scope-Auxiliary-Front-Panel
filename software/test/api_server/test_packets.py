@@ -20,6 +20,7 @@ SAMPLE_DATA = [
     (
         ScopeStatePacketData,
         {
+            "type": "ScopeState",
             "status": "connected",
             "channels": [False, False, False, True],
             "source_channel": 0,
