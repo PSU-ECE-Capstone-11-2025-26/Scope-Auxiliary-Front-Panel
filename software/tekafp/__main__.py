@@ -89,6 +89,21 @@ class Controller:
         self._horiz_fine: bool = False # fine mode toggle for horizontal scale
         self._horiz_fine_val: float | None = None # tracks fine position internally
 
+    def seed_current_state_from_scope(self) -> None:
+        try:
+            # Ask scope which channel is currently the selected source
+            resp = self.scope.query("DISPLAY:SELECT:SOURCE?").strip()
+            # Response should be something like "CH1", "CH2", etc.
+            if resp.startswith("CH") and resp[2:].isdigit():
+                ch = int(resp[2:])
+                self._source_channel = ch
+                self._channels[ch] = True
+                print(f"[SCOPE] Synced source channel from scope: CH{ch}")
+            else:
+                print(f"[SCOPE] Could not parse source channel from: {resp!r}")
+        except Exception as e:
+            print(f"[SCOPE] Failed to sync state from scope: {e}")
+
     def set_channel_display(self, channel: int) -> None:
         if channel not in range(1, 9):
             return
@@ -296,28 +311,28 @@ class Controller:
             return
 
         # Encoder VS1 rotation: vertical scale of current source channel (1/2/5 steps)
-        if msg_id == "KA1":
+        if msg_id == "VS1":
             detents = int(val)
             if detents: 
                 self.adjust_vertical_scale(-detents)
             return
         
         # Encoder HS1 rotation: horizontal timebase scale (1/2/4 steps)
-        if msg_id == "KB1":
+        if msg_id == "HS1":
             detents = int(val)
             if detents: 
                 self.adjust_horizontal_scale(-detents)
             return
 
         # VS0: toggle fine mode for vertical scale encoder
-        if msg_id == "KA0":
+        if msg_id == "VS0":
             if int(val) == 1: 
                 self._vert_fine = not self._vert_fine
                 print(f"[SCOPE] Vertical scale fine mode -> {'ON' if self._vert_fine else 'OFF'}")
             return
 
         # HS0: toggle fine mode for horizontal scale encoder
-        if msg_id == "KB0":
+        if msg_id == "HS0":
             if int(val) == 1: 
                 self._horiz_fine = not self._horiz_fine
                 print(f"[SCOPE] Horizontal scale fine mode -> {'ON' if self._horiz_fine else 'OFF'}")
@@ -372,6 +387,7 @@ def main() -> None:
 
     bridge = connect_uart()
     controller = Controller(scope)
+    controller.seed_current_state_from_scope()
 
     try:
         while True:
