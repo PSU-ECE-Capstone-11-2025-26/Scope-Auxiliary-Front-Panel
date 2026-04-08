@@ -80,6 +80,8 @@ class Controller:
         self.scope: MessageBasedResource = scope
         self.bridge: UARTBridge = bridge 
 
+        self._sync_index: int = 1
+
         self._channels: dict[int, bool] = {ch: False for ch in range(1, 9)}
         self._source_channel: int = 0
         self._vert_fine: bool = False # fine mode toggle for vertical scale
@@ -88,30 +90,40 @@ class Controller:
         resp = self.scope.query(f"DISPLAY:GLOBAL:CH{channel}:STATE?").strip().upper()
         return resp.endswith("1") or resp.endswith("ON")
 
-    def sync_channels_from_scope(self) -> None:
-        changed = False
-
+    def sync_all_channels_from_scope(self) -> None:
         for ch in range(1, 9):
             actual = self.get_scope_channel_state(ch)
-            if self._channels[ch] != actual:
-                self._channels[ch] = actual
-                self.send_channel_led(ch, actual)
-                changed = True
-                print(f"[SYNC] CH{ch} -> {actual}")
+            self._channels[ch] = actual
+            self.send_channel_led(ch, actual)
+            print(f"[SYNC] CH{ch} -> {actual}")
 
-        # Keep selected source sane if current source is now off
-        if self._source_channel != 0 and not self._channels[self._source_channel]:
-            highest = 0
-            for k, v in self._channels.items():
-                if v:
-                    highest = k
-            self._source_channel = highest
+    def sync_channels_from_scope(self) -> None:
+        ch = self._sync_index
 
-            if changed:
+        actual = self.get_scope_channel_state(ch)
+        if self._channels[ch] != actual:
+            self._channels[ch] = actual
+            self.send_channel_led(ch, actual)
+            print(f"[SYNC] CH{ch} -> {actual}")
+
+            # Keep selected source sane if current source is now off
+            if self._source_channel != 0 and not self._channels[self._source_channel]:
+                highest = 0
+                for k, v in self._channels.items():
+                    if v:
+                        highest = k
+                self._source_channel = highest
+
+                # Always write, not just when changed, to ensure source updates if it was changed externally
                 if self._source_channel == 0:
                     self.scope.write("DISPLAY:SELECT:SOURCE:NONE")
                 else:
                     self.scope.write(f"DISPLAY:SELECT:SOURCE:CH{self._source_channel}")
+
+        self._sync_index += 1
+        if self._sync_index > 8:
+            self._sync_index = 1
+
 
     def send_channel_led(self, channel: int, state: bool) -> None:
         # Send indicator update back to Pico
@@ -468,6 +480,7 @@ def main() -> None:
 
     try:
         last_sync = time.monotonic()
+        last_input = 0.0 # no input yet
         sync_period_s = 0.05
         while True:
             raw = bridge.get()
@@ -477,15 +490,20 @@ def main() -> None:
                 except Exception as e:
                     print(f"Bad UART message {raw!r}: {e}")
                     continue
+
                 # iterating all scopes here would allow control of multiple at once
-                list(scopes.values())[0].handle_input(inp)
+                ctrl = list(scopes.values())[0]
+                ctrl.handle_input(inp)
+                last_input = time.monotonic()
+
             new_packet = get_raw_packet()
             if new_packet:
                 handle_packet(new_packet)
 
             now = time.monotonic()
-            if scopes and now - last_sync > sync_period_s:
-                list(scopes.values())[0].sync_channels_from_scope()
+            if scopes and now - last_sync > sync_period_s and now - last_input > 0.1:
+                ctrl = list(scopes.values())[0]
+                ctrl.sync_channels_from_scope()
                 last_sync = now
 
     except KeyboardInterrupt:
