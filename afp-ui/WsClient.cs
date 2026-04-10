@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text.Json;
 using AFP.Packet;
 using Godot;
@@ -6,10 +7,23 @@ namespace AFP;
 
 public partial class WsClient : Node
 {
+	public static WsClient Instance { get; private set; }
+
+	public Queue<PacketContainer> PacketQueue { get; private set; }
+
 	private WebSocketPeer _socket;
+
+	private readonly JsonSerializerOptions _options = new JsonSerializerOptions
+	{
+		PropertyNameCaseInsensitive = true,
+		PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+	};
+
 	public override void _Ready()
 	{
+		Instance = this;
 		_socket = new WebSocketPeer();
+		PacketQueue = new Queue<PacketContainer>();
 		SetProcess(false);
 	}
 
@@ -29,13 +43,19 @@ public partial class WsClient : Node
 			return false;
 		}
 	}
-	
+
+	public void SendPacket(PacketContainer packet)
+	{
+		string json = JsonSerializer.Serialize(packet, _options);
+		_socket.SendText(json);
+	}
+
 	public override void _Process(double delta)
 	{
 		_socket.Poll();
-		
+
 		WebSocketPeer.State state = _socket.GetReadyState();
-		
+
 		switch (state)
 		{
 			case WebSocketPeer.State.Connecting:
@@ -48,11 +68,8 @@ public partial class WsClient : Node
 					if (_socket.WasStringPacket())
 					{
 						string packetText = packet.GetStringFromUtf8();
-						var packetObj = JsonSerializer.Deserialize<PacketContainer>(packetText);
-						foreach (IPacketData packetData in packetObj.Data)
-						{
-							GD.Print($"Received packet data of type {packetData.GetType().Name}");
-						}
+						var packetObj = JsonSerializer.Deserialize<PacketContainer>(packetText, _options);
+						PacketQueue.Enqueue(packetObj);
 					}
 				}
 

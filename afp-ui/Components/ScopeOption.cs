@@ -4,11 +4,21 @@ namespace AFP.Components;
 
 public partial class ScopeOption : HBoxContainer
 {
-	public void Init(string idn, bool enabled, ButtonGroup group)
+	[Signal]
+	public delegate void ScopeToggledEventHandler(bool enabled, string resourceName);
+	private BaseButton.ToggledEventHandler _callback;
+	public void Init(string resourceName, bool enabled, ButtonGroup group)
 	{
-		GetNode<Label>("Label").Text = idn;
+		GetNode<Label>("Label").Text = resourceName;
 		var c = GetNode<CheckBox>("CheckBox");
+		_callback = on => EmitSignal(SignalName.ScopeToggled, on, resourceName);
+		c.Toggled += _callback;
 		c.ButtonGroup = group;
 		c.ButtonPressed = enabled;
+	}
+
+	public override void _ExitTree()
+	{
+		GetNode<CheckBox>("CheckBox").Toggled -= _callback;
 	}
 }

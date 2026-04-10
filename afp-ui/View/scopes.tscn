@@ -13,10 +13,9 @@ size_flags_vertical = 0
 script = ExtResource("1_2bpkd")
 _scopeOptionScene = ExtResource("2_vsqdn")
 
-[node name="RichTextLabel" type="RichTextLabel" parent="." unique_id=1310220524]
+[node name="RefreshButton" type="Button" parent="." unique_id=924973903]
 layout_mode = 2
-text = "Select an Instrument"
-fit_content = true
+text = "Refresh"
 
 [node name="ScrollContainer" type="ScrollContainer" parent="." unique_id=1918497559]
 layout_mode = 2
