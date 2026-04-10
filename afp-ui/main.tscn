@@ -10,6 +10,7 @@
 [ext_resource type="PackedScene" uid="uid://f11s6kxp5jcj" path="res://Components/toast.tscn" id="5_lquwl"]
 [ext_resource type="Texture2D" uid="uid://87tb7wbykssr" path="res://icons/Info.svg" id="6_dg77c"]
 [ext_resource type="Texture2D" uid="uid://cebugcksdw586" path="res://icons/Gear.svg" id="7_ycdy4"]
+[ext_resource type="PackedScene" uid="uid://bx465skthrxm1" path="res://View/settings.tscn" id="10_efxa6"]
 
 [sub_resource type="Resource" id="Resource_w48qg"]
 script = ExtResource("4_4c57u")
@@ -68,8 +69,7 @@ metadata/_tab_index = 1
 layout_mode = 2
 metadata/_tab_index = 2
 
-[node name="Settings" type="VBoxContainer" parent="TabContainer" unique_id=1630126976]
-visible = false
+[node name="Settings" parent="ViewManager" unique_id=1992328292 instance=ExtResource("10_efxa6")]
 layout_mode = 2
 
 [node name="Toast" parent="." unique_id=2003019277 instance=ExtResource("5_lquwl")]
