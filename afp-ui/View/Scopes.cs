@@ -45,7 +45,7 @@ public partial class Scopes : VBoxContainer
 	    _list.AddChild(s);
     }
 
-    public void ClearScopes()
+    private void ClearScopes()
     {
 	    foreach (Node node in _list.GetChildren())
 	    {
@@ -58,16 +58,10 @@ public partial class Scopes : VBoxContainer
     private void _on_scope_toggled(bool enabled, string resourceName)
     {
 	    GD.Print($"Scope {resourceName} toggle={enabled}");
-	    WsClient.Instance.SendPacket(new PacketContainer
-	    {
-		    Origin = "client",
-		    Data = [
-			    new ScopeActionPacketData
-			    {
-				    Action = enabled ? "enable" : "disable",
-				    Scope = resourceName
-			    }
-		    ]
-	    });
+	    WsClient.Instance.QueuePacketData(new ScopeActionPacketData
+		    {
+			    Action = enabled ? "enable" : "disable",
+			    Scope = resourceName
+		    });
     }
 }

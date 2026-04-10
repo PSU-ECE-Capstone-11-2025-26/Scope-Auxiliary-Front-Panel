@@ -1,6 +1,8 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using AFP.Packet;
+using AFP.Packet.Data;
 using Godot;
 
 namespace AFP;
@@ -9,7 +11,8 @@ public partial class WsClient : Node
 {
 	public static WsClient Instance { get; private set; }
 
-	public Queue<PacketContainer> PacketQueue { get; private set; }
+	public Queue<PacketContainer> ReceiveQueue { get; private set; }
+	private readonly Queue<IPacketData> _sendQueue = new();
 
 	private WebSocketPeer _socket;
 
@@ -23,7 +26,7 @@ public partial class WsClient : Node
 	{
 		Instance = this;
 		_socket = new WebSocketPeer();
-		PacketQueue = new Queue<PacketContainer>();
+		ReceiveQueue = new Queue<PacketContainer>();
 		SetProcess(false);
 	}
 
@@ -44,10 +47,27 @@ public partial class WsClient : Node
 		}
 	}
 
+	public void QueuePacketData(IPacketData data)
+	{
+		_sendQueue.Enqueue(data);
+	}
+
 	public void SendPacket(PacketContainer packet)
 	{
 		string json = JsonSerializer.Serialize(packet, _options);
 		_socket.SendText(json);
+	}
+
+	private void SendAllPacketData()
+	{
+		if (_sendQueue.Count == 0) return;
+		var pc = new PacketContainer
+		{
+			Origin = "client",
+			Data = _sendQueue.ToList(),
+		};
+		_sendQueue.Clear();
+		SendPacket(pc);
 	}
 
 	public override void _Process(double delta)
@@ -71,7 +91,7 @@ public partial class WsClient : Node
 					{
 						var packetObj = JsonSerializer.Deserialize<PacketContainer>(packetText, _options);
 						if (packetObj != null)
-							PacketQueue.Enqueue(packetObj);
+							ReceiveQueue.Enqueue(packetObj);
 						else
 						{
 							GD.PushWarning($"WebSocket: null from packet {packetText}");
@@ -83,6 +103,7 @@ public partial class WsClient : Node
 					}
 					
 				}
+				SendAllPacketData();
 
 				break;
 			case WebSocketPeer.State.Closing:

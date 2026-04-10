@@ -48,8 +48,8 @@ public partial class Main : Control
     private void ProcessPackets()
     {
 	    var client = WsClient.Instance;
-	    if (client.PacketQueue.Count == 0) return;
-	    PacketContainer pc = client.PacketQueue.Dequeue();
+	    if (client.ReceiveQueue.Count == 0) return;
+	    PacketContainer pc = client.ReceiveQueue.Dequeue();
 	    foreach (IPacketData pd in pc.Data)
 	    {
 		    if (pd is ScopeListPacketData sl)
