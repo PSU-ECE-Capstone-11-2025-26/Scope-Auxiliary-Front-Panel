@@ -36,7 +36,7 @@ SAMPLE_DATA = [
 
 def test_registry_keys() -> None:
     expected = {"MacroRecord", "MacroState", "ScopeAction", "ScopeInfo", "ScopeList", "ScopeState"}
-    assert set(PacketData.REGISTRY.keys()) == expected
+    assert set(PacketData._registry.keys()) == expected
 
 
 @pytest.mark.parametrize(("cls", "data"), SAMPLE_DATA)
@@ -48,13 +48,13 @@ def test_from_dict(cls: type[PacketData], data: dict) -> None:
 
 @pytest.mark.parametrize(("cls", "data"), SAMPLE_DATA)
 def test_to_dict(cls: type[PacketData], data: dict) -> None:
-    pkt = cls(**data)
+    pkt = cls(**{k: v for k, v in data.items() if k != "type"})
     assert pkt.to_dict() == data
 
 
 @pytest.mark.parametrize(("cls", "data"), SAMPLE_DATA)
 def test_roundtrip(cls: type[PacketData], data: dict) -> None:
-    original = cls(**data)
+    original = cls(**{k: v for k, v in data.items() if k != "type"})
     reconstructed = cls.from_dict(original.to_dict())
     assert original == reconstructed
 

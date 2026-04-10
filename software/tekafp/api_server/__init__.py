@@ -2,12 +2,12 @@ import asyncio
 from contextlib import asynccontextmanager
 from queue import Empty, Queue, ShutDown
 import threading
-from typing import AsyncGenerator, Generator
+from typing import AsyncGenerator
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 import uvicorn
 
-from .packets import PacketData, RawPacket
+from .packets import PacketData, RawPacket  # noqa: F401
 
 
 startup_event = threading.Event()
@@ -62,13 +62,16 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
 
     async def send() -> None:
         while True:
-            packet_data = await asyncio.to_thread(
-                websocket.app.state.send_queue.get, timeout=0.5
-            )
+            try:
+                packet_data = await asyncio.to_thread(
+                    websocket.app.state.send_queue.get, timeout=0.5
+                )
+            except Empty:
+                continue
             items = [packet_data]
             while not websocket.app.state.send_queue.empty():
                 items.append(websocket.app.state.send_queue.get_nowait())
-            await websocket.send_json({"from": "server", "data": items})
+            await websocket.send_json({"origin": "server", "data": items})
 
     receive_task = asyncio.create_task(receive())
     send_task = asyncio.create_task(send())

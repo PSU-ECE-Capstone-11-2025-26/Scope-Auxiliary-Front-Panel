@@ -21,6 +21,7 @@ dependencies = [
     "pyvisa==1.16.1",
     "pyvisa-py==0.8.1",
     "uvicorn>=0.41.0",
+    "websockets>=16.0",
 ]
 
 [project.urls]

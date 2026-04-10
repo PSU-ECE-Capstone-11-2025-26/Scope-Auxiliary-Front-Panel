@@ -1,3 +1,4 @@
+import argparse
 import threading
 
 import pyvisa
@@ -17,7 +18,7 @@ from tekafp.api_server.packets import (
     ScopeListPacketData,
 )
 from tekafp.input import Input
-from tekafp.uart import UARTBridge
+from tekafp.uart import MockUARTBridge, UARTBridge
 from tekafp.util import clamp, parse_resp
 
 
@@ -34,7 +35,9 @@ VERT_STEP_DIVS = 0.10  # Vertical position step per encoder detent (+/-1)
 HORIZ_STEP_PCT = 1.0  # Horizontal position step in percent (0..~100) per detent
 
 
-def connect_uart() -> UARTBridge:
+def connect_uart(mock: bool = False) -> UARTBridge:
+    if mock:
+        return MockUARTBridge(PORT, baudrate=BAUD, timeout=1, write_timeout=1)
     bridge = UARTBridge(PORT, baudrate=BAUD, timeout=1, write_timeout=1)
     if not bridge.connect():
         raise RuntimeError(f"Failed to open UART on {PORT}")
@@ -245,8 +248,11 @@ class Controller:
             return
 
 def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-m", "--mock", action="store_true", help="Run in mock mode")
+    args = parser.parse_args()
     # internal setup
-    bridge = connect_uart()
+    bridge = connect_uart(args.mock)
     print("Starting WebSocket API thread...")
     api_thead = threading.Thread(target=run_api_server, daemon=True)
     api_thead.start()
@@ -256,9 +262,9 @@ def main() -> None:
     rm: pyvisa.ResourceManager = pyvisa.ResourceManager()
     scopes: dict[str, Controller] = {}
 
-    def connect_to_scope(idn: str) -> None:
+    def connect_to_scope(resource_name: str) -> None:
         scope: MessageBasedResource = rm.open_resource(
-            idn,
+            resource_name,
             resource_pyclass=MessageBasedResource,
             timeout=SCOPE_TIMEOUT_MS,
             write_termination="\n",
@@ -268,28 +274,48 @@ def main() -> None:
         # front panel knob
         # delay mode OFF => HORizontal:POSition works like HORIZONTAL POSITION knob
         scope.write("HORIZONTAL:DELAY:MODE OFF")
-        print("Connected ctrl:", scope.query("*IDN?").strip())
-        scopes[idn] = Controller(scope)
+        idn = scope.query("*IDN?").strip()
+        print("Connected ctrl:", idn)
+        scopes[resource_name] = Controller(scope)
 
     def handle_packet(packet: RawPacket) -> None:
         for pd in packet["data"]:
             data = PacketData.decode(pd)
             match data:
                 case ScopeActionPacketData(action=a):
+                    print(f"Received packet action='{a}'")
                     match a:
                         case "enable":
-                            if data.scope not in scopes:
+                            print(f"enabling scope {data.scope}")
+                            if not args.mock and data.scope not in scopes:
                                 connect_to_scope(data.scope)
                         case "disable":
+                            print(f"disabling scope {data.scope}")
+                            if args.mock:
+                                break
                             if data.scope in scopes:
                                 c = scopes.pop(data.scope)
                                 c.scope.close()
+                            else:
+                                print(f"scope {data.scope} not enabled: ignoring")
                         case "list":
-                            send_packet_data(
-                                ScopeListPacketData(
-                                    rm.list_resources("(USB?*::INSTR|TCPIP?*::INSTR)")
+                            if args.mock:
+                                send_packet_data(
+                                    ScopeListPacketData(
+                                        [
+                                            "USB0::0x0699::0x0363::C102912::INSTR",
+                                            "USB0::0x0699::0x0408::B011823::INSTR",
+                                        ]
+                                    )
                                 )
-                            )
+                            else:
+                                send_packet_data(
+                                    ScopeListPacketData(
+                                        rm.list_resources(
+                                            "(USB?*::INSTR|TCPIP?*::INSTR)"
+                                        )
+                                    )
+                                )
                         case _:
                             print(f"Unknown action: {a}")
                 case MacroRecordPacketData():
@@ -311,7 +337,7 @@ def main() -> None:
                 except Exception as e:
                     print(f"Bad UART message {raw!r}: {e}")
                     continue
-                # TODO: iterate all scopes instead to control multiple at once
+                # iterating all scopes here would allow control of multiple at once
                 list(scopes.values())[0].handle_input(inp)
             new_packet = get_raw_packet()
             if new_packet:

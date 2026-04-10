@@ -1,4 +1,4 @@
-from dataclasses import asdict, dataclass, fields
+from dataclasses import asdict, dataclass, field, fields
 from typing import ClassVar, TypedDict
 
 
@@ -8,13 +8,14 @@ class RawPacket(TypedDict):
 
 @dataclass
 class PacketData:
-    REGISTRY: ClassVar[dict[str, type["PacketData"]]] = {}
-    type: str
+    _registry: ClassVar[dict[str, type["PacketData"]]] = {}
+    type: ClassVar[str] = ""
 
     def __init_subclass__(cls, **kwargs: object) -> None:
         super().__init_subclass__(**kwargs)
         name = cls.__name__.removesuffix("PacketData")
-        cls.REGISTRY[name] = cls
+        cls.type = name
+        cls._registry[name] = cls
 
     @classmethod
     def from_dict(cls, data: dict) -> "PacketData":
@@ -23,11 +24,11 @@ class PacketData:
 
     @classmethod
     def decode(cls, data: dict) -> "PacketData":
-        subclass = cls.REGISTRY[data["type"]]
+        subclass = cls._registry[data["type"]]
         return subclass.from_dict(data)
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        return {"type": self.type, **asdict(self)}
 
 
 @dataclass
