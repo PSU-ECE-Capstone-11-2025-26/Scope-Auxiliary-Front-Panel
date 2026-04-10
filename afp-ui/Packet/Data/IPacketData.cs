@@ -1,7 +1,8 @@
 using System.Text.Json.Serialization;
 
-namespace AFP.Packet;
+namespace AFP.Packet.Data;
 
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(ScopeInfoPacketData), typeDiscriminator: "ScopeInfo")]
 [JsonDerivedType(typeof(ScopeStatePacketData), typeDiscriminator: "ScopeState")]
 [JsonDerivedType(typeof(ScopeListPacketData), typeDiscriminator: "ScopeList")]
