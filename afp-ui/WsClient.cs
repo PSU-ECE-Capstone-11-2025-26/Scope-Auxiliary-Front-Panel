@@ -65,12 +65,23 @@ public partial class WsClient : Node
 				while (_socket.GetAvailablePacketCount() > 0)
 				{
 					byte[] packet = _socket.GetPacket();
-					if (_socket.WasStringPacket())
+					if (!_socket.WasStringPacket()) continue;
+					string packetText = packet.GetStringFromUtf8();
+					try
 					{
-						string packetText = packet.GetStringFromUtf8();
 						var packetObj = JsonSerializer.Deserialize<PacketContainer>(packetText, _options);
-						PacketQueue.Enqueue(packetObj);
+						if (packetObj != null)
+							PacketQueue.Enqueue(packetObj);
+						else
+						{
+							GD.PushWarning($"WebSocket: null from packet {packetText}");
+						}
 					}
+					catch (JsonException e)
+					{
+						GD.PushError($"WebSocket: failed to deserialize: {e.Message}");
+					}
+					
 				}
 
 				break;
