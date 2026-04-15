@@ -126,6 +126,9 @@ class Controller:
 
     def adjust_vertical_position(self, detents: int) -> None:
         ch = self._source_channel
+        if ch == 0:
+            print("[SCOPE] No active channel selected, ignoring vertical position.")
+            return
         cur = float(self.scope.query(f"CH{ch}:POSITION?").strip().split()[-1])
 
         new = cur + detents * VERT_STEP_DIVS
