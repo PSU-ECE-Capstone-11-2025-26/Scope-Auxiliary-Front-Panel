@@ -87,21 +87,6 @@ class Controller:
 
         self._vert_fine: bool = False # fine mode toggle for vertical scale
 
-    def seed_current_state_from_scope(self) -> None:
-        try:
-            # Ask scope which channel is currently the selected source
-            resp = self.scope.query("DISPLAY:SELECT:SOURCE?").strip()
-            # Response should be something like "CH1", "CH2", etc.
-            if resp.startswith("CH") and resp[2:].isdigit():
-                ch = int(resp[2:])
-                self._source_channel = ch
-                self._channels[ch] = True
-                print(f"[SCOPE] Synced source channel from scope: CH{ch}")
-            else:
-                print(f"[SCOPE] Could not parse source channel from: {resp!r}")
-        except Exception as e:
-            print(f"[SCOPE] Failed to sync state from scope: {e}")
-
     def set_channel_display(self, channel: int) -> None:
         if channel not in range(1, 9):
             return
@@ -365,7 +350,6 @@ def main() -> None:
 
     bridge = connect_uart()
     controller = Controller(scope)
-    controller.seed_current_state_from_scope()
 
     try:
         while True:
