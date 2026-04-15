@@ -1,0 +1,32 @@
+include:
+  file: trixie-minbase.yaml
+
+device:
+  layer: rpi4
+  class: pi4
+  hostname: tek-afp-$(uuidgen | cut -d'-' -f1)
+  user1: tek
+  user1pass: Team11Capstone!
+  storage_type: sd
+
+image:
+  name: tek-afp-pi4
+  compression: zstd
+  rootfs_type: ext4
+
+layer:
+  splash: rpi-splash-screen
+
+splash:
+  image_path: ${@SRCROOT}/splash.tga
+
+mmdebstrap:
+  packages:
+    - cage
+    - greetd
+    - openssh-server
+    - picocom
+    - python3
+    - python3-pip
+    - python3-venv
+  install-recommends: false

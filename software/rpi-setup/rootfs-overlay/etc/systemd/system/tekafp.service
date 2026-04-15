@@ -1,0 +1,13 @@
+[Unit]
+Description=Tektronix Auxiliary Front Panel (daemon)
+After=dev-serial0.device
+
+[Service]
+Type=simple
+User=tek
+ExecStart=/opt/tek/afp/venv/bin/python -m tekafp -m
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,13 @@
+[Unit]
+Description=Regenerate SSH host keys on first boot
+ConditionPathExists=!/var/lib/ssh-host-keys-regenerated
+Before=ssh.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'rm -f /etc/ssh/ssh_host_*'
+ExecStart=/usr/bin/ssh-keygen -A
+ExecStart=/bin/touch /var/lib/ssh-host-keys-regenerated
+
+[Install]
+WantedBy=multi-user.target

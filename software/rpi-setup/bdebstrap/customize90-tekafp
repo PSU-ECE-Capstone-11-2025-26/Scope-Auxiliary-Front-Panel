@@ -1,0 +1,25 @@
+#!/bin/bash
+set -eu
+
+rootfs=$1
+src="${SRCROOT:-${IGTOP}}/packages"
+
+shopt -s nullglob
+wheels=("$src"/*.whl)
+[[ ${#wheels[@]} -gt 0 ]] || { echo "customize90-pyvisa: no wheel found in $src" >&2; exit 1; }
+
+tmpdir=$(mktemp -d "$rootfs/tmp/pyvisa.XXXXXX")
+trap 'rm -rf "$tmpdir"' EXIT
+chroot_tmp="/tmp/$(basename "$tmpdir")"
+cp "${wheels[@]}" "$tmpdir/"
+
+chroot "$rootfs" groupadd -f afpusb
+chroot "$rootfs" usermod -aG afpusb tek
+
+chroot "$rootfs" python3 -m venv /opt/tek/afp/venv
+chroot "$rootfs" /opt/tek/afp/venv/bin/pip install --no-cache-dir \
+    "$chroot_tmp"/*.whl
+
+"$BDEBSTRAP_HOOKS/enable-units" "$rootfs" greetd
+"$BDEBSTRAP_HOOKS/enable-units" "$rootfs" tekafp
+"$BDEBSTRAP_HOOKS/enable-units" "$rootfs" regenerate-ssh-host-keys
