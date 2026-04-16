@@ -130,9 +130,35 @@ class Controller:
         if channel not in range(1,9):
             return
 
-        msg = f"IV{channel}0:{1 if state else 0}\n".encode("utf-8")
-        self.bridge.queue_write(msg)
-        print(f"[UART->PICO] {msg.decode().strip()}")
+        # Per-channel RGB color (R,G,B)
+        channel_colors: dict[int, tuple[int, int, int]] = {
+            1: (1, 1, 0), # Yellow
+            2: (0, 1, 1), # Cyan
+            3: (1, 0, 0), # Red
+            4: (0, 1, 0), # Lime Green
+            5: (1, 1, 0), # Orange approximation 
+            6: (0, 0, 1), # Blue
+            7: (1, 0, 1), # Purple
+            8: (0, 1, 0), # Forest Green approximation
+        }
+
+        r, g, b = channel_colors[channel]
+
+        if not state: 
+            r, g, b = 0, 0, 0
+
+        msgs = [
+            f"IV{channel}0_R:{r}\n".encode("utf-8"), 
+            f"IV{channel}0_G:{g}\n".encode("utf-8"),
+            f"IV{channel}0_B:{b}\n".encode("utf-8"),
+        ]
+
+        for msg in msgs:
+            self.bridge.queue_write(msg)
+            print(f"[UART->PICO] {msg.decode().strip()}")
+        #msg = f"IV{channel}0:{1 if state else 0}\n".encode("utf-8")
+        #self.bridge.queue_write(msg)
+        #print(f"[UART->PICO] {msg.decode().strip()}")
 
     def set_channel_display(self, channel: int) -> None:
         if channel not in range(1, 9):
