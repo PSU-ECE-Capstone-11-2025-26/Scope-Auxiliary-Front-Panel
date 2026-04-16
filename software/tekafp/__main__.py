@@ -23,7 +23,7 @@ HORIZ_STEP_PCT = 1.0  # Horizontal position step in percent (0..~100) per detent
 # Vertical scale sequences follow a 1/2/5 pattern per Tektronix spec
 # e.g. 100mV, 200mV, 500mV, 1V, 2V, 5V, 10V, ...
 VERT_SCALE_STEPS = [
-    1e-3, 2e-3, 5e-3,
+    500e-6, 1e-3, 2e-3, 5e-3,
     10e-3, 20e-3, 50e-3,
     100e-3, 200e-3, 500e-3,
     1.0, 2.0, 5.0,
@@ -34,6 +34,7 @@ VERT_SCALE_STEPS = [
 # Horizontal scale sequences follow a 1/2/4 pattern per Tektronix spec
 # e.g. 1ns, 2ns, 4ns, 10ns, 20ns, 40ns, 100ns, ...
 HORIZ_SCALE_STEPS = [
+    200e-12, 400e-12,
     1e-9, 2e-9, 4e-9,
     10e-9, 20e-9, 40e-9,
     100e-9, 200e-9, 400e-9,
@@ -43,7 +44,9 @@ HORIZ_SCALE_STEPS = [
     1e-3, 2e-3, 4e-3,
     10e-3, 20e-3, 40e-3,
     100e-3, 200e-3, 400e-3,
-    1.0, 2.0, 4.0, 10.0,
+    1.0, 2.0, 4.0, 10.0, 20.0, 40.0, 
+    100.0, 200.0, 400.0, 
+    1000.0,
 ]
 
 
