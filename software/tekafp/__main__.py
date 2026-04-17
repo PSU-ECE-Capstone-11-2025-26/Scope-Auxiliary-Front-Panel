@@ -94,8 +94,13 @@ class Controller:
         for ch in range(1, 9):
             actual = self.get_scope_channel_state(ch)
             self._channels[ch] = actual
-            self.send_channel_led(ch, actual)
-            print(f"[SYNC] CH{ch} -> {actual}")
+            #self.send_channel_led(ch, actual)
+            print(f"[INIT] CH{ch} -> {actual}")
+
+            # Only tell Pico about channels that should be ON
+            # Due to Pico LEDs starting OFF when powered ON
+            if actual:
+                self.send_channel_led(ch, True)
 
     def sync_all_changed_channels_from_scope(self) -> None:
         any_changed = False
