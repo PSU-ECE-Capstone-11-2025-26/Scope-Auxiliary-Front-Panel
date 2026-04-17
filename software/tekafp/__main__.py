@@ -188,14 +188,14 @@ class Controller:
             f"IV{channel}0_B:{b}\n".encode("utf-8"),
         ]
 
-        msg = f"IV{channel}0_R:{1 if state else 0}\n".encode("utf-8")
+        #msg = f"IV{channel}0_R:{1 if state else 0}\n".encode("utf-8")
         #self.bridge.queue_write(msg)
-        self.bridge.write_sync(msg)
-        print(f"[UART->PICO] {msg.decode().strip()}")
+        #self.bridge.write_sync(msg)
+        #print(f"[UART->PICO] {msg.decode().strip()}")
 
-        #for msg in msgs:
-            #self.bridge.queue_write(msg)
-            #print(f"[UART->PICO] {msg.decode().strip()}")
+        for msg in msgs:
+            self.bridge.write_sync(msg)
+            print(f"[UART->PICO] {msg.decode().strip()}")
 
         #msg = f"IV{channel}0:{1 if state else 0}\n".encode("utf-8")
         #self.bridge.queue_write(msg)
