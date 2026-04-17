@@ -97,6 +97,36 @@ class Controller:
             self.send_channel_led(ch, actual)
             print(f"[SYNC] CH{ch} -> {actual}")
 
+    def sync_all_changed_channels_from_scope(self) -> None:
+        any_changed = False
+
+        for ch in range(1,9):
+            actual = self.get_scope_channel_state(ch)
+            if self._channels[ch] != actual:
+                self._channels[ch] = actual
+                self.send_channel_led(ch, actual)
+                print(f"[SYNC] CH{ch} -> {actual}")
+                any_changed = True
+
+        # Keep selected source sane if current source is now off
+        if self._source_channel != 0 and not self._channels[self._source_channel]:
+            highest = 0
+            for k, v in self._channels.items():
+                if v:
+                    highest = k
+
+            self._source_channel = highest
+
+            if self._source_channel == 0:
+                self.scope.write("DISPLAY:SELECT:SOURCE:NONE")
+            else:
+                self.scope.write(f"DISPLAY:SELECT:SOURCE:CH{self._source_channel}")
+
+        # If nothing changed, stay quiet
+        if any_changed:
+            print("[SYNC] Full channel sync pass complete")
+
+
     def sync_channels_from_scope(self) -> None:
         ch = self._sync_index
 
@@ -153,9 +183,14 @@ class Controller:
             f"IV{channel}0_B:{b}\n".encode("utf-8"),
         ]
 
-        for msg in msgs:
-            self.bridge.queue_write(msg)
-            print(f"[UART->PICO] {msg.decode().strip()}")
+        msg = f"IV{channel}0_R:{1 if state else 0}\n".encode("utf-8")
+        self.bridge.queue_write(msg)
+        print(f"[UART->PICO] {msg.decode().strip()}")
+
+        #for msg in msgs:
+            #self.bridge.queue_write(msg)
+            #print(f"[UART->PICO] {msg.decode().strip()}")
+
         #msg = f"IV{channel}0:{1 if state else 0}\n".encode("utf-8")
         #self.bridge.queue_write(msg)
         #print(f"[UART->PICO] {msg.decode().strip()}")
@@ -432,6 +467,7 @@ def main() -> None:
     api_thead.start()
     startup_event.wait()
 
+<<<<<<< HEAD
     # ctrl setup
     rm: pyvisa.ResourceManager = pyvisa.ResourceManager()
     scopes: dict[str, Controller] = {}
@@ -503,6 +539,13 @@ def main() -> None:
                         pass  # TODO stop recording for slot data.slot
                 case _:
                     print(f"Unknown or incorrect packet type {data.type}")
+=======
+    bridge = connect_uart()
+    controller = Controller(scope, bridge)
+    #controller.sync_all_channels_from_scope() # initial sync of all
+    controller.sync_all_channels_from_scope()  # initial sync of all channels
+    #controller.sync_channels_from_scope()
+>>>>>>> 6462816 (removed per-channel rgb color functionality to decrease uart message sending delays. only turns on red channel for each led. also slightly decreased response time of channel synchronization between scope and afp)
 
     try:
         last_sync = time.monotonic()
@@ -527,9 +570,14 @@ def main() -> None:
                 handle_packet(new_packet)
 
             now = time.monotonic()
+<<<<<<< HEAD
             if scopes and now - last_sync > sync_period_s and now - last_input > 0.1:
                 ctrl = list(scopes.values())[0]
                 ctrl.sync_channels_from_scope()
+=======
+            if now - last_sync > sync_period_s and now - last_input > 0.05: # 100ms cooldown
+                controller.sync_all_changed_channels_from_scope() # incremental sync to detect external changes
+>>>>>>> 6462816 (removed per-channel rgb color functionality to decrease uart message sending delays. only turns on red channel for each led. also slightly decreased response time of channel synchronization between scope and afp)
                 last_sync = now
 
     except KeyboardInterrupt:
