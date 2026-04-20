@@ -1,0 +1,59 @@
+[gd_scene format=3 uid="uid://bx465skthrxm1"]
+
+[ext_resource type="Script" uid="uid://eykx3hs1wrix" path="res://View/Settings.cs" id="1_7lsj5"]
+
+[node name="Settings" type="MarginContainer" unique_id=231371399]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 50
+theme_override_constants/margin_right = 50
+script = ExtResource("1_7lsj5")
+
+[node name="VBox" type="VBoxContainer" parent="." unique_id=1992328292]
+layout_mode = 2
+size_flags_vertical = 3
+metadata/_tab_index = 3
+
+[node name="Button" type="Button" parent="VBox" unique_id=767372367]
+layout_mode = 2
+text = "Credits"
+
+[node name="Button2" type="Button" parent="VBox" unique_id=362959123]
+layout_mode = 2
+text = "Exit"
+
+[node name="CreditsPopup" type="PopupPanel" parent="." unique_id=831239842]
+oversampling_override = 1.0
+title = "Credits"
+initial_position = 1
+size = Vector2i(500, 422)
+
+[node name="RichTextLabel" type="RichTextLabel" parent="CreditsPopup" unique_id=1104232932]
+offset_left = 4.0
+offset_top = 4.0
+offset_right = 496.0
+offset_bottom = 418.0
+bbcode_enabled = true
+text = "[center]
+[color=green]Portland State University[/color]
+ECE Capstone 2026
+Team 11
+
+Antonio Hernandez
+Andrew Stanton
+Rafael Cervantes
+Michael Ngo
+Nawaf Altalhi
+Aaron Carlson
+
+Sponsored by: [color=cyan]Tektronix, Inc.[/color]
+
+[color=gold]Special Thanks[/color]
+Anthony Bruno, Tektronix
+Roy Kravitz, PSU ECE Department
+Andrew Greenberg, PSU ECE Department
+[/center]"
+fit_content = true

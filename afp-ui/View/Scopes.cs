@@ -1,13 +1,9 @@
 using AFP.Components;
+using AFP.Packet;
+using AFP.Packet.Data;
 using Godot;
 
 namespace AFP.View;
-
-struct Scope(string idn, bool enabled)
-{
-	private string _idn = idn;
-	private bool _enabled = enabled;
-}
 
 public partial class Scopes : VBoxContainer
 {
@@ -21,17 +17,51 @@ public partial class Scopes : VBoxContainer
 	    _list = GetNode<VBoxContainer>("%ScopesList");
 	    _group = new ButtonGroup();
 	    _group.AllowUnpress = true;
-        for (var i = 0; i < 5; i++)
-        {
-            AddScope("USB0::0x0699::0x0363::C102912::INSTR", true);
-            AddScope("TCPIP::192.168.0.1::INSTR", false);
-        }
+	    GetNode<Button>("RefreshButton").Pressed += RefreshList;
     }
 
-    private void AddScope(string idn, bool enabled)
+    private void RefreshList()
+    {
+	    WsClient.Instance.SendPacket(new PacketContainer
+	    {
+		    Origin = "client",
+		    Data =
+		    [
+			    new ScopeActionPacketData
+			    {
+				    Action = "list",
+				    Scope = null
+			    }
+		    ]
+	    });
+	    ClearScopes();
+    }
+
+    public void AddScope(string resourceName, bool enabled)
     {
 	    var s = _scopeOptionScene.Instantiate<ScopeOption>();
-	    s.Init(idn, enabled, _group);
+	    s.Init(resourceName, enabled, _group);
+	    s.ScopeToggled += _on_scope_toggled;
 	    _list.AddChild(s);
+    }
+
+    private void ClearScopes()
+    {
+	    foreach (Node node in _list.GetChildren())
+	    {
+		    var child = (ScopeOption)node;
+		    child.ScopeToggled -= _on_scope_toggled;
+		    child.QueueFree();
+	    }
+    }
+
+    private void _on_scope_toggled(bool enabled, string resourceName)
+    {
+	    GD.Print($"Scope {resourceName} toggle={enabled}");
+	    WsClient.Instance.QueuePacketData(new ScopeActionPacketData
+		    {
+			    Action = enabled ? "enable" : "disable",
+			    Scope = resourceName
+		    });
     }
 }

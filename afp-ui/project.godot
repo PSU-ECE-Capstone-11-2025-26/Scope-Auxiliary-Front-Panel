@@ -28,6 +28,7 @@ config/icon="uid://crlgyhtg7hx"
 [autoload]
 
 Global="*uid://cx0gxqix3xvk0"
+WsClient="*uid://4vncpnpi14pk"
 
 [display]
 

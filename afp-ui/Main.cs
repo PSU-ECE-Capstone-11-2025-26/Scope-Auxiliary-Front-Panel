@@ -1,3 +1,7 @@
+
+using AFP.Packet;
+using AFP.Packet.Data;
+using AFP.View;
 using Godot;
 
 namespace AFP;
@@ -8,6 +12,8 @@ public partial class Main : Control
     private const float DisplaySize = 7.0f;
     private const int DisplayWidth = 800;
     private const int DisplayHeight = 480;
+	
+    private Scopes _scopesView;
 
     public override void _Ready()
     {
@@ -17,6 +23,16 @@ public partial class Main : Control
         }
 
         Global.Instance.Toast = GetNode<Control>("Toast");
+        Global.Instance.LoadConfig();
+        
+        _scopesView = GetNode<Scopes>("ViewManager/Scopes");
+        
+        WsClient.Instance.Connect(Global.Instance.Config.WebSocketUrl);
+    }
+
+    public override void _Process(double delta)
+    {
+	    ProcessPackets();
     }
 
     public override void _Input(InputEvent @event)
@@ -27,6 +43,20 @@ public partial class Main : Control
             Global.Instance.Toast.Call("add_message_compat", 1, "this is a test warning");
             Global.Instance.Toast.Call("add_message_compat", 2, "this is a test errorrrrrrrr");
         }
+    }
+
+    private void ProcessPackets()
+    {
+	    var client = WsClient.Instance;
+	    if (client.ReceiveQueue.Count == 0) return;
+	    PacketContainer pc = client.ReceiveQueue.Dequeue();
+	    foreach (IPacketData pd in pc.Data)
+	    {
+		    if (pd is ScopeListPacketData sl)
+		    {
+			    foreach (string s in sl.Scopes) _scopesView.AddScope(s, false);
+		    }
+	    }
     }
 
     private void SetDevWindowSize()

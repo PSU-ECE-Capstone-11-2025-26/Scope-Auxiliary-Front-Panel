@@ -1,4 +1,4 @@
-namespace AFP.Packet;
+namespace AFP.Packet.Data;
 
 public class MacroRecordPacketData : IPacketData
 {
