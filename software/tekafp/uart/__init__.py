@@ -98,7 +98,8 @@ class UARTBridge:
         self._queue.shutdown()
         self._queue.join()
         self._thread.join()
-        self.serial.close()
+        if self.serial:
+            self.serial.close()
 
     def get(self, timeout: Optional[float] = None) -> Optional[bytes]:
         """
@@ -149,3 +150,20 @@ class UARTBridge:
             return True
         except serial.SerialTimeoutException:
             return False
+
+
+class MockUARTBridge(UARTBridge):
+    def connect(self) -> bool:
+        return True
+
+    def queue_write(self, data: bytes) -> None:
+        pass
+
+    def write_sync(self, data: bytes) -> bool:
+        return True
+
+    def close(self) -> None:
+        pass
+
+    def get(self, timeout: Optional[float] = None) -> Optional[bytes]:
+        return b"V10"
