@@ -16,17 +16,7 @@ image:
 
 layer:
   splash: rpi-splash-screen
+  app: afpprod
 
 splash:
   image_path: ${@SRCROOT}/splash.tga
-
-mmdebstrap:
-  packages:
-    - cage
-    - greetd
-    - openssh-server
-    - picocom
-    - python3
-    - python3-pip
-    - python3-venv
-  install-recommends: false

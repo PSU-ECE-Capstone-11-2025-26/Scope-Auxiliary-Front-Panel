@@ -6,19 +6,21 @@ src="${SRCROOT:-${IGTOP}}/packages"
 
 shopt -s nullglob
 wheels=("$src"/*.whl)
-[[ ${#wheels[@]} -gt 0 ]] || { echo "customize90-pyvisa: no wheel found in $src" >&2; exit 1; }
+[[ ${#wheels[@]} -gt 0 ]] || { echo "customize90-tekafp: no wheel found in $src" >&2; exit 1; }
 
 tmpdir=$(mktemp -d "$rootfs/tmp/pyvisa.XXXXXX")
 trap 'rm -rf "$tmpdir"' EXIT
 chroot_tmp="/tmp/$(basename "$tmpdir")"
-cp "${wheels[@]}" "$tmpdir/"
+chroot_wheels=()
+for w in "${wheels[@]}"; do
+    cp "$w" "$tmpdir/"
+    chroot_wheels+=("$chroot_tmp/$(basename "$w")")
+done
 
 chroot "$rootfs" groupadd -f afpusb
 chroot "$rootfs" usermod -aG afpusb tek
 
-chroot "$rootfs" python3 -m venv /opt/tek/afp/venv
-chroot "$rootfs" /opt/tek/afp/venv/bin/pip install --no-cache-dir \
-    "$chroot_tmp"/*.whl
+chroot "$rootfs" /usr/bin/pip3 install --break-system-packages --no-cache-dir "${chroot_wheels[@]}"
 
 "$BDEBSTRAP_HOOKS/enable-units" "$rootfs" greetd
 "$BDEBSTRAP_HOOKS/enable-units" "$rootfs" tekafp
