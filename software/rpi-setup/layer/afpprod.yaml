@@ -1,0 +1,15 @@
+# METABEGIN
+# X-Env-Layer-Name: afpprod
+# X-Env-Layer-Desc: Packages for the Tektronix AFP app
+# X-Env-Layer-Version: 1.0.0
+# METAEND
+---
+mmdebstrap:
+  packages:
+    - cage
+    - greetd
+    - picocom
+    - python3-full
+    - python3-pip
+    - raspberrypi-sys-mods
+    - packages/afp-ui_arm64.deb
