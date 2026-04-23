@@ -1,0 +1,28 @@
+.PHONY: all wheel deb image clean
+
+# Directories
+SOFTWARE_DIR := software
+AFP_UI_DIR   := afp-ui
+IMAGE_SRC_DIR := $(SOFTWARE_DIR)/rpi-setup
+RPI_IMAGE_DIR := rpi-image-gen
+
+all: wheel deb image
+
+## Build the Python wheel using uv
+wheel:
+	cd $(SOFTWARE_DIR) && uv build --wheel
+
+## Build the Debian package
+deb:
+	cd $(AFP_UI_DIR) && dpkg-deb -b --root-owner-group afp-ui-pkg afp-ui_arm64.deb
+
+## Run rpi-image-gen
+image:
+	mkdir -p $(IMAGE_SRC_DIR)/packages
+	cp $(AFP_UI_DIR)/*.deb $(IMAGE_SRC_DIR)/packages/
+	cp $(WHEEL) $(IMAGE_SRC_DIR)/packages/
+	cd $(RPI_IMAGE_DIR) && ./rpi-image-gen build -S ../$(IMAGE_SRC_DIR) -c ../$(IMAGE_SRC_DIR)/config/tekafp.yaml
+
+clean:
+	rm -rf $(SOFTWARE_DIR)/dist
+	cd $(AFP_UI_DIR) && dh_clean
