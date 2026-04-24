@@ -20,3 +20,7 @@ layer:
 
 splash:
   image_path: ${@SRCROOT}/splash.tga
+
+packages:
+  - libpam-systemd
+  - packages/afp-ui_arm64.deb

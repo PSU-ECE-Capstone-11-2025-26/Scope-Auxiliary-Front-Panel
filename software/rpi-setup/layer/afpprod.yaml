@@ -12,4 +12,3 @@ mmdebstrap:
     - python3-full
     - python3-pip
     - raspberrypi-sys-mods
-    - packages/afp-ui_arm64.deb
