@@ -277,8 +277,7 @@ class Controller:
             for k, v in self._channels.items():
                 if v:
                     highest = k
-                    if k > channel:
-                        break
+                    
             self._source_channel = highest
         elif last_state:
             # enabled => set as source
