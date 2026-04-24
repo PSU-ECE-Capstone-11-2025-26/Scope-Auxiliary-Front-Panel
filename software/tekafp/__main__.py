@@ -80,8 +80,6 @@ class Controller:
         self.scope: MessageBasedResource = scope
         self.bridge: UARTBridge = bridge 
 
-        self._sync_index: int = 1
-
         self._channels: dict[int, bool] = {ch: False for ch in range(1, 9)}
         self._source_channel: int = 0
         self._vert_fine: bool = False # fine mode toggle for vertical scale
@@ -91,6 +89,8 @@ class Controller:
         return resp.endswith("1") or resp.endswith("ON")
 
     def sync_all_channels_from_scope(self) -> None:
+        highest = 0
+
         for ch in range(1, 9):
             actual = self.get_scope_channel_state(ch)
             self._channels[ch] = actual
@@ -99,13 +99,7 @@ class Controller:
                 highest = ch
             print(f"[INIT] CH{ch} -> {actual}")
 
-            # Only tell Pico about channels that should be ON
-            # Due to Pico LEDs starting OFF when powered ON
-            #if actual:
-                #self.send_channel_led(ch, True)
-                #highest = ch
-
-        # Chooses highest enabled channel ast the acive selected channel
+        # Chooses highest enabled channel as the acive selected channel
         self._source_channel = highest
 
         if self._source_channel == 0:
@@ -125,6 +119,11 @@ class Controller:
                 self.send_channel_led(ch, actual)
                 print(f"[SYNC] CH{ch} -> {actual}")
                 any_changed = True
+
+                if actual:
+                    self._source_channel = ch
+                    self.scope.write(f"DISPLAY:SELECT:SOURCE:CH{self._source_channel}")
+                    self.send_selected_channel_leds()
 
         # Keep selected source sane if current source is now off
         if self._source_channel != 0 and not self._channels[self._source_channel]:
@@ -147,34 +146,17 @@ class Controller:
             print("[SYNC] Full channel sync pass complete")
 
 
-    def sync_channels_from_scope(self) -> None:
-        ch = self._sync_index
-
-        actual = self.get_scope_channel_state(ch)
-        if self._channels[ch] != actual:
-            self._channels[ch] = actual
-            self.send_channel_led(ch, actual)
-            print(f"[SYNC] CH{ch} -> {actual}")
-
-            # Keep selected source sane if current source is now off
-            if self._source_channel != 0 and not self._channels[self._source_channel]:
-                highest = 0
-                for k, v in self._channels.items():
-                    if v:
-                        highest = k
-                self._source_channel = highest
-
-                # Always write, not just when changed, to ensure source updates if it was changed externally
-                if self._source_channel == 0:
-                    self.scope.write("DISPLAY:SELECT:SOURCE:NONE")
-                else:
-                    self.scope.write(f"DISPLAY:SELECT:SOURCE:CH{self._source_channel}")
-
-                self.send_selected_channel_leds()
-
-        self._sync_index += 1
-        if self._sync_index > 8:
-            self._sync_index = 1
+    # Per-channel RGB color (R,G,B)
+    CHANNEL_COLORS: dict[int, tuple[int, int, int]] = {
+        1: (1, 1, 0), # Yellow
+        2: (0, 1, 1), # Cyan
+        3: (1, 0, 0), # Red
+        4: (0, 1, 0), # Lime Green
+        5: (1, 1, 0), # Orange approximation 
+        6: (0, 0, 1), # Blue
+        7: (1, 0, 1), # Purple
+        8: (0, 1, 0), # Forest Green approximation
+    }
 
 
     def send_channel_led(self, channel: int, state: bool) -> None:
@@ -182,19 +164,7 @@ class Controller:
         if channel not in range(1,9):
             return
 
-        # Per-channel RGB color (R,G,B)
-        channel_colors: dict[int, tuple[int, int, int]] = {
-            1: (1, 1, 0), # Yellow
-            2: (0, 1, 1), # Cyan
-            3: (1, 0, 0), # Red
-            4: (0, 1, 0), # Lime Green
-            5: (1, 1, 0), # Orange approximation 
-            6: (0, 0, 1), # Blue
-            7: (1, 0, 1), # Purple
-            8: (0, 1, 0), # Forest Green approximation
-        }
-
-        r, g, b = channel_colors[channel]
+        r, g, b = self.CHANNEL_COLORS[channel]
 
         if not state: 
             r, g, b = 0, 0, 0
@@ -205,34 +175,15 @@ class Controller:
             f"IV{channel}0_B:{b}\n".encode("utf-8"),
         ]
 
-        #msg = f"IV{channel}0_R:{1 if state else 0}\n".encode("utf-8")
-        #self.bridge.queue_write(msg)
-        #self.bridge.write_sync(msg)
-        #print(f"[UART->PICO] {msg.decode().strip()}")
-
         for msg in msgs:
             self.bridge.write_sync(msg)
             print(f"[UART->PICO] {msg.decode().strip()}")
 
-        #msg = f"IV{channel}0:{1 if state else 0}\n".encode("utf-8")
-        #self.bridge.queue_write(msg)
-        #print(f"[UART->PICO] {msg.decode().strip()}")
-
     def send_selected_channel_leds(self) -> None: 
-        #Two RGB LEDs used to show the active selected channel: 
+        # Two RGB LEDs used to show the active selected channel: 
         # VP1_RGB and VS1_RGB should always match the selected channel color
-        channel_colors: dict[int, tuple[int, int, int]] = {
-            1: (1, 1, 0), # Yellow
-            2: (0, 1, 1), # Cyan
-            3: (1, 0, 0), # Red
-            4: (0, 1, 0), # Lime Green
-            5: (1, 1, 0), # Orange approximation 
-            6: (0, 0, 1), # Blue
-            7: (1, 0, 1), # Purple
-            8: (0, 1, 0), # Forest Green approximation
-        }
-
-        r, g, b = channel_colors.get(self._source_channel, (0,0,0))
+        
+        r, g, b = self.CHANNEL_COLORS.get(self._source_channel, (0,0,0))
 
         msgs = [
             f"IVP1_R:{r}\n".encode("utf-8"),
@@ -596,10 +547,12 @@ def main() -> None:
 =======
     bridge = connect_uart()
     controller = Controller(scope, bridge)
-    #controller.sync_all_channels_from_scope() # initial sync of all
     controller.sync_all_channels_from_scope()  # initial sync of all channels
+<<<<<<< HEAD
     #controller.sync_channels_from_scope()
 >>>>>>> 6462816 (removed per-channel rgb color functionality to decrease uart message sending delays. only turns on red channel for each led. also slightly decreased response time of channel synchronization between scope and afp)
+=======
+>>>>>>> b4516db (replaced duplicate channel_colors dictionary with one class constant)
 
     try:
         last_sync = time.monotonic()
@@ -625,6 +578,7 @@ def main() -> None:
 
             now = time.monotonic()
 <<<<<<< HEAD
+<<<<<<< HEAD
             if scopes and now - last_sync > sync_period_s and now - last_input > 0.1:
                 ctrl = list(scopes.values())[0]
                 ctrl.sync_channels_from_scope()
@@ -632,6 +586,10 @@ def main() -> None:
             if now - last_sync > sync_period_s and now - last_input > 0.05: # 100ms cooldown
                 controller.sync_all_changed_channels_from_scope() # incremental sync to detect external changes
 >>>>>>> 6462816 (removed per-channel rgb color functionality to decrease uart message sending delays. only turns on red channel for each led. also slightly decreased response time of channel synchronization between scope and afp)
+=======
+            if now - last_sync > sync_period_s and now - last_input > 0.05: 
+                controller.sync_all_changed_channels_from_scope() 
+>>>>>>> b4516db (replaced duplicate channel_colors dictionary with one class constant)
                 last_sync = now
 
     except KeyboardInterrupt:
