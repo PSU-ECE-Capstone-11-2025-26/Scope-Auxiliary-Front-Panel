@@ -95,7 +95,19 @@ class Controller:
             actual = self.get_scope_channel_state(ch)
             self._channels[ch] = actual
             self.send_channel_led(ch, actual)
+<<<<<<< HEAD
             print(f"[SYNC] CH{ch} -> {actual}")
+=======
+            if actual:
+                highest = ch
+            print(f"[INIT] CH{ch} -> {actual}")
+
+        # Chooses highest enabled channel as the acive selected channel
+        self._source_channel = highest
+
+        self.set_scope_selected_source()
+        self.send_selected_channel_leds()
+>>>>>>> bbe7876 (created helper function that selects the source channel from the afp to the scope. this replaces repeated blocks of code that did the same thing with one clean function call)
 
     def sync_all_changed_channels_from_scope(self) -> None:
         any_changed = False
@@ -108,6 +120,14 @@ class Controller:
                 print(f"[SYNC] CH{ch} -> {actual}")
                 any_changed = True
 
+<<<<<<< HEAD
+=======
+                if actual:
+                    self._source_channel = ch
+                    self.scope.write(f"DISPLAY:SELECT:SOURCE CH{self._source_channel}")
+                    self.send_selected_channel_leds()
+
+>>>>>>> bbe7876 (created helper function that selects the source channel from the afp to the scope. this replaces repeated blocks of code that did the same thing with one clean function call)
         # Keep selected source sane if current source is now off
         if self._source_channel != 0 and not self._channels[self._source_channel]:
             highest = 0
@@ -117,10 +137,15 @@ class Controller:
 
             self._source_channel = highest
 
+<<<<<<< HEAD
             if self._source_channel == 0:
                 self.scope.write("DISPLAY:SELECT:SOURCE:NONE")
             else:
                 self.scope.write(f"DISPLAY:SELECT:SOURCE:CH{self._source_channel}")
+=======
+            self.set_scope_selected_source()
+            self.send_selected_channel_leds()
+>>>>>>> bbe7876 (created helper function that selects the source channel from the afp to the scope. this replaces repeated blocks of code that did the same thing with one clean function call)
 
         # If nothing changed, stay quiet
         if any_changed:
@@ -226,6 +251,13 @@ class Controller:
         return self._source_channel
 
 
+    def set_scope_selected_source(self) -> None:
+        if self._source_channel == 0:
+            self.scope.write("DISPLAY:SELECT:SOURCE NONE")
+        else:
+            self.scope.write(f"DISPLAY:SELECT:SOURCE CH{self._source_channel}")
+
+
     def sync_selected_source_from_scope(self) -> None:
         actual_source = self.get_scope_selected_source()
 
@@ -256,11 +288,7 @@ class Controller:
             self._channels[channel] = True
             self._source_channel = channel
 
-        if self._source_channel == 0:
-            self.scope.write("DISPLAY:SELECT:SOURCE NONE")
-        else:
-            self.scope.write(f"DISPLAY:SELECT:SOURCE CH{self._source_channel}")
-
+        self.set_scope_selected_source()
         self.send_selected_channel_leds()
 
         if last_state != self._channels[channel]:
