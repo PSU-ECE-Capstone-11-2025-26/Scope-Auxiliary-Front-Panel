@@ -3,8 +3,9 @@
 # Directories
 SOFTWARE_DIR := software
 AFP_UI_DIR   := afp-ui
-IMAGE_SRC_DIR := $(SOFTWARE_DIR)/rpi-setup
-RPI_IMAGE_DIR := rpi-image-gen
+IMAGE_BUILD_DIR := image-builder
+IMAGE_SRC_DIR := $(IMAGE_BUILD_DIR)/config
+RPI_IMAGE_DIR := $(IMAGE_BUILD_DIR)/rpi-image-gen
 
 GODOT_BIN := Godot-stable_linux.arm64
 
