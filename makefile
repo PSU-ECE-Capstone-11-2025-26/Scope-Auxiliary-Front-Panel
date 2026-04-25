@@ -6,7 +6,13 @@ AFP_UI_DIR   := afp-ui
 IMAGE_SRC_DIR := $(SOFTWARE_DIR)/rpi-setup
 RPI_IMAGE_DIR := rpi-image-gen
 
+GODOT_BIN := Godot-stable_linux.arm64
+
 all: wheel deb image
+
+## Build UI binaries
+ui:
+	${GODOT_BIN} --headless --export-release "Linux" $(AFP_UI_DIR)/$(AFP_UI_DIR)-pkg/opt/tek/afp/ui/ $(AFP_UI_DIR)/project.godot
 
 ## Build the Python wheel using uv
 wheel:
@@ -26,3 +32,4 @@ image:
 clean:
 	rm -rf $(SOFTWARE_DIR)/dist
 	cd $(AFP_UI_DIR) && dh_clean
+	rm -rf $(RPI_IMAGE_DIR)/work/*
