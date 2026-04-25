@@ -22,6 +22,7 @@ chroot "$rootfs" usermod -aG afpusb tek
 
 chroot "$rootfs" /usr/bin/pip3 install --break-system-packages --no-cache-dir "${chroot_wheels[@]}"
 
+chroot "$rootfs" systemctl mask getty@tty1.service
 "$BDEBSTRAP_HOOKS/enable-units" "$rootfs" greetd
 "$BDEBSTRAP_HOOKS/enable-units" "$rootfs" tekafp
 "$BDEBSTRAP_HOOKS/enable-units" "$rootfs" regenerate-ssh-host-keys
