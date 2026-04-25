@@ -12,3 +12,9 @@ mmdebstrap:
     - python3-full
     - python3-pip
     - raspberrypi-sys-mods
+    - libpam-systemd
+    - libwayland-cursor0
+    - libwayland-egl1
+    - libgles2
+    - libgl1-mesa-dri
+    - libicu76
