@@ -6,6 +6,8 @@ namespace AFP;
 
 public partial class Global : Node
 {
+	public delegate void LogMessageHandler(short level, string message);
+	public event LogMessageHandler OnLog;
     public static Global Instance { get; private set; }
     /// <summary>
     /// Path to the config file
@@ -28,6 +30,17 @@ public partial class Global : Node
     public override void _Ready()
     {
         Instance = this;
+    }
+
+    public void Log(short level, string msg, bool toast = false)
+    {
+	    if (!Config.DebugMode && level == 3) return;
+	    OnLog?.Invoke(level, msg);
+	    if (toast)
+	    {
+		    Toast.Call("add_message_compat", level, msg);
+	    }
+	    
     }
     
     /// <summary>
