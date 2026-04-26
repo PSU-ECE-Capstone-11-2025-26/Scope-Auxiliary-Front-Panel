@@ -24,6 +24,7 @@ func add_message(msg: ToastMessage) -> void:
 
 func _on_timer_timeout() -> void:
 	if _queue.is_empty():
+		_header_count = 0
 		hide()
 	else:
 		_header_count -= 1
