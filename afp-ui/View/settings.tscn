@@ -28,11 +28,6 @@ layout_mode = 2
 layout_mode = 2
 text = "DEBUG MODE"
 
-[node name="ForceReconnect" type="Button" parent="VBox/AdvancedContainer/VBoxContainer" unique_id=2002905784]
-visible = false
-layout_mode = 2
-text = "Force websocket reconnect"
-
 [node name="AboutButton" type="Button" parent="VBox" unique_id=767372367]
 layout_mode = 2
 text = "About"
