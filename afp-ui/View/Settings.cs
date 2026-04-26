@@ -7,10 +7,11 @@ public partial class Settings : MarginContainer
 {
 	public override void _Ready()
 	{
-		GetNode<Button>("VBox/ExitButton").Pressed += () => GetTree().Quit(0);
-		GetNode<Label>("CreditsPopup/VBoxContainer/VersionLabel").Text =
+		GetNode<Button>("ScrollContainer/VBox/ExitButton").Pressed += () => GetTree().Quit(0);
+		GetNode<Label>("ScrollContainer/VBox/VBoxContainer/TabContainer/About").Text =
 			$"AFP-UI v{ProjectSettings.GetSetting("application/config/version")}";
-		GetNode<CheckButton>("VBox/AdvancedContainer/VBoxContainer/DebugMode").Toggled += _onDebugToggled;
+		GetNode<CheckButton>("ScrollContainer/VBox/AdvancedContainer/VBoxContainer/DebugMode").Toggled +=
+			_onDebugToggled;
 	}
 
 	private static void _onDebugToggled(bool enabled)
