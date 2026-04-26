@@ -77,7 +77,7 @@ public partial class WebSocketClient : Node
 	{
 		if (_socket.GetReadyState() != WebSocketPeer.State.Open)
 		{
-			Global.Instance.Log(2, "Can't send packet: Socket not open");
+			Global.Logger.Log(LogLevel.Error, "Can't send packet: Socket not open");
 			return;
 		}
 		string json = JsonSerializer.Serialize(packet, _options);

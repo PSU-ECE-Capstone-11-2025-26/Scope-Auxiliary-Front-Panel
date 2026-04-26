@@ -1,3 +1,4 @@
+using AFP.Core;
 using Godot;
 
 namespace AFP.View;
@@ -16,13 +17,13 @@ public partial class Settings : MarginContainer
 	private void _onReconnectButtonPressed()
 	{
 		bool success = Core.WebSocketClient.Instance.Reconnect();
-		Core.Global.Instance.Log(3, $"Reconnect successful: {success}", true);
+		Global.Logger.Log(LogLevel.Debug, $"Reconnect successful: {success}", true);
 	}
 
 	private void _onDebugToggled(bool enabled)
 	{
-		Core.Global.Instance.Config.DebugMode = enabled;
-		Core.Global.Instance.Log(3, "debug enabled", true);
+		Global.Instance.Config.DebugMode = enabled;
+		Global.Logger.Log(LogLevel.Debug, "debug enabled", true);
 		GetNode<Button>("VBox/AdvancedContainer/VBoxContainer/ForceReconnect").SetVisible(enabled);
 	}
 }

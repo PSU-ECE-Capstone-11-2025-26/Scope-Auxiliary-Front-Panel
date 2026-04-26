@@ -1,4 +1,5 @@
 using AFP.Components;
+using AFP.Core;
 using AFP.Packet;
 using AFP.Packet.Data;
 using Godot;
@@ -24,7 +25,7 @@ public partial class Scopes : VBoxContainer
 
     private void RefreshList()
     {
-	    Core.WebSocketClient.Instance.SendPacket(new PacketContainer
+	    WebSocketClient.Instance.SendPacket(new PacketContainer
 	    {
 		    Origin = "client",
 		    Data =
@@ -59,7 +60,7 @@ public partial class Scopes : VBoxContainer
 
     private void _onScopeToggled(bool enabled, string resourceName)
     {
-	    Core.Global.Instance.Log(3, $"Scope toggle {resourceName} {enabled}");
+	    Global.Logger.Log(LogLevel.Debug, $"Scope toggle {resourceName} {enabled}");
 	    EmitSignal(SignalName.ScopeToggled, resourceName, enabled);
     }
 }

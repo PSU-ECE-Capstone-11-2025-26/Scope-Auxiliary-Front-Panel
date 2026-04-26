@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using AFP.Components;
+using AFP.Core;
 using AFP.Packet;
 using AFP.Packet.Data;
 using AFP.Resources;
@@ -28,8 +29,8 @@ public partial class Main : Control
             SetDevWindowSize();
         }
 
-        Core.Global.Instance.Toast = GetNode<Control>("Toast");
-        Core.Global.Instance.LoadConfig();
+        Global.Instance.Toast = GetNode<Control>("Toast");
+        Global.Instance.LoadConfig();
         
         GetNode<TabContainer>("ViewManager").SetTabHidden(2, true);
         _homeView = GetNode<Home>("ViewManager/Home");
@@ -37,7 +38,7 @@ public partial class Main : Control
         _macroView = GetNode<Macros>("ViewManager/Macros");
         _scopesView.ScopeToggled += _onScopeToggled;
         
-        Core.WebSocketClient.Instance.Connect(Core.Global.Instance.Config.WebSocketUrl);
+        WebSocketClient.Instance.Connect(Global.Instance.Config.WebSocketUrl);
     }
 
     public override void _Process(double delta)
@@ -47,7 +48,7 @@ public partial class Main : Control
 
     private void ProcessPackets()
     {
-	    var client = Core.WebSocketClient.Instance;
+	    var client = WebSocketClient.Instance;
 	    if (client.ReceiveQueue.Count == 0) return;
 	    PacketContainer pc = client.ReceiveQueue.Dequeue();
 	    foreach (IPacketData pd in pc.Data)
@@ -56,7 +57,7 @@ public partial class Main : Control
 		    {
 			    case ScopeListPacketData sl:
 			    {
-				    Core.Global.Instance.Log(3, $"Received ScopeList count={sl.Scopes.Count}");
+				    Global.Logger.Log(LogLevel.Debug, $"Received ScopeList count={sl.Scopes.Count}");
 				    foreach (KeyValuePair<string, bool> entry in sl.Scopes)
 				    {
 					    _scopesView.AddScope(entry.Key, entry.Value);
@@ -70,8 +71,8 @@ public partial class Main : Control
 				    scope.Idn = si.Idn;
 				    scope.ChannelCount = si.ChannelCount;
 				    scope.ConnectionState = ScopeConnectionState.Connected;
-				    Core.Global.Instance.Log(0, $"Scope Connected {si.ResourceName}", true);
-				    Core.Global.Instance.Log(3, $"scope specs: ChannelCount={si.ChannelCount}");
+				    Global.Logger.Log(LogLevel.Info, $"Scope Connected {si.ResourceName}", true);
+				    Global.Logger.Log(LogLevel.Debug, $"scope specs: ChannelCount={si.ChannelCount}");
 				    break;
 			    case MacroStatePacketData ms:
 				    for (ushort i = 0; i < ms.Macros.Length; i++)
@@ -87,7 +88,7 @@ public partial class Main : Control
 
     private void _onScopeToggled(string resourceName, bool state)
     {
-	    Core.WebSocketClient.Instance.QueuePacketData(new ScopeActionPacketData
+	    WebSocketClient.Instance.QueuePacketData(new ScopeActionPacketData
 	    {
 		    Action = state ? "enable" : "disable",
 		    ResourceName = resourceName
@@ -105,7 +106,7 @@ public partial class Main : Control
 		    }
 		    else
 		    {
-			    Core.Global.Instance.Log(1, $"Attempted to remove nonexistent scope {resourceName}");
+			    Global.Logger.Log(LogLevel.Warning, $"Attempted to remove nonexistent scope {resourceName}");
 		    }
 	    }
     }

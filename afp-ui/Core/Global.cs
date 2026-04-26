@@ -6,8 +6,7 @@ namespace AFP.Core;
 
 public partial class Global : Node
 {
-	public delegate void LogMessageHandler(short level, string message);
-	public event LogMessageHandler OnLog;
+	public static Logger Logger { get; private set; } = new Logger();
     public static Global Instance { get; private set; }
     /// <summary>
     /// Path to the config file
@@ -30,19 +29,14 @@ public partial class Global : Node
     public override void _Ready()
     {
         Instance = this;
+        Logger.OnToast += OnToast;
     }
 
-    public void Log(short level, string msg, bool toast = false)
+    private void OnToast(LogLevel level, string message)
     {
-	    if (!Config.DebugMode && level == 3) return;
-	    OnLog?.Invoke(level, msg);
-	    if (toast)
-	    {
-		    Toast.Call("add_message_compat", level, msg);
-	    }
-	    
+	    Toast.Call("add_message_compat", (ushort)level, message);
     }
-    
+
     /// <summary>
     /// Initialize the config file with default options
     /// </summary>

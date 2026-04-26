@@ -1,5 +1,7 @@
 using System.Collections.Generic;
+using AFP.Core;
 using Godot;
+using Logger = AFP.Core.Logger;
 
 namespace AFP.View;
 
@@ -57,7 +59,7 @@ public partial class Home : VBoxContainer
 	{
 		if (_scopes.Contains(resourceName))
 		{
-			Core.Global.Instance.Log(1, $"Ignoring {resourceName} (already exists)");
+			Global.Logger.Log(LogLevel.Warning, $"Ignoring {resourceName} (already exists)");
 		}
 		else if (!_tree.Visible)
 		{
