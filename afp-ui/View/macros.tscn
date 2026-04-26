@@ -1,0 +1,15 @@
+[gd_scene format=3 uid="uid://c3ee4oh0nfdpk"]
+
+[ext_resource type="PackedScene" uid="uid://dlmt3vjqlb5lq" path="res://Components/macro_control.tscn" id="1_f05bi"]
+[ext_resource type="Script" uid="uid://vyslp04kigm8" path="res://View/Macros.cs" id="1_q2jmu"]
+
+[node name="Macros" type="CenterContainer" unique_id=1685422252]
+offset_right = 550.0
+offset_bottom = 200.0
+size_flags_horizontal = 3
+script = ExtResource("1_q2jmu")
+_macroControlScene = ExtResource("1_f05bi")
+
+[node name="MacroContainer" type="HBoxContainer" parent="." unique_id=1876527727]
+layout_mode = 2
+theme_override_constants/separation = 8
