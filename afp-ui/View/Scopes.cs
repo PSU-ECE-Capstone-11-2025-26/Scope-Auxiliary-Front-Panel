@@ -30,7 +30,7 @@ public partial class Scopes : VBoxContainer
 			    new ScopeActionPacketData
 			    {
 				    Action = "list",
-				    Scope = null
+				    ResourceName = null
 			    }
 		    ]
 	    });
@@ -57,11 +57,11 @@ public partial class Scopes : VBoxContainer
 
     private void _on_scope_toggled(bool enabled, string resourceName)
     {
-	    GD.Print($"Scope {resourceName} toggle={enabled}");
+	    Global.Instance.Log(3, $"Scope toggle {resourceName} {enabled}");
 	    WsClient.Instance.QueuePacketData(new ScopeActionPacketData
 		    {
 			    Action = enabled ? "enable" : "disable",
-			    Scope = resourceName
+			    ResourceName = resourceName
 		    });
     }
 }

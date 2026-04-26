@@ -1,4 +1,7 @@
 
+using System.Collections;
+using System.Collections.Generic;
+using AFP.Components;
 using AFP.Packet;
 using AFP.Packet.Data;
 using AFP.View;
@@ -12,8 +15,10 @@ public partial class Main : Control
     private const float DisplaySize = 7.0f;
     private const int DisplayWidth = 800;
     private const int DisplayHeight = 480;
-	
+
+    private Home _homeView;
     private Scopes _scopesView;
+    private Macros _macroView;
 
     public override void _Ready()
     {
@@ -25,7 +30,9 @@ public partial class Main : Control
         Global.Instance.Toast = GetNode<Control>("Toast");
         Global.Instance.LoadConfig();
         
+        _homeView = GetNode<Home>("ViewManager/Home");
         _scopesView = GetNode<Scopes>("ViewManager/Scopes");
+        _macroView = GetNode<Macros>("ViewManager/Macros");
         
         WsClient.Instance.Connect(Global.Instance.Config.WebSocketUrl);
     }
@@ -35,16 +42,6 @@ public partial class Main : Control
 	    ProcessPackets();
     }
 
-    public override void _Input(InputEvent @event)
-    {
-        if (@event.IsActionPressed("ui_accept"))
-        {
-            Global.Instance.Toast.Call("add_message_compat", 0, "this is a test info");
-            Global.Instance.Toast.Call("add_message_compat", 1, "this is a test warning");
-            Global.Instance.Toast.Call("add_message_compat", 2, "this is a test errorrrrrrrr");
-        }
-    }
-
     private void ProcessPackets()
     {
 	    var client = WsClient.Instance;
@@ -52,9 +49,31 @@ public partial class Main : Control
 	    PacketContainer pc = client.ReceiveQueue.Dequeue();
 	    foreach (IPacketData pd in pc.Data)
 	    {
-		    if (pd is ScopeListPacketData sl)
+		    switch (pd)
 		    {
-			    foreach (string s in sl.Scopes) _scopesView.AddScope(s, false);
+			    case ScopeListPacketData sl:
+			    {
+				    Global.Instance.Log(3, $"Received ScopeList count={sl.Scopes.Count}");
+				    foreach (KeyValuePair<string, bool> entry in sl.Scopes)
+				    {
+					    _scopesView.AddScope(entry.Key, entry.Value);
+				    }
+
+				    break;
+			    }
+			    case ScopeInfoPacketData si:
+				    _homeView.SetScope(si.Idn, si.ResourceName, si.ChannelCount);
+				    Global.Instance.Log(0, $"Scope Connected {si.ResourceName}", true);
+				    Global.Instance.Log(3, $"scope specs: ChannelCount={si.ChannelCount}");
+				    break;
+			    case MacroStatePacketData ms:
+				    for (ushort i = 0; i < ms.Macros.Length; i++)
+				    {
+					    _macroView.GetMacro(i)
+						    .SetState(ms.Macros[i] ? MacroControl.State.Saved : MacroControl.State.Empty);
+				    }
+
+				    break;
 		    }
 	    }
     }

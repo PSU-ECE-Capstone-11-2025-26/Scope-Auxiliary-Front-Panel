@@ -17,25 +17,54 @@ layout_mode = 2
 size_flags_vertical = 3
 metadata/_tab_index = 3
 
-[node name="Button" type="Button" parent="VBox" unique_id=767372367]
+[node name="AdvancedContainer" type="FoldableContainer" parent="VBox" unique_id=847051202]
 layout_mode = 2
-text = "Credits"
+title = "Advanced"
 
-[node name="Button2" type="Button" parent="VBox" unique_id=362959123]
+[node name="VBoxContainer" type="VBoxContainer" parent="VBox/AdvancedContainer" unique_id=1659294761]
+layout_mode = 2
+
+[node name="DebugMode" type="CheckButton" parent="VBox/AdvancedContainer/VBoxContainer" unique_id=1767928455]
+layout_mode = 2
+text = "DEBUG MODE"
+
+[node name="ForceReconnect" type="Button" parent="VBox/AdvancedContainer/VBoxContainer" unique_id=2002905784]
+visible = false
+layout_mode = 2
+text = "Force websocket reconnect"
+
+[node name="AboutButton" type="Button" parent="VBox" unique_id=767372367]
+layout_mode = 2
+text = "About"
+
+[node name="ExitButton" type="Button" parent="VBox" unique_id=362959123]
 layout_mode = 2
 text = "Exit"
+
+[node name="HBoxContainer" type="HBoxContainer" parent="VBox" unique_id=327277733]
+layout_mode = 2
 
 [node name="CreditsPopup" type="PopupPanel" parent="." unique_id=831239842]
 oversampling_override = 1.0
 title = "Credits"
 initial_position = 1
-size = Vector2i(500, 422)
+size = Vector2i(500, 5858)
 
-[node name="RichTextLabel" type="RichTextLabel" parent="CreditsPopup" unique_id=1104232932]
+[node name="VBoxContainer" type="VBoxContainer" parent="CreditsPopup" unique_id=1714221764]
 offset_left = 4.0
 offset_top = 4.0
 offset_right = 496.0
-offset_bottom = 418.0
+offset_bottom = 5854.0
+
+[node name="VersionLabel" type="Label" parent="CreditsPopup/VBoxContainer" unique_id=101248881]
+layout_mode = 2
+
+[node name="TabContainer" type="TabContainer" parent="CreditsPopup/VBoxContainer" unique_id=575518546]
+layout_mode = 2
+current_tab = 0
+
+[node name="Credits" type="RichTextLabel" parent="CreditsPopup/VBoxContainer/TabContainer" unique_id=1104232932]
+layout_mode = 2
 bbcode_enabled = true
 text = "[center]
 [color=green]Portland State University[/color]
@@ -57,3 +86,9 @@ Roy Kravitz, PSU ECE Department
 Andrew Greenberg, PSU ECE Department
 [/center]"
 fit_content = true
+metadata/_tab_index = 0
+
+[node name="Third-Party Licenses" type="Label" parent="CreditsPopup/VBoxContainer/TabContainer" unique_id=1238061141]
+visible = false
+layout_mode = 2
+metadata/_tab_index = 1

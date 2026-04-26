@@ -26,13 +26,21 @@ public partial class WsClient : Node
 	public override void _Ready()
 	{
 		Instance = this;
-		_socket = new WebSocketPeer();
 		ReceiveQueue = new Queue<PacketContainer>();
 		SetProcess(false);
 	}
 
+	public override void _ExitTree()
+	{
+		if (_socket.GetReadyState() != WebSocketPeer.State.Closed)
+		{
+			_socket.Close(reason: "application exiting");
+		}
+	}
+
 	public bool Connect(string url)
 	{
+		_socket = new WebSocketPeer();
 		Error err = _socket.ConnectToUrl(url);
 		if (err == Error.Ok)
 		{
@@ -46,6 +54,18 @@ public partial class WsClient : Node
 			SetProcess(false);
 			return false;
 		}
+	}
+
+	public bool Reconnect()
+	{
+		string url = _socket.GetRequestedUrl();
+		if (_socket.GetReadyState() != WebSocketPeer.State.Closed)
+		{
+			_socket.Close();
+		}
+		_prevState = WebSocketPeer.State.Closed;
+		return Connect(url);
+		
 	}
 
 	public void QueuePacketData(IPacketData data)

@@ -1,5 +1,8 @@
 [gd_resource type="Theme" format=3 uid="uid://dnpqf5n3n4s8q"]
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_0omi4"]
+bg_color = Color(0.16862746, 0.16862746, 0.16862746, 0.9490196)
+
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_470mv"]
 content_margin_left = 10.0
 content_margin_top = 4.0
@@ -30,6 +33,9 @@ bg_color = Color(0.16862746, 0.16862746, 0.16862746, 1)
 
 [resource]
 default_font_size = 16
+CheckButton/colors/button_checked_color = Color(0.10980392, 0.70980394, 0.84705883, 1)
+CheckButton/colors/icon_pressed_color = Color(0.10980392, 0.70980394, 0.84705883, 1)
+PanelContainer/styles/panel = SubResource("StyleBoxFlat_0omi4")
 TabContainer/constants/tab_separation = 4
 TabContainer/styles/tab_selected = SubResource("StyleBoxFlat_470mv")
 TabContainer/styles/tab_unselected = SubResource("StyleBoxFlat_a2l2q")
