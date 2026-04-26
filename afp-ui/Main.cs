@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using AFP.Components;
 using AFP.Packet;
 using AFP.Packet.Data;
+using AFP.Resources;
 using AFP.View;
 using Godot;
 
@@ -17,6 +18,8 @@ public partial class Main : Control
     private Home _homeView;
     private Scopes _scopesView;
     private Macros _macroView;
+    
+    private Dictionary<string, ScopeInstance> _scopes = new();
 
     public override void _Ready()
     {
@@ -63,6 +66,10 @@ public partial class Main : Control
 			    }
 			    case ScopeInfoPacketData si:
 				    _homeView.UpdateScope(si.ResourceName, si.Idn, si.ChannelCount);
+				    ScopeInstance scope = _scopes[si.ResourceName];
+				    scope.Idn = si.Idn;
+				    scope.ChannelCount = si.ChannelCount;
+				    scope.ConnectionState = ScopeConnectionState.Connected;
 				    Global.Instance.Log(0, $"Scope Connected {si.ResourceName}", true);
 				    Global.Instance.Log(3, $"scope specs: ChannelCount={si.ChannelCount}");
 				    break;
@@ -80,13 +87,26 @@ public partial class Main : Control
 
     private void _onScopeToggled(string resourceName, bool state)
     {
+	    WsClient.Instance.QueuePacketData(new ScopeActionPacketData
+	    {
+		    Action = state ? "enable" : "disable",
+		    ResourceName = resourceName
+	    });
 	    if (state)
 	    {
+		    _scopes[resourceName] = new ScopeInstance(resourceName, null, ScopeConnectionState.Connecting, 0);
 		    _homeView.AddScope(resourceName);
 	    }
 	    else
 	    {
-		    _homeView.RemoveScope(resourceName);
+		    if (_scopes.Remove(resourceName))
+		    {
+			    _homeView.RemoveScope(resourceName);
+		    }
+		    else
+		    {
+			    Global.Instance.Log(1, $"Attempted to remove nonexistent scope {resourceName}");
+		    }
 	    }
     }
 

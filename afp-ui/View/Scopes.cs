@@ -60,11 +60,6 @@ public partial class Scopes : VBoxContainer
     private void _onScopeToggled(bool enabled, string resourceName)
     {
 	    Global.Instance.Log(3, $"Scope toggle {resourceName} {enabled}");
-	    WsClient.Instance.QueuePacketData(new ScopeActionPacketData
-		    {
-			    Action = enabled ? "enable" : "disable",
-			    ResourceName = resourceName
-		    });
 	    EmitSignal(SignalName.ScopeToggled, resourceName, enabled);
     }
 }
