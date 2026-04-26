@@ -75,6 +75,11 @@ public partial class WsClient : Node
 
 	public void SendPacket(PacketContainer packet)
 	{
+		if (_socket.GetReadyState() != WebSocketPeer.State.Open)
+		{
+			Global.Instance.Log(2, "Can't send packet: Socket not open");
+			return;
+		}
 		string json = JsonSerializer.Serialize(packet, _options);
 		_socket.SendText(json);
 	}
