@@ -15,6 +15,7 @@ from tekafp.api_server.packets import (
     MacroRecordPacketData,
     PacketData,
     ScopeActionPacketData,
+    ScopeInfoPacketData,
     ScopeListPacketData,
 )
 from tekafp.input import Input
@@ -285,7 +286,7 @@ class Controller:
             if detents: 
                 self.adjust_vertical_scale(-detents)
             return
-        
+
         # Encoder HS1 rotation: horizontal timebase scale (1/2/4 steps)
         if msg_id == "HS1":
             detents = int(val)
@@ -299,7 +300,7 @@ class Controller:
                 self._vert_fine = not self._vert_fine
                 print(f"[SCOPE] Vertical scale fine mode -> {'ON' if self._vert_fine else 'OFF'}")
             return
-        
+
         # trigger level encoder
         if msg_id == "TL1":
             detents = int(val)
@@ -382,34 +383,50 @@ def main() -> None:
                     print(f"Received packet action='{a}'")
                     match a:
                         case "enable":
-                            print(f"enabling scope {data.scope}")
-                            if not args.mock and data.scope not in scopes:
-                                connect_to_scope(data.scope)
+                            if data.resource_name not in scopes:
+                                print(f"enabling scope {data.resource_name}")
+                                if args.mock:
+                                    scopes[data.resource_name] = None
+                                    send_packet_data(
+                                        ScopeInfoPacketData(
+                                            data.resource_name,
+                                            "TEKTRONIX,MSO58,C012345,CF:91.1CT FV:1.0.1.8",
+                                            8,
+                                        )
+                                    )
+                                else:
+                                    connect_to_scope(data.resource_name)
                         case "disable":
-                            print(f"disabling scope {data.scope}")
-                            if args.mock:
-                                break
-                            if data.scope in scopes:
-                                c = scopes.pop(data.scope)
-                                c.scope.close()
+                            if data.resource_name in scopes:
+                                print(f"disabling scope {data.resource_name}")
+                                if args.mock:
+                                    del scopes[data.resource_name]
+                                else:
+                                    c = scopes.pop(data.resource_name)
+                                    c.scope.close()
                             else:
-                                print(f"scope {data.scope} not enabled: ignoring")
+                                print(
+                                    f"scope {data.resource_name} not enabled: ignoring"
+                                )
                         case "list":
                             if args.mock:
                                 send_packet_data(
                                     ScopeListPacketData(
-                                        [
-                                            "USB0::0x0699::0x0363::C102912::INSTR",
-                                            "USB0::0x0699::0x0408::B011823::INSTR",
-                                        ]
+                                        {
+                                            "USB0::0x0699::0x0363::C102912::INSTR": False,
+                                            "USB0::0x0699::0x0408::B011823::INSTR": True,
+                                        }
                                     )
                                 )
                             else:
                                 send_packet_data(
                                     ScopeListPacketData(
-                                        rm.list_resources(
-                                            "(USB?*::INSTR|TCPIP?*::INSTR)"
-                                        )
+                                        {
+                                            r: r in scopes
+                                            for r in rm.list_resources(
+                                                "(USB?*::INSTR|TCPIP?*::INSTR)"
+                                            )
+                                        }
                                     )
                                 )
                         case _:
@@ -427,7 +444,7 @@ def main() -> None:
     try:
         while True:
             raw = bridge.get()
-            if scopes and raw:
+            if not args.mock and scopes and raw:
                 try:
                     inp = Input.from_bytes(raw)
                 except Exception as e:
