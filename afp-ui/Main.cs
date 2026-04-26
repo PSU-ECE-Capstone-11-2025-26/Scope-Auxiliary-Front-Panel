@@ -37,7 +37,7 @@ public partial class Main : Control
         _macroView = GetNode<Macros>("ViewManager/Macros");
         _scopesView.ScopeToggled += _onScopeToggled;
         
-        Core.WsClient.Instance.Connect(Core.Global.Instance.Config.WebSocketUrl);
+        Core.WebSocketClient.Instance.Connect(Core.Global.Instance.Config.WebSocketUrl);
     }
 
     public override void _Process(double delta)
@@ -47,7 +47,7 @@ public partial class Main : Control
 
     private void ProcessPackets()
     {
-	    var client = Core.WsClient.Instance;
+	    var client = Core.WebSocketClient.Instance;
 	    if (client.ReceiveQueue.Count == 0) return;
 	    PacketContainer pc = client.ReceiveQueue.Dequeue();
 	    foreach (IPacketData pd in pc.Data)
@@ -87,7 +87,7 @@ public partial class Main : Control
 
     private void _onScopeToggled(string resourceName, bool state)
     {
-	    Core.WsClient.Instance.QueuePacketData(new ScopeActionPacketData
+	    Core.WebSocketClient.Instance.QueuePacketData(new ScopeActionPacketData
 	    {
 		    Action = state ? "enable" : "disable",
 		    ResourceName = resourceName

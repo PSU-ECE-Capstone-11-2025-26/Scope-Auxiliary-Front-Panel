@@ -24,7 +24,7 @@ public partial class Scopes : VBoxContainer
 
     private void RefreshList()
     {
-	    Core.WsClient.Instance.SendPacket(new PacketContainer
+	    Core.WebSocketClient.Instance.SendPacket(new PacketContainer
 	    {
 		    Origin = "client",
 		    Data =

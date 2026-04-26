@@ -15,7 +15,7 @@ public partial class Settings : MarginContainer
 
 	private void _onReconnectButtonPressed()
 	{
-		bool success = Core.WsClient.Instance.Reconnect();
+		bool success = Core.WebSocketClient.Instance.Reconnect();
 		Core.Global.Instance.Log(3, $"Reconnect successful: {success}", true);
 	}
 

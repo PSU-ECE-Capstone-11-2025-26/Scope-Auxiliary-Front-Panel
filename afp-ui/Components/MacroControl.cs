@@ -32,7 +32,7 @@ public partial class MacroControl : VBoxContainer
 		if (pressed)
 		{
 			SetState(State.Recording);
-			Core.WsClient.Instance.QueuePacketData(
+			Core.WebSocketClient.Instance.QueuePacketData(
 				new MacroRecordPacketData
 				{
 					Record = true,
@@ -42,7 +42,7 @@ public partial class MacroControl : VBoxContainer
 		else
 		{
 			SetState(State.Saved);
-			Core.WsClient.Instance.QueuePacketData(
+			Core.WebSocketClient.Instance.QueuePacketData(
 				new MacroRecordPacketData
 				{
 					Record = false,

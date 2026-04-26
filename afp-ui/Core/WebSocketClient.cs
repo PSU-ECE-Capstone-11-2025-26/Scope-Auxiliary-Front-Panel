@@ -7,9 +7,9 @@ using Godot;
 
 namespace AFP.Core;
 
-public partial class WsClient : Node
+public partial class WebSocketClient : Node
 {
-	public static WsClient Instance { get; private set; }
+	public static WebSocketClient Instance { get; private set; }
 
 	public Queue<PacketContainer> ReceiveQueue { get; private set; }
 	private readonly Queue<IPacketData> _sendQueue = new();
