@@ -57,14 +57,13 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 tab_alignment = 1
-current_tab = 3
+current_tab = 0
 tabs_position = 1
 tab_0/icon = ExtResource("2_272bh")
 script = ExtResource("2_lquwl")
 TabConfig = Array[Object]([SubResource("Resource_w48qg"), SubResource("Resource_vivmo"), SubResource("Resource_dg77c"), SubResource("Resource_2cqfq"), SubResource("Resource_yaehf")])
 
 [node name="Home" parent="ViewManager" unique_id=299411269 instance=ExtResource("3_h2yge")]
-visible = false
 layout_mode = 2
 metadata/_tab_name = ""
 
@@ -79,6 +78,7 @@ layout_mode = 2
 metadata/_tab_index = 2
 
 [node name="Log" type="RichTextLabel" parent="ViewManager" unique_id=620310837]
+visible = false
 layout_mode = 2
 bbcode_enabled = true
 text = "[center]Log Start[/center]

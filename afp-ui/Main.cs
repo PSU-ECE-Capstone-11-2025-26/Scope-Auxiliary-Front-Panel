@@ -30,9 +30,11 @@ public partial class Main : Control
         Global.Instance.Toast = GetNode<Control>("Toast");
         Global.Instance.LoadConfig();
         
+        GetNode<TabContainer>("ViewManager").SetTabHidden(2, true);
         _homeView = GetNode<Home>("ViewManager/Home");
         _scopesView = GetNode<Scopes>("ViewManager/Scopes");
         _macroView = GetNode<Macros>("ViewManager/Macros");
+        _scopesView.ScopeToggled += _onScopeToggled;
         
         WsClient.Instance.Connect(Global.Instance.Config.WebSocketUrl);
     }
@@ -62,7 +64,7 @@ public partial class Main : Control
 				    break;
 			    }
 			    case ScopeInfoPacketData si:
-				    _homeView.SetScope(si.Idn, si.ResourceName, si.ChannelCount);
+				    _homeView.UpdateScope(si.ResourceName, si.Idn, si.ChannelCount);
 				    Global.Instance.Log(0, $"Scope Connected {si.ResourceName}", true);
 				    Global.Instance.Log(3, $"scope specs: ChannelCount={si.ChannelCount}");
 				    break;
@@ -75,6 +77,18 @@ public partial class Main : Control
 
 				    break;
 		    }
+	    }
+    }
+
+    private void _onScopeToggled(string resourceName, bool state)
+    {
+	    if (state)
+	    {
+		    _homeView.AddScope(resourceName);
+	    }
+	    else
+	    {
+		    _homeView.RemoveScope(resourceName);
 	    }
     }
 

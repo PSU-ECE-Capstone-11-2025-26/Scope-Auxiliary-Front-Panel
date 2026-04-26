@@ -7,12 +7,14 @@ namespace AFP.View;
 
 public partial class Scopes : VBoxContainer
 {
-	[Export]
-	private PackedScene _scopeOptionScene;
+	[Signal]
+	public delegate void ScopeToggledEventHandler(string resourceName, bool enabled);
+
+	[Export] private PackedScene _scopeOptionScene;
 	private VBoxContainer _list;
 	private ButtonGroup _group;
 
-    public override void _Ready()
+	public override void _Ready()
     {
 	    _list = GetNode<VBoxContainer>("%ScopesList");
 	    _group = new ButtonGroup();
@@ -41,7 +43,7 @@ public partial class Scopes : VBoxContainer
     {
 	    var s = _scopeOptionScene.Instantiate<ScopeOption>();
 	    s.Init(resourceName, enabled, _group);
-	    s.ScopeToggled += _on_scope_toggled;
+	    s.ScopeToggled += _onScopeToggled;
 	    _list.AddChild(s);
     }
 
@@ -50,12 +52,12 @@ public partial class Scopes : VBoxContainer
 	    foreach (Node node in _list.GetChildren())
 	    {
 		    var child = (ScopeOption)node;
-		    child.ScopeToggled -= _on_scope_toggled;
+		    child.ScopeToggled -= _onScopeToggled;
 		    child.QueueFree();
 	    }
     }
 
-    private void _on_scope_toggled(bool enabled, string resourceName)
+    private void _onScopeToggled(bool enabled, string resourceName)
     {
 	    Global.Instance.Log(3, $"Scope toggle {resourceName} {enabled}");
 	    WsClient.Instance.QueuePacketData(new ScopeActionPacketData
@@ -63,5 +65,6 @@ public partial class Scopes : VBoxContainer
 			    Action = enabled ? "enable" : "disable",
 			    ResourceName = resourceName
 		    });
+	    EmitSignal(SignalName.ScopeToggled, resourceName, enabled);
     }
 }
