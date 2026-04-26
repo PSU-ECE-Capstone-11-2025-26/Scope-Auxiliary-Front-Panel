@@ -15,7 +15,6 @@ public partial class Main : Control
     private const float DisplaySize = 7.0f;
     private const int DisplayWidth = 800;
     private const int DisplayHeight = 480;
-
     private Home _homeView;
     private Scopes _scopesView;
     private Macros _macroView;
@@ -32,7 +31,6 @@ public partial class Main : Control
         Global.Instance.Toast = GetNode<Control>("Toast");
         Global.Instance.LoadConfig();
         
-        GetNode<TabContainer>("ViewManager").SetTabHidden(2, true);
         _homeView = GetNode<Home>("ViewManager/Home");
         _scopesView = GetNode<Scopes>("ViewManager/Scopes");
         _macroView = GetNode<Macros>("ViewManager/Macros");
