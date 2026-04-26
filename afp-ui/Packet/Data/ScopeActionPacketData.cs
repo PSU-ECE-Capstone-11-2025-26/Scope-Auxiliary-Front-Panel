@@ -1,7 +1,6 @@
 namespace AFP.Packet.Data;
 
-public class ScopeActionPacketData : IPacketData
+public class ScopeActionPacketData : ScopePacketData
 {
 	public required string Action { get; set; }
-	public required string Scope { get; set; }
 }
