@@ -19,7 +19,7 @@ public partial class Main : Control
     private Scopes _scopesView;
     private Macros _macroView;
     
-    private Dictionary<string, ScopeInstance> _scopes = new();
+    private readonly Dictionary<string, ScopeInstance> _scopes = new();
 
     public override void _Ready()
     {
@@ -28,8 +28,8 @@ public partial class Main : Control
             SetDevWindowSize();
         }
 
-        Global.Instance.Toast = GetNode<Control>("Toast");
-        Global.Instance.LoadConfig();
+        Core.Global.Instance.Toast = GetNode<Control>("Toast");
+        Core.Global.Instance.LoadConfig();
         
         GetNode<TabContainer>("ViewManager").SetTabHidden(2, true);
         _homeView = GetNode<Home>("ViewManager/Home");
@@ -37,7 +37,7 @@ public partial class Main : Control
         _macroView = GetNode<Macros>("ViewManager/Macros");
         _scopesView.ScopeToggled += _onScopeToggled;
         
-        WsClient.Instance.Connect(Global.Instance.Config.WebSocketUrl);
+        Core.WsClient.Instance.Connect(Core.Global.Instance.Config.WebSocketUrl);
     }
 
     public override void _Process(double delta)
@@ -47,7 +47,7 @@ public partial class Main : Control
 
     private void ProcessPackets()
     {
-	    var client = WsClient.Instance;
+	    var client = Core.WsClient.Instance;
 	    if (client.ReceiveQueue.Count == 0) return;
 	    PacketContainer pc = client.ReceiveQueue.Dequeue();
 	    foreach (IPacketData pd in pc.Data)
@@ -56,7 +56,7 @@ public partial class Main : Control
 		    {
 			    case ScopeListPacketData sl:
 			    {
-				    Global.Instance.Log(3, $"Received ScopeList count={sl.Scopes.Count}");
+				    Core.Global.Instance.Log(3, $"Received ScopeList count={sl.Scopes.Count}");
 				    foreach (KeyValuePair<string, bool> entry in sl.Scopes)
 				    {
 					    _scopesView.AddScope(entry.Key, entry.Value);
@@ -70,8 +70,8 @@ public partial class Main : Control
 				    scope.Idn = si.Idn;
 				    scope.ChannelCount = si.ChannelCount;
 				    scope.ConnectionState = ScopeConnectionState.Connected;
-				    Global.Instance.Log(0, $"Scope Connected {si.ResourceName}", true);
-				    Global.Instance.Log(3, $"scope specs: ChannelCount={si.ChannelCount}");
+				    Core.Global.Instance.Log(0, $"Scope Connected {si.ResourceName}", true);
+				    Core.Global.Instance.Log(3, $"scope specs: ChannelCount={si.ChannelCount}");
 				    break;
 			    case MacroStatePacketData ms:
 				    for (ushort i = 0; i < ms.Macros.Length; i++)
@@ -87,7 +87,7 @@ public partial class Main : Control
 
     private void _onScopeToggled(string resourceName, bool state)
     {
-	    WsClient.Instance.QueuePacketData(new ScopeActionPacketData
+	    Core.WsClient.Instance.QueuePacketData(new ScopeActionPacketData
 	    {
 		    Action = state ? "enable" : "disable",
 		    ResourceName = resourceName
@@ -105,7 +105,7 @@ public partial class Main : Control
 		    }
 		    else
 		    {
-			    Global.Instance.Log(1, $"Attempted to remove nonexistent scope {resourceName}");
+			    Core.Global.Instance.Log(1, $"Attempted to remove nonexistent scope {resourceName}");
 		    }
 	    }
     }

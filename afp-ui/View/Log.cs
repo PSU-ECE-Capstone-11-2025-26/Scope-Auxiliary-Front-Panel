@@ -6,7 +6,7 @@ public partial class Log : RichTextLabel
 {
 	public override void _Ready()
 	{
-		Global.Instance.OnLog += _onLogCall;
+		Core.Global.Instance.OnLog += _onLogCall;
 	}
 
 	private void _onLogCall(short level, string message)

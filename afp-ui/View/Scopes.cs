@@ -24,7 +24,7 @@ public partial class Scopes : VBoxContainer
 
     private void RefreshList()
     {
-	    WsClient.Instance.SendPacket(new PacketContainer
+	    Core.WsClient.Instance.SendPacket(new PacketContainer
 	    {
 		    Origin = "client",
 		    Data =
@@ -59,7 +59,7 @@ public partial class Scopes : VBoxContainer
 
     private void _onScopeToggled(bool enabled, string resourceName)
     {
-	    Global.Instance.Log(3, $"Scope toggle {resourceName} {enabled}");
+	    Core.Global.Instance.Log(3, $"Scope toggle {resourceName} {enabled}");
 	    EmitSignal(SignalName.ScopeToggled, resourceName, enabled);
     }
 }

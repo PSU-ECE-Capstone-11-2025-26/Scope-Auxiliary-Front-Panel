@@ -2,7 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Godot;
 
-namespace AFP;
+namespace AFP.Core;
 
 public partial class Global : Node
 {

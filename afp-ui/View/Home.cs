@@ -57,7 +57,7 @@ public partial class Home : VBoxContainer
 	{
 		if (_scopes.Contains(resourceName))
 		{
-			Global.Instance.Log(1, $"Ignoring {resourceName} (already exists)");
+			Core.Global.Instance.Log(1, $"Ignoring {resourceName} (already exists)");
 		}
 		else if (!_tree.Visible)
 		{

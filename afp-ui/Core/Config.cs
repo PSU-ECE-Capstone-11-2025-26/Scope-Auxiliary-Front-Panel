@@ -1,4 +1,4 @@
-namespace AFP;
+namespace AFP.Core;
 
 public class Config
 {

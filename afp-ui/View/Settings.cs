@@ -15,14 +15,14 @@ public partial class Settings : MarginContainer
 
 	private void _onReconnectButtonPressed()
 	{
-		bool success = WsClient.Instance.Reconnect();
-		Global.Instance.Log(3, $"Reconnect successful: {success}", true);
+		bool success = Core.WsClient.Instance.Reconnect();
+		Core.Global.Instance.Log(3, $"Reconnect successful: {success}", true);
 	}
 
 	private void _onDebugToggled(bool enabled)
 	{
-		Global.Instance.Config.DebugMode = enabled;
-		Global.Instance.Log(3, "debug enabled", true);
+		Core.Global.Instance.Config.DebugMode = enabled;
+		Core.Global.Instance.Log(3, "debug enabled", true);
 		GetNode<Button>("VBox/AdvancedContainer/VBoxContainer/ForceReconnect").SetVisible(enabled);
 	}
 }

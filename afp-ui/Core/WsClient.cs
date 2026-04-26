@@ -5,7 +5,7 @@ using AFP.Packet;
 using AFP.Packet.Data;
 using Godot;
 
-namespace AFP;
+namespace AFP.Core;
 
 public partial class WsClient : Node
 {
