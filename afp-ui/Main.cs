@@ -56,6 +56,7 @@ public partial class Main : Control
 			    case ScopeListPacketData sl:
 			    {
 				    Global.Logger.Log(LogLevel.Debug, $"Received ScopeList count={sl.Scopes.Count}");
+				    _scopesView.SetSearchDone();
 				    foreach (KeyValuePair<string, bool> entry in sl.Scopes)
 				    {
 					    _scopesView.AddScope(entry.Key, entry.Value);

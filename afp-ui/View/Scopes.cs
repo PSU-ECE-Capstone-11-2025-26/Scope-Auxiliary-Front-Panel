@@ -20,11 +20,19 @@ public partial class Scopes : VBoxContainer
 	    _list = GetNode<VBoxContainer>("%ScopesList");
 	    _group = new ButtonGroup();
 	    _group.AllowUnpress = true;
-	    GetNode<Button>("RefreshButton").Pressed += RefreshList;
+	    GetNode<Button>("HBoxContainer/RefreshButton").Pressed += RefreshList;
+	    VisibilityChanged += OnVisibilityChanged;
+
     }
 
-    private void RefreshList()
-    {
+	private void OnVisibilityChanged()
+	{
+		if (Visible) RefreshList();
+	}
+
+	private void RefreshList()
+	{
+		GetNode<Button>("HBoxContainer/RefreshButton").Text = "Searching...";
 	    WebSocketClient.Instance.SendPacket(new PacketContainer
 	    {
 		    Origin = "client",
@@ -39,6 +47,11 @@ public partial class Scopes : VBoxContainer
 	    });
 	    ClearScopes();
     }
+
+	public void SetSearchDone()
+	{
+		GetNode<Button>("HBoxContainer/RefreshButton").Text = "Refresh";
+	}
 
     public void AddScope(string resourceName, bool enabled)
     {
