@@ -9,6 +9,8 @@ RPI_IMAGE_DIR := $(IMAGE_BUILD_DIR)/rpi-image-gen
 
 GODOT_BIN := Godot-stable_linux.arm64
 
+WHEEL := $(wildcard $(SOFTWARE_DIR)/dist/*.whl)
+
 all: wheel deb image
 
 ## Build UI binaries
