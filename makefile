@@ -30,7 +30,7 @@ image:
 	mkdir -p $(IMAGE_SRC_DIR)/packages
 	cp $(AFP_UI_DIR)/*.deb $(IMAGE_SRC_DIR)/packages/
 	cp $(WHEEL) $(IMAGE_SRC_DIR)/packages/
-	cd $(RPI_IMAGE_DIR) && ./rpi-image-gen build -S ../$(IMAGE_SRC_DIR) -c ../$(IMAGE_SRC_DIR)/config/tekafp.yaml
+	cd $(IMAGE_BUILD_DIR) && ./rpi-image-gen/rpi-image-gen build -S config/ -c config/config/tekafp.yaml
 
 clean:
 	rm -rf $(SOFTWARE_DIR)/dist
