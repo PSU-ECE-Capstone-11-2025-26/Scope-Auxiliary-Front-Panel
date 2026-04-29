@@ -80,8 +80,6 @@ class Controller:
         self.scope: MessageBasedResource = scope
         self.bridge: UARTBridge = bridge 
 
-        self._sync_index: int = 1
-
         self._channels: dict[int, bool] = {ch: False for ch in range(1, 9)}
         self._source_channel: int = 0
         self._vert_fine: bool = False # fine mode toggle for vertical scale
@@ -91,23 +89,20 @@ class Controller:
         return resp.endswith("1") or resp.endswith("ON")
 
     def sync_all_channels_from_scope(self) -> None:
+        highest = 0
         for ch in range(1, 9):
             actual = self.get_scope_channel_state(ch)
             self._channels[ch] = actual
             self.send_channel_led(ch, actual)
-<<<<<<< HEAD
-            print(f"[SYNC] CH{ch} -> {actual}")
-=======
             if actual:
                 highest = ch
             print(f"[INIT] CH{ch} -> {actual}")
 
-        # Chooses highest enabled channel as the acive selected channel
+        # Chooses highest enabled channel as the active selected channel
         self._source_channel = highest
 
         self.set_scope_selected_source()
         self.send_selected_channel_leds()
->>>>>>> bbe7876 (created helper function that selects the source channel from the afp to the scope. this replaces repeated blocks of code that did the same thing with one clean function call)
 
     def sync_all_changed_channels_from_scope(self) -> None:
         any_changed = False
@@ -120,14 +115,11 @@ class Controller:
                 print(f"[SYNC] CH{ch} -> {actual}")
                 any_changed = True
 
-<<<<<<< HEAD
-=======
                 if actual:
                     self._source_channel = ch
                     self.scope.write(f"DISPLAY:SELECT:SOURCE CH{self._source_channel}")
                     self.send_selected_channel_leds()
 
->>>>>>> bbe7876 (created helper function that selects the source channel from the afp to the scope. this replaces repeated blocks of code that did the same thing with one clean function call)
         # Keep selected source sane if current source is now off
         if self._source_channel != 0 and not self._channels[self._source_channel]:
             highest = 0
@@ -137,65 +129,24 @@ class Controller:
 
             self._source_channel = highest
 
-<<<<<<< HEAD
-            if self._source_channel == 0:
-                self.scope.write("DISPLAY:SELECT:SOURCE:NONE")
-            else:
-                self.scope.write(f"DISPLAY:SELECT:SOURCE:CH{self._source_channel}")
-=======
             self.set_scope_selected_source()
             self.send_selected_channel_leds()
->>>>>>> bbe7876 (created helper function that selects the source channel from the afp to the scope. this replaces repeated blocks of code that did the same thing with one clean function call)
 
         # If nothing changed, stay quiet
         if any_changed:
             print("[SYNC] Full channel sync pass complete")
 
-
-    def sync_channels_from_scope(self) -> None:
-        ch = self._sync_index
-
-        actual = self.get_scope_channel_state(ch)
-        if self._channels[ch] != actual:
-            self._channels[ch] = actual
-            self.send_channel_led(ch, actual)
-            print(f"[SYNC] CH{ch} -> {actual}")
-
-            # Keep selected source sane if current source is now off
-            if self._source_channel != 0 and not self._channels[self._source_channel]:
-                highest = 0
-                for k, v in self._channels.items():
-                    if v:
-                        highest = k
-                self._source_channel = highest
-
-                # Always write, not just when changed, to ensure source updates if it was changed externally
-                if self._source_channel == 0:
-                    self.scope.write("DISPLAY:SELECT:SOURCE:NONE")
-                else:
-                    self.scope.write(f"DISPLAY:SELECT:SOURCE:CH{self._source_channel}")
-
-        self._sync_index += 1
-        if self._sync_index > 8:
-            self._sync_index = 1
-
-
-    def send_channel_led(self, channel: int, state: bool) -> None:
-        # Send indicator update back to Pico
-        if channel not in range(1,9):
-            return
-
-        # Per-channel RGB color (R,G,B)
-        channel_colors: dict[int, tuple[int, int, int]] = {
-            1: (1, 1, 0), # Yellow
-            2: (0, 1, 1), # Cyan
-            3: (1, 0, 0), # Red
-            4: (0, 1, 0), # Lime Green
-            5: (1, 1, 0), # Orange approximation 
-            6: (0, 0, 1), # Blue
-            7: (1, 0, 1), # Purple
-            8: (0, 1, 0), # Forest Green approximation
-        }
+    # Per-channel RGB color (R,G,B)
+    CHANNEL_COLORS: dict[int, tuple[int, int, int]] = {
+        1: (1, 1, 0),  # Yellow
+        2: (0, 1, 1),  # Cyan
+        3: (1, 0, 0),  # Red
+        4: (0, 1, 0),  # Lime Green
+        5: (1, 1, 0),  # Orange approximation
+        6: (0, 0, 1),  # Blue
+        7: (1, 0, 1),  # Purple
+        8: (0, 1, 0),  # Forest Green approximation
+    }
 
     def send_channel_led(self, channel: int, state: bool) -> None:
         # Send indicator update back to Pico
@@ -265,6 +216,7 @@ class Controller:
             self._source_channel = actual_source
             self.send_selected_channel_leds()
             print(f"[SYNC] selected source -> CH{actual_source}")
+
     def set_channel_display(self, channel: int) -> None:
         if channel not in range(1, 9):
             return
@@ -277,7 +229,6 @@ class Controller:
             for k, v in self._channels.items():
                 if v:
                     highest = k
-                    
             self._source_channel = highest
         elif last_state:
             # enabled => set as source
@@ -535,7 +486,7 @@ def main() -> None:
     startup_event.wait()
 
     # ctrl setup
-    rm: pyvisa.ResourceManager = pyvisa.ResourceManager()
+    rm: pyvisa.ResourceManager = pyvisa.ResourceManager(PYVISA_BACKEND)
     scopes: dict[str, Controller] = {}
 
     def connect_to_scope(resource_name: str) -> None:
