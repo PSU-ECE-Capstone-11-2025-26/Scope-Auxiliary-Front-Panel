@@ -11,7 +11,6 @@ mmdebstrap:
     - picocom
     - python3-full
     - python3-pip
-    - raspberrypi-sys-mods
     - dbus-user-session
     - libpam-systemd
     - libwayland-cursor0

@@ -8,9 +8,6 @@ config=$rootfs/boot/firmware/config.txt
 # Always free the primary UART: strip the serial console from it.
 sed -i -E 's/\bconsole=serial0,[0-9]+\s*//' "$cmdline"
 
-# First-boot rootfs expansion (runs before systemd, then reboots).
-sed -i -E 's|(\s*)$| init=/usr/lib/raspberrypi-sys-mods/firstboot\1|' "$cmdline"
-
 # Always enable the primary UART (stable clock) and expose UART2 on GPIO 0/1.
 cat >> "$config" <<'EOF'
 
