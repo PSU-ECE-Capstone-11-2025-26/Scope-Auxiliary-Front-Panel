@@ -5,7 +5,7 @@ After=dev-serial0.device
 [Service]
 Type=simple
 User=tek
-ExecStart=/usr/bin/python3 -m tekafp -m
+ExecStart=/usr/bin/python3 -m tekafp
 Restart=on-failure
 RestartSec=5
 
