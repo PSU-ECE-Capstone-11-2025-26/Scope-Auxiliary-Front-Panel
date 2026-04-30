@@ -2,6 +2,11 @@
 
 [ext_resource type="Script" uid="uid://be1ui7587gf0t" path="res://View/Home.cs" id="1_tt30a"]
 [ext_resource type="Texture2D" uid="uid://2fcqtmgrkiay" path="res://icons/tek_full.svg" id="2_elaby"]
+[ext_resource type="FontFile" uid="uid://c6srbc2cw1n3n" path="res://theme/Barlow-SemiBold.ttf" id="3_5tmwg"]
+
+[sub_resource type="LabelSettings" id="LabelSettings_acw8y"]
+font = ExtResource("3_5tmwg")
+font_size = 18
 
 [node name="Home" type="VBoxContainer" unique_id=1823192803]
 anchors_preset = 15
@@ -16,8 +21,9 @@ metadata/_tab_index = 0
 
 [node name="RichTextLabel" type="RichTextLabel" parent="." unique_id=1371944250]
 layout_mode = 2
+theme_override_fonts/normal_font = ExtResource("3_5tmwg")
 bbcode_enabled = true
-text = "[indent][b][color=#1DB5D8]TEKTRONIX[/color][/b]  AUXILIARY FRONT PANEL[/indent]		ECE CAPSTONE 2026
+text = "[center]AUXILIARY FRONT PANEL CAPSTONE 2026[/center]
 "
 fit_content = true
 
@@ -56,4 +62,5 @@ offset_right = 150.0
 offset_bottom = 151.0
 grow_horizontal = 2
 text = "Connect to a scope in the \"Scopes\" Tab"
+label_settings = SubResource("LabelSettings_acw8y")
 horizontal_alignment = 1

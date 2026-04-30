@@ -19,6 +19,6 @@ horizontal_alignment = 1
 
 [node name="RecordButton" type="Button" parent="." unique_id=1025095396]
 layout_mode = 2
-theme_override_font_sizes/font_size = 36
+theme_override_font_sizes/font_size = 32
 toggle_mode = true
 text = "Record"
