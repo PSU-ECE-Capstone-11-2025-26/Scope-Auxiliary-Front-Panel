@@ -11,10 +11,6 @@ namespace AFP;
 
 public partial class Main : Control
 {
-    // specs from https://4dsystems.com.au/products/gen4-4dpi-70ct-clb/
-    private const float DisplaySize = 7.0f;
-    private const int DisplayWidth = 800;
-    private const int DisplayHeight = 480;
     private Home _homeView;
     private Scopes _scopesView;
     private Macros _macroView;
@@ -23,11 +19,6 @@ public partial class Main : Control
 
     public override void _Ready()
     {
-        if (OS.HasFeature("debug"))
-        {
-            SetDevWindowSize();
-        }
-
         Global.Instance.Toast = GetNode<Control>("Toast");
         Global.Instance.LoadConfig();
         
@@ -108,25 +99,5 @@ public partial class Main : Control
 			    Global.Logger.Log(LogLevel.Warning, $"Attempted to remove nonexistent scope {resourceName}");
 		    }
 	    }
-    }
-
-    private void SetDevWindowSize()
-    {
-        int dpi = DisplayServer.ScreenGetDpi();
-        Vector2I newSize = CalcDevWindowSize(dpi);
-        GetWindow().Size = newSize;
-        GetWindow().ContentScaleSize = newSize;
-    }
-
-    private static Vector2I CalcDevWindowSize(int dpi)
-    {
-        const float aspectRatio = (float)DisplayWidth / DisplayHeight;
-        float hInch = DisplaySize / (float.Sqrt(float.Pow(aspectRatio, 2) + 1));
-        float wInch = aspectRatio * hInch;
-        
-        int hPixels = Mathf.RoundToInt(hInch * dpi);
-        int wPixels = Mathf.RoundToInt(wInch * dpi);
-        
-        return new Vector2I(wPixels, hPixels);
     }
 }
