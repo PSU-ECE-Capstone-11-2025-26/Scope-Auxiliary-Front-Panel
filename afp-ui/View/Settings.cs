@@ -9,6 +9,7 @@ public partial class Settings : MarginContainer
 	[Export] private Label _aboutLabel;
 	[Export] private CheckButton _debugToggle;
 	[Export] private Button _setDevWinSize;
+	[Export] private OptionButton _autoConnect;
 
 	// specs from https://4dsystems.com.au/products/gen4-4dpi-70ct-clb/
 	private const float DisplaySize = 7.0f;
@@ -20,6 +21,7 @@ public partial class Settings : MarginContainer
 		_forceCloseButton.Pressed += () => GetTree().Quit(0);
 		_aboutLabel.Text = $"AFP-UI v{ProjectSettings.GetSetting("application/config/version")}";
 		_debugToggle.Toggled += _onDebugToggled;
+		_autoConnect.ItemSelected += OnItemSelected;
 		if (OS.HasFeature("debug"))
 		{
 			_setDevWinSize.Show();
@@ -27,10 +29,22 @@ public partial class Settings : MarginContainer
 		}
 	}
 
+	public void SetFromConfig(Config cfg)
+	{
+		_debugToggle.ButtonPressed = cfg.DebugMode;
+		_autoConnect.Selected = (int)cfg.AutoConnect;
+	}
+
 	private static void _onDebugToggled(bool enabled)
 	{
 		Global.Instance.Config.DebugMode = enabled;
 		Global.Logger.Log(LogLevel.Debug, "debug enabled", true);
+	}
+
+	private static void OnItemSelected(long item)
+	{
+		Global.Instance.Config.AutoConnect = (AutoConnectMode)item;
+		Global.Instance.SaveConfig();
 	}
 
 	private void SetDevWindowSize()

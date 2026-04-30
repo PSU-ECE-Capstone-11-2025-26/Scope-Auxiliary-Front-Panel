@@ -10,6 +10,9 @@ namespace AFP.Core;
 
 public partial class WebSocketClient : Node
 {
+	[Signal]
+	public delegate void ConnectedEventHandler();
+	
 	public static WebSocketClient Instance { get; private set; }
 
 	public Queue<PacketContainer> ReceiveQueue { get; private set; }
@@ -124,6 +127,7 @@ public partial class WebSocketClient : Node
 				case WebSocketPeer.State.Open:
 					Global.Logger.Log(LogLevel.Debug, "WebSocket: connected");
 					_connectionAttemptTime = 0;
+					EmitSignal(SignalName.Connected);
 					break;
 				case WebSocketPeer.State.Closing:
 					GD.Print("WebSocket: closing...");

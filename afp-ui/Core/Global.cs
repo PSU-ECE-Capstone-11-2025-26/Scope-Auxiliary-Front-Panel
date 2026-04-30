@@ -6,7 +6,7 @@ namespace AFP.Core;
 
 public partial class Global : Node
 {
-	public static Logger Logger { get; private set; } = new Logger();
+	public static Logger Logger { get; } = new();
     public static Global Instance { get; private set; }
     /// <summary>
     /// Path to the config file
@@ -32,6 +32,11 @@ public partial class Global : Node
         Logger.OnToast += OnToast;
     }
 
+    public override void _ExitTree()
+    {
+	    SaveConfig();
+    }
+
     private void OnToast(LogLevel level, string message)
     {
 	    Toast.Call("add_message_compat", (ushort)level, message);
@@ -43,7 +48,7 @@ public partial class Global : Node
     private void InitConfig()
     {
         Config = new Config();
-        SaveConfig();
+        SaveConfig(true);
     }
     
     /// <summary>
@@ -71,11 +76,11 @@ public partial class Global : Node
     /// <summary>
     /// Write the config to disk
     /// </summary>
-    public void SaveConfig()
+    public void SaveConfig(bool flush = false)
     {
         using FileAccess file = FileAccess.Open(ConfigPath, FileAccess.ModeFlags.Write);
         string json = JsonSerializer.Serialize(Config, JsonSerializerOptions);
         file.StoreString(json);
-        file.Flush();
+        if (flush) file.Flush();
     }
 }

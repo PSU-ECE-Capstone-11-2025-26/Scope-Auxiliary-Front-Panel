@@ -19,15 +19,18 @@ public partial class Main : Control
 
     public override void _Ready()
     {
-        Global.Instance.Toast = GetNode<Control>("Toast");
-        Global.Instance.LoadConfig();
-        
-        _homeView = GetNode<Home>("ViewManager/Home");
-        _scopesView = GetNode<Scopes>("ViewManager/Scopes");
-        _macroView = GetNode<Macros>("ViewManager/Macros");
-        _scopesView.ScopeToggled += _onScopeToggled;
-        
-        WebSocketClient.Instance.Connect(Global.Instance.Config.WebSocketUrl);
+	    Global.Instance.Toast = GetNode<Control>("Toast");
+	    Global.Instance.LoadConfig();
+
+	    _homeView = GetNode<Home>("ViewManager/Home");
+	    _scopesView = GetNode<Scopes>("ViewManager/Scopes");
+	    _macroView = GetNode<Macros>("ViewManager/Macros");
+	    GetNode<Settings>("ViewManager/Settings").SetFromConfig(Global.Instance.Config);
+	    _scopesView.ScopeToggled += ToggleScope;
+
+	    WebSocketClient.Instance.Connect(WebSocketClient.SignalName.Connected, Callable.From(OnSocketFirstConnect),
+		    (uint)ConnectFlags.OneShot);
+	    WebSocketClient.Instance.Connect(Global.Instance.Config.WebSocketUrl);
     }
 
     public override void _Process(double delta)
@@ -47,16 +50,19 @@ public partial class Main : Control
 			    case ScopeListPacketData sl:
 			    {
 				    Global.Logger.Log(LogLevel.Debug, $"Received ScopeList count={sl.Scopes.Count}");
-				    _scopesView.SetSearchDone();
+				    _scopesView.ClearScopes();
 				    foreach (KeyValuePair<string, bool> entry in sl.Scopes)
 				    {
 					    _scopesView.AddScope(entry.Key, entry.Value);
 				    }
 
+				    _scopesView.SetSearchComplete();
 				    break;
 			    }
 			    case ScopeInfoPacketData si:
 				    _homeView.UpdateScope(si.ResourceName, si.Idn, si.ChannelCount);
+				    Global.Instance.Config.LastUsedScopes[0] = si.ResourceName;
+				    Global.Instance.SaveConfig(true);
 				    ScopeInstance scope = _scopes[si.ResourceName];
 				    scope.Idn = si.Idn;
 				    scope.ChannelCount = si.ChannelCount;
@@ -75,11 +81,50 @@ public partial class Main : Control
 			    case LogMessagePacketData lm:
 				    Global.Logger.Log((LogLevel)lm.Level, lm.Message, lm.Toast);
 				    break;
+			    case ErrorPacketData ep:
+				    if (ep.ErrorCode == 0)
+				    {
+					    _scopes.Remove(ep.ResourceName);
+					    _homeView.RemoveScope(ep.ResourceName);
+				    }
+				    Global.Logger.Log(LogLevel.Error, ep.ErrorStr, true);
+				    break;
 		    }
 	    }
     }
 
-    private void _onScopeToggled(string resourceName, bool state)
+    private void OnSocketFirstConnect()
+    {
+	    switch (Global.Instance.Config.AutoConnect)
+	    {
+		    case AutoConnectMode.LastUsed:
+			    // TODO: update for reconnecting to multiple scopes
+			    if (Global.Instance.Config.LastUsedScopes.Count > 0)
+			    {
+				    string rn = Global.Instance.Config.LastUsedScopes[0];
+				    ToggleScope(rn, true);
+				    Global.Logger.Log(LogLevel.Info, $"Connecting to last scope [{rn}]", true);
+			    }
+			    break;
+		    case AutoConnectMode.FirstAvailable:
+			    _scopesView.Connect(Scopes.SignalName.SearchComplete,
+				    Callable.From(OnFirstScopeSearch), (uint)ConnectFlags.OneShot);
+			    _scopesView.RefreshList();
+			    break;
+		    case AutoConnectMode.None:
+			    break;
+	    }
+    }
+
+    private void OnFirstScopeSearch()
+    {
+	    if (_scopesView.List.GetChildCount() > 0)
+	    {
+		    ToggleScope(_scopesView.List.GetChild<ScopeOption>(0).ResourceName, true);
+	    }
+    }
+
+    private void ToggleScope(string resourceName, bool state)
     {
 	    WebSocketClient.Instance.QueuePacketData(new ScopeActionPacketData
 	    {

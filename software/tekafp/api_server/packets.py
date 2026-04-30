@@ -2,6 +2,8 @@ from dataclasses import asdict, dataclass, fields
 from enum import IntEnum
 from typing import ClassVar, TypedDict
 
+from tekafp.api_server.error import APIError
+
 
 class LogMessageLevel(IntEnum):
     INFO = 0
@@ -56,6 +58,13 @@ class MacroRecordPacketData(PacketData):
 @dataclass
 class MacroStatePacketData(PacketData):
     macros: list[bool]
+
+
+@dataclass
+class ErrorPacketData(PacketData):
+    resource_name: str
+    error_code: APIError
+    error_str: str
 
 
 @dataclass

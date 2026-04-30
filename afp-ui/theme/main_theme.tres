@@ -146,6 +146,7 @@ FoldableContainer/styles/title_collapsed_panel = SubResource("StyleBoxFlat_yhfeq
 FoldableContainer/styles/title_hover_panel = SubResource("StyleBoxFlat_1i34x")
 FoldableContainer/styles/title_panel = SubResource("StyleBoxFlat_1i34x")
 PanelContainer/styles/panel = SubResource("StyleBoxFlat_0omi4")
+PopupMenu/styles/panel = SubResource("StyleBoxFlat_sxwih")
 TabContainer/constants/tab_separation = 4
 TabContainer/fonts/font = ExtResource("1_a2l2q")
 TabContainer/styles/panel = SubResource("StyleBoxFlat_58jnp")
