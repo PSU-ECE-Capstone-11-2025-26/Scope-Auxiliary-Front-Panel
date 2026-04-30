@@ -230,6 +230,8 @@ class Controller:
             for k, v in self._channels.items():
                 if v:
                     highest = k
+                    if k > channel:
+                        break
             self._source_channel = highest
         elif last_state:
             # enabled => set as source
@@ -478,6 +480,12 @@ class Controller:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("-m", "--mock", action="store_true", help="Run in mock mode")
+    parser.add_argument(
+        "-a",
+        "--auto",
+        action="store_true",
+        help="Automatically connect to first available scope",
+    )
     args = parser.parse_args()
     # internal setup
     bridge = connect_uart(args.mock)
@@ -508,6 +516,11 @@ def main() -> None:
         ctrl = Controller(scope, bridge)
         ctrl.sync_all_channels_from_scope()
         scopes[resource_name] = ctrl
+        send_packet_data(
+            ScopeInfoPacketData(
+                resource_name, idn, 8
+            )
+        )
 
     def handle_packet(packet: RawPacket) -> None:
         for pd in packet["data"]:
@@ -571,9 +584,12 @@ def main() -> None:
                         # TODO record for slot data.slot
                         # If a different slot is recording, stop that one first.
                     else:
-                        pass # TODO stop recording for slot data.slot
+                        pass  # TODO stop recording for slot data.slot
                 case _:
                     print(f"Unknown or incorrect packet type {data.type}")
+
+    if args.auto:
+        connect_to_scope(rm.list_resources("(USB?*::INSTR|TCPIP?*::INSTR)")[0])
 
     try:
         last_sync = time.monotonic()
