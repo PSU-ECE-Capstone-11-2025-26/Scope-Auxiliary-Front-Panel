@@ -553,6 +553,10 @@ def main() -> None:
                                     )
                                 )
                             else:
+                                resources = list(
+                                    rm.list_resources("(USB?*::INSTR|TCPIP?*::INSTR)")
+                                )
+
                                 send_packet_data(
                                     ScopeListPacketData(
                                         {
