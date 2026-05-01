@@ -6,3 +6,4 @@ public class ScopeListPacketData : IPacketData
 {
 	public required Dictionary<string, bool> Scopes { get; set; }
 }
+
