@@ -124,6 +124,9 @@ corner_radius_bottom_left = 12
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_gsqoc"]
 bg_color = Color(0.105882354, 0.16078432, 0.20784314, 1)
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_1knni"]
+bg_color = Color(0.23137255, 0.34117648, 0.4392157, 0.1254902)
+
 [sub_resource type="FontVariation" id="FontVariation_52mx2"]
 base_font = ExtResource("1_470mv")
 variation_embolden = 0.35
@@ -151,3 +154,4 @@ TabContainer/styles/tab_hovered = SubResource("StyleBoxFlat_466ly")
 TabContainer/styles/tab_selected = SubResource("StyleBoxFlat_470mv")
 TabContainer/styles/tab_unselected = SubResource("StyleBoxFlat_a2l2q")
 TabContainer/styles/tabbar_background = SubResource("StyleBoxFlat_gsqoc")
+Tree/styles/panel = SubResource("StyleBoxFlat_1knni")
