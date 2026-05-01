@@ -1,5 +1,6 @@
 import argparse
 import threading
+import time
 
 import pyvisa
 from pyvisa.resources import MessageBasedResource
@@ -75,13 +76,146 @@ def connect_uart(mock: bool = False) -> UARTBridge:
 
 
 class Controller:
-    def __init__(self, scope: MessageBasedResource) -> None:
+    def __init__(self, scope: MessageBasedResource, bridge: UARTBridge) -> None:
         self.scope: MessageBasedResource = scope
+        self.bridge: UARTBridge = bridge 
 
         self._channels: dict[int, bool] = {ch: False for ch in range(1, 9)}
         self._source_channel: int = 0
-
         self._vert_fine: bool = False # fine mode toggle for vertical scale
+
+    def get_scope_channel_state(self, channel: int) -> bool:
+        resp = self.scope.query(f"DISPLAY:GLOBAL:CH{channel}:STATE?").strip().upper()
+        return resp.endswith("1") or resp.endswith("ON")
+
+    def sync_all_channels_from_scope(self) -> None:
+        highest = 0
+        for ch in range(1, 9):
+            actual = self.get_scope_channel_state(ch)
+            self._channels[ch] = actual
+            self.send_channel_led(ch, actual)
+            if actual:
+                highest = ch
+            print(f"[INIT] CH{ch} -> {actual}")
+
+        # Chooses highest enabled channel as the active selected channel
+        self._source_channel = highest
+
+        self.set_scope_selected_source()
+        self.send_selected_channel_leds()
+
+    def sync_all_changed_channels_from_scope(self) -> None:
+        any_changed = False
+
+        for ch in range(1,9):
+            actual = self.get_scope_channel_state(ch)
+            if self._channels[ch] != actual:
+                self._channels[ch] = actual
+                self.send_channel_led(ch, actual)
+                print(f"[SYNC] CH{ch} -> {actual}")
+                any_changed = True
+
+                if actual:
+                    self._source_channel = ch
+                    self.scope.write(f"DISPLAY:SELECT:SOURCE CH{self._source_channel}")
+                    self.send_selected_channel_leds()
+
+        # Keep selected source sane if current source is now off
+        if self._source_channel != 0 and not self._channels[self._source_channel]:
+            highest = 0
+            for k, v in self._channels.items():
+                if v:
+                    highest = k
+
+            self._source_channel = highest
+
+            self.set_scope_selected_source()
+            self.send_selected_channel_leds()
+
+        # If nothing changed, stay quiet
+        if any_changed:
+            print("[SYNC] Full channel sync pass complete")
+
+    # Per-channel RGB color (R,G,B)
+    CHANNEL_COLORS: dict[int, tuple[int, int, int]] = {
+        1: (1, 1, 0),  # Yellow
+        2: (0, 1, 1),  # Cyan
+        3: (1, 0, 0),  # Red
+        4: (0, 1, 0),  # Lime Green
+        5: (1, 1, 0),  # Orange approximation
+        6: (0, 0, 1),  # Blue
+        7: (1, 0, 1),  # Purple
+        8: (0, 1, 0),  # Forest Green approximation
+    }
+
+    def send_channel_led(self, channel: int, state: bool) -> None:
+        # Send indicator update back to Pico
+        if channel not in range(1,9):
+            return
+
+        r, g, b = self.CHANNEL_COLORS[channel]
+
+        if not state: 
+            r, g, b = 0, 0, 0
+
+        msgs = [
+            f"IV{channel}0_R:{r}\n".encode("utf-8"), 
+            f"IV{channel}0_G:{g}\n".encode("utf-8"),
+            f"IV{channel}0_B:{b}\n".encode("utf-8"),
+        ]
+
+        for msg in msgs:
+            self.bridge.write_sync(msg)
+            print(f"[UART->PICO] {msg.decode().strip()}")
+
+
+    def send_selected_channel_leds(self) -> None: 
+        # Two RGB LEDs used to show the active selected channel: 
+        # VP1_RGB and VS1_RGB should always match the selected channel color
+        
+        r, g, b = self.CHANNEL_COLORS.get(self._source_channel, (0,0,0))
+
+        msgs = [
+            f"IVP1_R:{r}\n".encode("utf-8"),
+            f"IVP1_G:{g}\n".encode("utf-8"),
+            f"IVP1_B:{b}\n".encode("utf-8"),
+            f"IVS1_R:{r}\n".encode("utf-8"),
+            f"IVS1_G:{g}\n".encode("utf-8"),
+            f"IVS1_B:{b}\n".encode("utf-8"),
+        ]
+
+        for msg in msgs:
+            self.bridge.write_sync(msg)
+            print(f"[UART->PICO] {msg.decode().strip()}")
+
+    def get_scope_selected_source(self) -> int:
+        resp = self.scope.query("DISPLAY:SELECT:SOURCE?").strip().upper()
+
+        if resp.endswith("NONE"):
+            return 0
+
+        for ch in range(1, 9):
+            if resp.endswith(f"CH{ch}") or f"CH{ch}" in resp:
+                return ch
+
+        print(f"[SYNC] Unknown selected source response: {resp}")
+        return self._source_channel
+
+
+    def set_scope_selected_source(self) -> None:
+        if self._source_channel == 0:
+            self.scope.write("DISPLAY:SELECT:SOURCE NONE")
+        else:
+            self.scope.write(f"DISPLAY:SELECT:SOURCE CH{self._source_channel}")
+
+
+    def sync_selected_source_from_scope(self) -> None:
+        actual_source = self.get_scope_selected_source()
+
+        if actual_source != self._source_channel:
+            self._source_channel = actual_source
+            self.send_selected_channel_leds()
+            print(f"[SYNC] selected source -> CH{actual_source}")
 
     def set_channel_display(self, channel: int) -> None:
         if channel not in range(1, 9):
@@ -95,8 +229,6 @@ class Controller:
             for k, v in self._channels.items():
                 if v:
                     highest = k
-                    if k > channel:
-                        break
             self._source_channel = highest
         elif last_state:
             # enabled => set as source
@@ -106,15 +238,14 @@ class Controller:
             self._channels[channel] = True
             self._source_channel = channel
 
-        if self._source_channel == 0:
-            self.scope.write("DISPLAY:SELECT:SOURCE:NONE")
-        else:
-            self.scope.write(f"DISPLAY:SELECT:SOURCE:CH{self._source_channel}")
+        self.set_scope_selected_source()
+        self.send_selected_channel_leds()
 
         if last_state != self._channels[channel]:
             self.scope.write(
                 f"DISPLAY:GLOBAL:CH{channel}:STATE {int(self._channels[channel])}"
             )
+            self.send_channel_led(channel, self._channels[channel]) 
 
         print(
             f"[SCOPE] CH{channel} display -> {self._channels[channel]} (source={self._source_channel})"  # noqa: E501
@@ -355,7 +486,7 @@ def main() -> None:
     startup_event.wait()
 
     # ctrl setup
-    rm: pyvisa.ResourceManager = pyvisa.ResourceManager()
+    rm: pyvisa.ResourceManager = pyvisa.ResourceManager(PYVISA_BACKEND)
     scopes: dict[str, Controller] = {}
 
     def connect_to_scope(resource_name: str) -> None:
@@ -372,7 +503,10 @@ def main() -> None:
         scope.write("HORIZONTAL:DELAY:MODE OFF")
         idn = scope.query("*IDN?").strip()
         print("Connected ctrl:", idn)
-        scopes[resource_name] = Controller(scope)
+
+        ctrl = Controller(scope, bridge)
+        ctrl.sync_all_channels_from_scope()
+        scopes[resource_name] = ctrl
 
     def handle_packet(packet: RawPacket) -> None:
         for pd in packet["data"]:
@@ -420,11 +554,15 @@ def main() -> None:
                         # TODO record for slot data.slot
                         # If a different slot is recording, stop that one first.
                     else:
-                        pass  # TODO stop recording for slot data.slot
+                        pass # TODO stop recording for slot data.slot
                 case _:
                     print(f"Unknown or incorrect packet type {data.type}")
 
     try:
+        last_sync = time.monotonic()
+        last_input = 0.0 # no input yet
+        sync_period_s = 0.05
+
         while True:
             raw = bridge.get()
             if scopes and raw:
@@ -433,11 +571,22 @@ def main() -> None:
                 except Exception as e:
                     print(f"Bad UART message {raw!r}: {e}")
                     continue
+
                 # iterating all scopes here would allow control of multiple at once
-                list(scopes.values())[0].handle_input(inp)
+                ctrl = list(scopes.values())[0]
+                ctrl.handle_input(inp)
+                last_input = time.monotonic()
+
             new_packet = get_raw_packet()
             if new_packet:
                 handle_packet(new_packet)
+
+            now = time.monotonic()
+            if scopes and now - last_sync > sync_period_s and now - last_input > 0.05:
+                ctrl = list(scopes.values())[0]
+                ctrl.sync_all_changed_channels_from_scope()
+                ctrl.sync_selected_source_from_scope()
+                last_sync = now
 
     except KeyboardInterrupt:
         print("\nExiting...")
