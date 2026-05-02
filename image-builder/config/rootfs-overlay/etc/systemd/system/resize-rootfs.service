@@ -1,0 +1,14 @@
+[Unit]
+Description=Resize root filesystem on first boot
+ConditionPathExists=!/var/lib/rootfs-resized
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/growpart /dev/mmcblk0 2
+ExecStart=/usr/bin/resize2fs /dev/mmcblk0p2
+ExecStart=/bin/touch /var/lib/rootfs-resized
+ExecStart=/bin/systemctl reboot
+
+[Install]
+WantedBy=multi-user.target

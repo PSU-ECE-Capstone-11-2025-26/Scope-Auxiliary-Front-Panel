@@ -11,6 +11,7 @@ mmdebstrap:
     - picocom
     - python3-full
     - python3-pip
+    - cloud-guest-utils
     - dbus-user-session
     - libpam-systemd
     - libwayland-cursor0
