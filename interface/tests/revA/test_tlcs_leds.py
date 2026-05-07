@@ -61,16 +61,20 @@ class TLC5947:
     def write(self):
         if not self.dirty:
             return
+
         self.lat.value(0)
+
         for val in self.buffer:
             for i in range(11, -1, -1):
                 self.clk.value(0)
                 self.din.value((val >> i) & 1)
                 self.clk.value(1)
+
         self.clk.value(0)
         self.lat.value(1)
         utime.sleep_us(10)
         self.lat.value(0)
+
         self.dirty = False
 
 
@@ -94,7 +98,7 @@ utime.sleep_ms(500)
 print("All ON")
 tlc.set_all(1)
 tlc.write()
-utime.sleep_ms(1000)
+utime.sleep_ms(10000)
 
 print("All OFF")
 tlc.clear_all()
@@ -118,7 +122,7 @@ print("--- BUS / ALIVE CHECK COMPLETE ---")
 # Named indicator ID portion
 # -------------------------
 print("\n--- NAMED INDICATOR ID TEST ---")
-print("Commands: n = next, p = previous, q = quit\n")
+print("Commands: Enter = next, p = previous, q = quit\n")
 
 items = sorted(LED_MAP.items(), key=lambda item: item[1])
 idx = 0
@@ -131,7 +135,7 @@ while 0 <= idx < len(items):
     tlc.write()
 
     print("Testing {} -> channel {} ({}/{})".format(name, ch, idx + 1, len(items)))
-    cmd = input("Command [n/p/q]: ").strip().lower()
+    cmd = input("Command [Enter=next / p=previous / q=quit]: ").strip().lower()
 
     if cmd == "q":
         print("Named indicator test stopped by user.")
