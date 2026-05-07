@@ -2,10 +2,11 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Godot;
 
-namespace AFP;
+namespace AFP.Core;
 
 public partial class Global : Node
 {
+	public static Logger Logger { get; private set; } = new Logger();
     public static Global Instance { get; private set; }
     /// <summary>
     /// Path to the config file
@@ -28,8 +29,14 @@ public partial class Global : Node
     public override void _Ready()
     {
         Instance = this;
+        Logger.OnToast += OnToast;
     }
-    
+
+    private void OnToast(LogLevel level, string message)
+    {
+	    Toast.Call("add_message_compat", (ushort)level, message);
+    }
+
     /// <summary>
     /// Initialize the config file with default options
     /// </summary>

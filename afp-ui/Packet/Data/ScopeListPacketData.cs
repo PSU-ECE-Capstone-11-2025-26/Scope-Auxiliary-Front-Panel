@@ -1,6 +1,8 @@
+using System.Collections.Generic;
+
 namespace AFP.Packet.Data;
 
 public class ScopeListPacketData : IPacketData
 {
-	public required string[] Scopes { get; set; }
+	public required Dictionary<string, bool> Scopes { get; set; }
 }

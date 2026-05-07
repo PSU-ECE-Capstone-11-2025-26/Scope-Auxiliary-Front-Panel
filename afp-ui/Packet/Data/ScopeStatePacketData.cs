@@ -1,6 +1,6 @@
 namespace AFP.Packet.Data;
 
-public class ScopeStatePacketData : IPacketData
+public class ScopeStatePacketData : ScopePacketData
 {
 	public required ScopeStatus Status { get; set; }
 	public required bool[] Channels { get; set; }

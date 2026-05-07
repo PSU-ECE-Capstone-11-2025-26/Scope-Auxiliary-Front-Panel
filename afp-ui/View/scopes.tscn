@@ -13,9 +13,24 @@ size_flags_vertical = 0
 script = ExtResource("1_2bpkd")
 _scopeOptionScene = ExtResource("2_vsqdn")
 
-[node name="RefreshButton" type="Button" parent="." unique_id=924973903]
+[node name="HBoxContainer" type="HBoxContainer" parent="." unique_id=190965811]
+layout_mode = 2
+alignment = 1
+
+[node name="HeaderLabel" type="Label" parent="HBoxContainer" unique_id=2136028949]
+layout_mode = 2
+text = "Available Scopes"
+
+[node name="VSeparator" type="VSeparator" parent="HBoxContainer" unique_id=1658020995]
+layout_mode = 2
+
+[node name="RefreshButton" type="Button" parent="HBoxContainer" unique_id=924973903]
+custom_minimum_size = Vector2(150, 40)
 layout_mode = 2
 text = "Refresh"
+
+[node name="HSeparator" type="HSeparator" parent="." unique_id=1029448674]
+layout_mode = 2
 
 [node name="ScrollContainer" type="ScrollContainer" parent="." unique_id=1918497559]
 layout_mode = 2

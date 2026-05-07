@@ -1,4 +1,5 @@
 using AFP.Components;
+using AFP.Core;
 using AFP.Packet;
 using AFP.Packet.Data;
 using Godot;
@@ -7,22 +8,32 @@ namespace AFP.View;
 
 public partial class Scopes : VBoxContainer
 {
-	[Export]
-	private PackedScene _scopeOptionScene;
+	[Signal]
+	public delegate void ScopeToggledEventHandler(string resourceName, bool enabled);
+
+	[Export] private PackedScene _scopeOptionScene;
 	private VBoxContainer _list;
 	private ButtonGroup _group;
 
-    public override void _Ready()
+	public override void _Ready()
     {
 	    _list = GetNode<VBoxContainer>("%ScopesList");
 	    _group = new ButtonGroup();
 	    _group.AllowUnpress = true;
-	    GetNode<Button>("RefreshButton").Pressed += RefreshList;
+	    GetNode<Button>("HBoxContainer/RefreshButton").Pressed += RefreshList;
+	    VisibilityChanged += OnVisibilityChanged;
+
     }
 
-    private void RefreshList()
-    {
-	    WsClient.Instance.SendPacket(new PacketContainer
+	private void OnVisibilityChanged()
+	{
+		if (Visible) RefreshList();
+	}
+
+	private void RefreshList()
+	{
+		GetNode<Button>("HBoxContainer/RefreshButton").Text = "Searching...";
+	    WebSocketClient.Instance.SendPacket(new PacketContainer
 	    {
 		    Origin = "client",
 		    Data =
@@ -30,18 +41,23 @@ public partial class Scopes : VBoxContainer
 			    new ScopeActionPacketData
 			    {
 				    Action = "list",
-				    Scope = null
+				    ResourceName = null
 			    }
 		    ]
 	    });
 	    ClearScopes();
     }
 
+	public void SetSearchDone()
+	{
+		GetNode<Button>("HBoxContainer/RefreshButton").Text = "Refresh";
+	}
+
     public void AddScope(string resourceName, bool enabled)
     {
 	    var s = _scopeOptionScene.Instantiate<ScopeOption>();
 	    s.Init(resourceName, enabled, _group);
-	    s.ScopeToggled += _on_scope_toggled;
+	    s.ScopeToggled += _onScopeToggled;
 	    _list.AddChild(s);
     }
 
@@ -50,18 +66,14 @@ public partial class Scopes : VBoxContainer
 	    foreach (Node node in _list.GetChildren())
 	    {
 		    var child = (ScopeOption)node;
-		    child.ScopeToggled -= _on_scope_toggled;
+		    child.ScopeToggled -= _onScopeToggled;
 		    child.QueueFree();
 	    }
     }
 
-    private void _on_scope_toggled(bool enabled, string resourceName)
+    private void _onScopeToggled(bool enabled, string resourceName)
     {
-	    GD.Print($"Scope {resourceName} toggle={enabled}");
-	    WsClient.Instance.QueuePacketData(new ScopeActionPacketData
-		    {
-			    Action = enabled ? "enable" : "disable",
-			    Scope = resourceName
-		    });
+	    Global.Logger.Log(LogLevel.Debug, $"Scope toggle {resourceName} {enabled}");
+	    EmitSignal(SignalName.ScopeToggled, resourceName, enabled);
     }
 }

@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://bbjkiji0sl7mt"]
 
 [ext_resource type="Script" uid="uid://be1ui7587gf0t" path="res://View/Home.cs" id="1_tt30a"]
+[ext_resource type="Texture2D" uid="uid://2fcqtmgrkiay" path="res://icons/tek_full.svg" id="2_elaby"]
 
 [node name="Home" type="VBoxContainer" unique_id=1823192803]
 anchors_preset = 15
@@ -8,6 +9,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+size_flags_horizontal = 3
 size_flags_vertical = 3
 script = ExtResource("1_tt30a")
 metadata/_tab_index = 0
@@ -15,12 +17,43 @@ metadata/_tab_index = 0
 [node name="RichTextLabel" type="RichTextLabel" parent="." unique_id=1371944250]
 layout_mode = 2
 bbcode_enabled = true
-text = "	[b][color=#1DB5D8]TEKTRONIX[/color][/b] AUXILIARY FRONT PANEL
+text = "[indent][b][color=#1DB5D8]TEKTRONIX[/color][/b]  AUXILIARY FRONT PANEL[/indent]		ECE CAPSTONE 2026
 "
 fit_content = true
 
 [node name="Tree" type="Tree" parent="." unique_id=638129857]
+visible = false
 clip_contents = false
 layout_mode = 2
 size_flags_vertical = 3
-columns = 2
+columns = 3
+select_mode = 1
+
+[node name="NoScopeParent" type="Control" parent="." unique_id=1863132739]
+layout_mode = 2
+size_flags_horizontal = 4
+
+[node name="TextureRect" type="TextureRect" parent="NoScopeParent" unique_id=187485894]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -172.5
+offset_top = 64.0
+offset_right = 172.5
+offset_bottom = 126.0
+grow_horizontal = 2
+texture = ExtResource("2_elaby")
+
+[node name="NoScopesLabel" type="Label" parent="NoScopeParent" unique_id=1243578450]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -150.0
+offset_top = 128.0
+offset_right = 150.0
+offset_bottom = 151.0
+grow_horizontal = 2
+text = "Connect to a scope in the \"Scopes\" Tab"
+horizontal_alignment = 1

@@ -23,12 +23,13 @@ config/custom_user_dir_name="Tektronix/AFP"
 config/features=PackedStringArray("4.6", "C#", "GL Compatibility")
 run/max_fps=60
 run/low_processor_mode=true
+boot_splash/image="uid://bu1nmt22jcklh"
 config/icon="uid://crlgyhtg7hx"
 
 [autoload]
 
 Global="*uid://cx0gxqix3xvk0"
-WsClient="*uid://4vncpnpi14pk"
+WebSocketClient="*uid://4vncpnpi14pk"
 
 [display]
 

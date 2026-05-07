@@ -5,12 +5,14 @@ enum Type {
 	INFO = 0,
 	WARN = 1,
 	ERROR = 2,
+	DEBUG = 3,
 }
 
 var _icons: Dictionary[Type, Texture2D] = {
 	Type.INFO: preload("res://icons/Info.svg"),
 	Type.WARN: preload("res://icons/Warning.svg"),
 	Type.ERROR: preload("res://icons/Error.svg"),
+	Type.DEBUG: preload("res://icons/Gear.svg")
 }
 
 var type: Type
@@ -33,5 +35,7 @@ func get_color() -> Color:
 			return Color.DARK_GOLDENROD
 		Type.ERROR:
 			return Color.FIREBRICK
+		Type.DEBUG:
+			return Color.SEA_GREEN
 		_:
 			return Color.WHITE
