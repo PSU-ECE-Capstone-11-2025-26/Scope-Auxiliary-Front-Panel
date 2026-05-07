@@ -1,4 +1,4 @@
-from dataclasses import asdict, dataclass, field, fields
+from dataclasses import asdict, dataclass, fields
 from typing import ClassVar, TypedDict
 
 
@@ -44,22 +44,25 @@ class MacroStatePacketData(PacketData):
 
 @dataclass
 class ScopeActionPacketData(PacketData):
+    resource_name: str
     action: str
-    scope: str
 
 
 @dataclass
 class ScopeInfoPacketData(PacketData):
+    resource_name: str
+    idn: str
     channel_count: int
 
 
 @dataclass
 class ScopeListPacketData(PacketData):
-    scopes: list[str]
+    scopes: dict[str, bool]
 
 
 @dataclass
 class ScopeStatePacketData(PacketData):
+    resource_name: str
     status: str
     channels: list[bool]
     source_channel: int
