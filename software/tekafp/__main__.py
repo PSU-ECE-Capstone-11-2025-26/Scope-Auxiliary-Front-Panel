@@ -97,10 +97,17 @@ class Controller:
         self._channels: dict[int, bool] = {ch: False for ch in range(1, self.channel_count + 1)}
         self._source_channel: int = 0
         self._vert_fine: bool = False # fine mode toggle for vertical scale
-
         self._fast_acquire: bool = False
-
         self._run_state: bool = False
+        self._zoom: bool = False
+
+    def sync_zoom(self) -> None:
+        resp: str = parse_resp(
+            self.scope.query("DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:STATE?"), str
+        )
+        self._zoom = resp not in ("OFF", 0)
+        msg = f"IHZ0:{self._zoom}\n".encode()
+        self.bridge.write_sync(msg)
 
     def _channels_from_idn(self, idn: str) -> int:
         m = re.search(r"MSO\d(\d)", idn, re.IGNORECASE)
@@ -626,17 +633,11 @@ class Controller:
 
         # zoom enable
         if msg_id == "HZ0":
-            # FIXME: uses scope state
-            cur: str = parse_resp(
-                self.scope.query("DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:STATE?"),
-                str
-            )
-            new: str = "ON" if cur in ("OFF", 0) else "OFF"
+            new: int = int(not self._zoom)
             self.scope.write(f"DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:STATE {new}")
 
         # zoom encoder
         if msg_id == "HZ1":
-            # FIXME: needs to use 1-2-4 increments
             cur: float = parse_resp(
                 self.scope.query("DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:HORIZONTAL:SCALE?"),
                 float
@@ -644,7 +645,14 @@ class Controller:
             if cur <= 1 and inp.value > 0:
                 # match MSO behavior: if the zoom is adjusted, then turn it on
                 self.scope.write("DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:STATE ON")
-            new: int = int(clamp(cur + inp.value, 0.0, 10.0))
+            nearest = min(
+                range(len(HORIZ_SCALE_STEPS)),
+                key=lambda i: abs(HORIZ_SCALE_STEPS[i] - cur),
+            )
+            new_idx = int(
+                clamp(nearest + int(inp.value), 0, len(HORIZ_SCALE_STEPS) - 1)
+            )
+            new: int = int(clamp(HORIZ_SCALE_STEPS[new_idx], 0.0, 10.0))
             self.scope.write(f"DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:HORIZONTAL:SCALE {new}")
 
         # pan encoder
@@ -981,6 +989,7 @@ def main() -> None:
                 ctrl.sync_fast_acquire_from_scope()
                 ctrl.sync_run_stop_from_scope()
                 ctrl.sync_trigger_state()
+                ctrl.sync_zoom()
                 last_sync = now
 
     except KeyboardInterrupt:
