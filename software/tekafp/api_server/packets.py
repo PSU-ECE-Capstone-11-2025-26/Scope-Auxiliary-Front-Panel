@@ -1,10 +1,19 @@
 from dataclasses import asdict, dataclass, fields
+from enum import IntEnum
 from typing import ClassVar, TypedDict
+
+
+class LogMessageLevel(IntEnum):
+    INFO = 0
+    WARNING = 1
+    ERROR = 2
+    DEBUG = 3
 
 
 class RawPacket(TypedDict):
     origin: str
     data: list[dict]
+
 
 @dataclass
 class PacketData:
@@ -29,6 +38,13 @@ class PacketData:
 
     def to_dict(self) -> dict:
         return {"type": self.type, **asdict(self)}
+
+
+@dataclass
+class LogMessagePacketData(PacketData):
+    level: LogMessageLevel
+    message: str
+    toast: bool
 
 
 @dataclass
