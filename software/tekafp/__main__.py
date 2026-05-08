@@ -509,6 +509,24 @@ def main() -> None:
         ctrl.sync_all_channels_from_scope()
         scopes[resource_name] = ctrl
 
+    def auto_connect_first_scope() -> None:
+        if args.mock:
+            return
+        
+        resources = list(
+            rm.list_resources("(USB?*::INSTR|TCPIP?*::INSTR)")
+        )
+
+        if not resources:
+            print("[AUTO] No scopes found")
+            return
+        
+        first = resources[0]
+        print(f"[AUTO] Connecting to: {first}")
+
+        if first not in scopes:
+            connect_to_scope(first)
+
     def handle_packet(packet: RawPacket) -> None:
         for pd in packet["data"]:
             data = PacketData.decode(pd)
@@ -553,6 +571,10 @@ def main() -> None:
                                     )
                                 )
                             else:
+                                resources = list(
+                                    rm.list_resources("(USB?*::INSTR|TCPIP?*::INSTR)")
+                                )
+
                                 send_packet_data(
                                     ScopeListPacketData(
                                         {
@@ -574,6 +596,8 @@ def main() -> None:
                         pass # TODO stop recording for slot data.slot
                 case _:
                     print(f"Unknown or incorrect packet type {data.type}")
+
+    auto_connect_first_scope()
 
     try:
         last_sync = time.monotonic()
