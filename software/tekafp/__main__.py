@@ -372,6 +372,43 @@ class Controller:
         self.scope.write(query + f" {new}")
         print(f"[SCOPE] trigger level (%): {cur:.2f} -> {new:.2f}")
 
+    def sync_trigger_state(self) -> None:
+        cur: str = parse_resp(self.scope.query("TRIGGER:A:EDGE:SLOPE?"), str).upper()
+        match cur:
+            case "RISE":
+                rise = 1
+                fall = 0
+            case "FALL":
+                rise = 0
+                fall = 1
+            case "EITHER":
+                rise = fall = 1
+            case _:
+                raise AssertionError("Invalid trigger slope. Something is wrong!")
+        self.bridge.write_sync(f"TS0_UP:{rise}")
+        self.bridge.write_sync(f"TS0_DOWN:{fall}")
+        cur: str = parse_resp(self.scope.query("TRIGGER:A:MODE?"), str).upper()
+        if cur == "AUTO":
+            rise = 1
+            fall = 0
+        else:
+            rise = 0
+            fall = 1
+        self.bridge.write_sync(f"TM0_A:{rise}")
+        self.bridge.write_sync(f"TM0_N:{fall}")
+        cur = parse_resp(self.scope.query("TRIGGER:STATE?"), str).upper()
+        match cur:
+            case "READY":
+                rise = 1
+                fall = 0
+            case "TRIGGER":
+                rise = 0
+                fall = 1
+            case _:
+                rise = fall = 0
+        self.bridge.write_sync(f"TF0_R:{rise}")
+        self.bridge.write_sync(f"TF0_T:{fall}")
+
     def next_trigger_slope(self) -> None:
         cur: str = parse_resp(self.scope.query("TRIGGER:A:EDGE:SLOPE?"), str).upper()
         new: str = ""
