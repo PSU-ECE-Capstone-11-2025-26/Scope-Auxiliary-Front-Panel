@@ -72,6 +72,9 @@ public partial class Main : Control
 				    }
 
 				    break;
+			    case LogMessagePacketData lm:
+				    Global.Logger.Log((LogLevel)lm.Level, lm.Message, lm.Toast);
+				    break;
 		    }
 	    }
     }
