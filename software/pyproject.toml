@@ -7,10 +7,11 @@ name = "tek-afp"
 version = "0.1.0"
 authors = [
     { name = "Andrew Stanton", email = "stan35@pdx.edu" },
+    { name = "Antonio Hernandez Olivares", email = "anton32@pdx.edu" }
 ]
 description = "Software component for an auxiliary front panel for controlling Tektronix MSO 4/5/6 series oscilloscopes."
 license = "CERN-OHL-P-2.0"
-license-files = ["../LICEN[CS]E*"]
+license-files = ["LICEN[CS]E*"]
 classifiers = ["Private :: Do Not Upload"]
 requires-python = ">=3.12"
 dependencies = [
@@ -22,6 +23,7 @@ dependencies = [
     "pyvisa-py==0.8.1",
     "uvicorn>=0.41.0",
     "websockets>=16.0",
+    "zeroconf>=0.148.0",
 ]
 
 [project.urls]
@@ -44,6 +46,7 @@ include = ["tekafp*"]
 
 [tool.ruff]
 target-version = "py312"
+line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "B", "I", "ANN"]
