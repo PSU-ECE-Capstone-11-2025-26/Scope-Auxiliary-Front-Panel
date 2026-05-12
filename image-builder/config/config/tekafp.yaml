@@ -22,4 +22,5 @@ splash:
   image_path: ${@SRCROOT}/splash.tga
 
 packages:
+  - vim
   - packages/afp-ui_arm64.deb
