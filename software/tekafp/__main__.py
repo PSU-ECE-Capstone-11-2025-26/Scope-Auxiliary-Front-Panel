@@ -1,8 +1,10 @@
 import argparse
 import threading
 import time
+from time import sleep
 
 import pyvisa
+from pyvisa import VisaIOError
 from pyvisa.resources import MessageBasedResource
 
 from tekafp.api_server import (
@@ -12,7 +14,9 @@ from tekafp.api_server import (
     send_packet_data,
     startup_event,
 )
+from tekafp.api_server.error import APIError
 from tekafp.api_server.packets import (
+    ErrorPacketData,
     MacroRecordPacketData,
     PacketData,
     ScopeActionPacketData,
@@ -478,6 +482,12 @@ class Controller:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("-m", "--mock", action="store_true", help="Run in mock mode")
+    parser.add_argument(
+        "-a",
+        "--auto",
+        action="store_true",
+        help="Automatically connect to the first available scope",
+    )
     args = parser.parse_args()
     # internal setup
     bridge = connect_uart(args.mock)
@@ -491,13 +501,21 @@ def main() -> None:
     scopes: dict[str, Controller] = {}
 
     def connect_to_scope(resource_name: str) -> None:
-        scope: MessageBasedResource = rm.open_resource(
-            resource_name,
-            resource_pyclass=MessageBasedResource,
-            timeout=SCOPE_TIMEOUT_MS,
-            write_termination="\n",
-            read_termination="\n",
-        )
+        try:
+            scope: MessageBasedResource = rm.open_resource(
+                resource_name,
+                resource_pyclass=MessageBasedResource,
+                timeout=SCOPE_TIMEOUT_MS,
+                write_termination="\n",
+                read_termination="\n",
+            )
+        except (VisaIOError, ValueError) as err:
+            send_packet_data(
+                ErrorPacketData(
+                    resource_name, APIError.CONNECTION_ERROR, error_str=str(err)
+                )
+            )
+            return
         # Make sure we're in a mode where horizontal position behaves like the
         # front panel knob
         # delay mode OFF => HORizontal:POSition works like HORIZONTAL POSITION knob
@@ -510,17 +528,12 @@ def main() -> None:
         scopes[resource_name] = ctrl
 
     def auto_connect_first_scope() -> None:
-        if args.mock:
-            return
-        
-        resources = list(
-            rm.list_resources("(USB?*::INSTR|TCPIP?*::INSTR)")
-        )
+        resources = rm.list_resources("(USB?*::INSTR|TCPIP?*::INSTR)")
 
         if not resources:
             print("[AUTO] No scopes found")
             return
-        
+
         first = resources[0]
         print(f"[AUTO] Connecting to: {first}")
 
@@ -566,15 +579,11 @@ def main() -> None:
                                     ScopeListPacketData(
                                         {
                                             "USB0::0x0699::0x0363::C102912::INSTR": False,
-                                            "USB0::0x0699::0x0408::B011823::INSTR": True,
+                                            "USB0::0x0699::0x0408::B011823::INSTR": False,
                                         }
                                     )
                                 )
                             else:
-                                resources = list(
-                                    rm.list_resources("(USB?*::INSTR|TCPIP?*::INSTR)")
-                                )
-
                                 send_packet_data(
                                     ScopeListPacketData(
                                         {
@@ -597,7 +606,8 @@ def main() -> None:
                 case _:
                     print(f"Unknown or incorrect packet type {data.type}")
 
-    auto_connect_first_scope()
+    if args.auto:
+        auto_connect_first_scope()
 
     try:
         last_sync = time.monotonic()
@@ -623,7 +633,7 @@ def main() -> None:
                 handle_packet(new_packet)
 
             now = time.monotonic()
-            if scopes and now - last_sync > sync_period_s and now - last_input > 0.05:
+            if not args.mock and scopes and now - last_sync > sync_period_s and now - last_input > 0.05:
                 ctrl = list(scopes.values())[0]
                 ctrl.sync_all_changed_channels_from_scope()
                 ctrl.sync_selected_source_from_scope()
@@ -633,7 +643,8 @@ def main() -> None:
         print("\nExiting...")
     finally:
         for ctrl in scopes.values():
-            ctrl.scope.close()
+            if ctrl:
+                ctrl.scope.close()
         bridge.close()
 
 

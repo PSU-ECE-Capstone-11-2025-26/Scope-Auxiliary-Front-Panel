@@ -10,19 +10,21 @@ public partial class Scopes : VBoxContainer
 {
 	[Signal]
 	public delegate void ScopeToggledEventHandler(string resourceName, bool enabled);
+	[Signal]
+	public delegate void SearchCompleteEventHandler();
 
 	[Export] private PackedScene _scopeOptionScene;
-	private VBoxContainer _list;
+	public VBoxContainer List;
 	private ButtonGroup _group;
+	private bool _refresh;
 
 	public override void _Ready()
     {
-	    _list = GetNode<VBoxContainer>("%ScopesList");
+	    List = GetNode<VBoxContainer>("%ScopesList");
 	    _group = new ButtonGroup();
 	    _group.AllowUnpress = true;
 	    GetNode<Button>("HBoxContainer/RefreshButton").Pressed += RefreshList;
 	    VisibilityChanged += OnVisibilityChanged;
-
     }
 
 	private void OnVisibilityChanged()
@@ -30,8 +32,14 @@ public partial class Scopes : VBoxContainer
 		if (Visible) RefreshList();
 	}
 
-	private void RefreshList()
+	public void RefreshList()
 	{
+		if (_refresh)
+		{
+			GD.Print("skip refresh");
+			return;
+		}
+		_refresh = true;
 		GetNode<Button>("HBoxContainer/RefreshButton").Text = "Searching...";
 	    WebSocketClient.Instance.SendPacket(new PacketContainer
 	    {
@@ -45,12 +53,13 @@ public partial class Scopes : VBoxContainer
 			    }
 		    ]
 	    });
-	    ClearScopes();
     }
 
-	public void SetSearchDone()
+	public void SetSearchComplete()
 	{
+		_refresh = false;
 		GetNode<Button>("HBoxContainer/RefreshButton").Text = "Refresh";
+		EmitSignal(SignalName.SearchComplete);
 	}
 
     public void AddScope(string resourceName, bool enabled)
@@ -58,12 +67,12 @@ public partial class Scopes : VBoxContainer
 	    var s = _scopeOptionScene.Instantiate<ScopeOption>();
 	    s.Init(resourceName, enabled, _group);
 	    s.ScopeToggled += _onScopeToggled;
-	    _list.AddChild(s);
+	    List.AddChild(s);
     }
 
-    private void ClearScopes()
+    public void ClearScopes()
     {
-	    foreach (Node node in _list.GetChildren())
+	    foreach (Node node in List.GetChildren())
 	    {
 		    var child = (ScopeOption)node;
 		    child.ScopeToggled -= _onScopeToggled;

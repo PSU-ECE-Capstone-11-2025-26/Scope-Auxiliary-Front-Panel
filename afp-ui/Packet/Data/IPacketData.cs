@@ -10,4 +10,5 @@ namespace AFP.Packet.Data;
 [JsonDerivedType(typeof(MacroStatePacketData), typeDiscriminator: "MacroState")]
 [JsonDerivedType(typeof(ScopeActionPacketData), typeDiscriminator: "ScopeAction")]
 [JsonDerivedType(typeof(LogMessagePacketData), typeDiscriminator: "LogMessage")]
+[JsonDerivedType(typeof(ErrorPacketData), typeDiscriminator: "Error")]
 public interface IPacketData {}
