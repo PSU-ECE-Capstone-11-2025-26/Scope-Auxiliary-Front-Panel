@@ -270,6 +270,16 @@ class Controller:
         self.scope.write(f"CH{ch}:POSITION {new}")
         print(f"[SCOPE] CH{ch} vertical position: {cur:.3f} -> {new:.3f}")
 
+    def center_vertical_position(self) -> None:
+        ch = self._source_channel
+        if ch == 0:
+            print("[SCOPE] No active channel selected, ignoring vertical center.")
+            return
+
+        cur = float(self.scope.query(f"CH{ch}:POSITION?").strip().split()[-1])
+        self.scope.write(f"CH{ch}:POSITION 0")
+        print(f"[SCOPE] CH{ch} vertical position centered: {cur:.3f} -> 0.000")    
+
     def adjust_horizontal_position(self, detents: int) -> None:
         # HORizontal:POSition is ~0..100 (% trigger position on screen)
         cur = float(self.scope.query("HORIZONTAL:POSITION?").strip().split()[-1])
