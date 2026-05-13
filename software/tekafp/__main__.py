@@ -423,6 +423,12 @@ class Controller:
                 self.adjust_vertical_position(detents)
             return
 
+        # Encoder VP0 press: center vertical position of current active channel
+        if msg_id == "VP0":
+            if int(val) == 1:
+                self.center_vertical_position()
+            return
+
         # Encoder HP1 rotation: horizontal position (global)
         if msg_id == "HP1":
             detents = int(val)
