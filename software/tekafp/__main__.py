@@ -64,6 +64,10 @@ _HORIZ_MANTISSAS = [1.0, 2.0, 4.0]
 _HORIZ_MIN_IDX = -29
 _HORIZ_MAX_IDX = 9
 
+# Level encoder step size: 2/4/8 sequence tracking vertical scale, index 0 = 2 V/step
+# Range: index -10 (800 µV/step) to index 6 (200 V/step)
+_LEVEL_MANTISSAS = [2.0, 4.0, 8.0]
+
 
 def connect_uart(mock: bool = False) -> UARTBridge:
     if mock:
@@ -351,20 +355,19 @@ class Controller:
             f"{cur:.3e} -> {actual:.3e} s/div"
         )
 
-    def encoder_trigger_level(self, detents: int) -> None:
+    def encoder_trigger_level(self, detents: int, trigger: str = "A") -> None:
         # FIXME: the MSO has both A (primary) and B (delay) triggers for sequencing.
         # for now, default to A
-        ab = "A"
-        source: str = parse_resp(self.scope.query(f"TRIGGER:{ab}:EDGE:SOURCE?"), str)
-        query = f"TRIGGER:{ab}:LEVEL:CH{source}"
+        source: str = parse_resp(self.scope.query(f"TRIGGER:{trigger}:EDGE:SOURCE?"), str)
+        query = f"TRIGGER:{trigger}:LEVEL:CH{source}"
         cur: float = parse_resp(self.scope.query(query + "?"), float)
 
-        trigger_scale: float = 0.4
-        new = cur + detents * trigger_scale
-        new = clamp(new, -100.0, 100.0)
+        vert_scale: float = parse_resp(self.scope.query(f"CH{source}:SCALE?"), float)
+        step = _scale_idx_to_val(_LEVEL_MANTISSAS, _scale_val_to_idx(vert_scale))
+        new = clamp(cur + detents * step, -100.0, 100.0)
 
         self.scope.write(query + f" {new}")
-        print(f"[SCOPE] trigger level (%): {cur:.2f} -> {new:.2f}")
+        print(f"[SCOPE] trigger level: {cur:.2f} -> {new:.2f} V")
 
     def sync_trigger_state(self) -> None:
         cur: str = parse_resp(self.scope.query("TRIGGER:A:EDGE:SLOPE?"), str).upper()
