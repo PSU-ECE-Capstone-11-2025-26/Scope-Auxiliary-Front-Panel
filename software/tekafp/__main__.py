@@ -390,7 +390,7 @@ class Controller:
             case _:
                 raise AssertionError("Invalid trigger slope. Something is wrong!")
         self.bridge.write_sync(f"ITS0_UP:{rise}\n")
-        self.bridge.write_sync(f"ITS0_DOWN:{fall}\n")
+        self.bridge.write_sync(f"ITS0_DN:{fall}\n")
         cur: str = parse_resp(self.scope.query("TRIGGER:A:MODE?"), str).upper()
         if cur == "AUTO":
             rise = 1
