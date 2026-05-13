@@ -290,6 +290,11 @@ class Controller:
         self.scope.write(f"HORIZONTAL:POSITION {new}")
         print(f"[SCOPE] horizontal position (%): {cur:.2f} -> {new:.2f}")
 
+    def center_horizontal_position(self) -> None:
+        cur = float(self.scope.query("HORIZONTAL:POSITION?").strip().split()[-1])
+        self.scope.write("HORIZONTAL:POSITION 50")
+        print(f"[SCOPE] horizontal position centered (%): {cur:.2f} -> 50.00")    
+
     def adjust_vertical_scale(self, detents: int) -> None:
         ch = self._source_channel
         if ch == 0:
