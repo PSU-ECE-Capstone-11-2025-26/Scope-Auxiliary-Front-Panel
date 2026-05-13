@@ -374,9 +374,9 @@ class Controller:
             self.scope.query("TRIGGER:A:EDGE:SOURCE?"), str
         )
         r, g, b = self.CHANNEL_COLORS[int(source.strip("CH"))]
-        self.bridge.write_sync(f"ITL1_R:{r}")
-        self.bridge.write_sync(f"ITL1_G:{g}")
-        self.bridge.write_sync(f"ITL1_B:{b}")
+        self.bridge.write_sync(f"ITL1_R:{r}".encode())
+        self.bridge.write_sync(f"ITL1_G:{g}".encode())
+        self.bridge.write_sync(f"ITL1_B:{b}".encode())
         cur: str = parse_resp(self.scope.query("TRIGGER:A:EDGE:SLOPE?"), str).upper()
         match cur:
             case "RISE":
@@ -389,8 +389,8 @@ class Controller:
                 rise = fall = 1
             case _:
                 raise AssertionError("Invalid trigger slope. Something is wrong!")
-        self.bridge.write_sync(f"ITS0_UP:{rise}\n")
-        self.bridge.write_sync(f"ITS0_DN:{fall}\n")
+        self.bridge.write_sync(f"ITS0_UP:{rise}\n".encode())
+        self.bridge.write_sync(f"ITS0_DN:{fall}\n".encode())
         cur: str = parse_resp(self.scope.query("TRIGGER:A:MODE?"), str).upper()
         if cur == "AUTO":
             rise = 1
@@ -398,8 +398,8 @@ class Controller:
         else:
             rise = 0
             fall = 1
-        self.bridge.write_sync(f"ITM0_A:{rise}\n")
-        self.bridge.write_sync(f"ITM0_N:{fall}\n")
+        self.bridge.write_sync(f"ITM0_A:{rise}\n".encode())
+        self.bridge.write_sync(f"ITM0_N:{fall}\n".encode())
         cur = parse_resp(self.scope.query("TRIGGER:STATE?"), str).upper()
         match cur:
             case "READY":
@@ -410,8 +410,8 @@ class Controller:
                 fall = 1
             case _:
                 rise = fall = 0
-        self.bridge.write_sync(f"ITF0_R:{rise}\n")
-        self.bridge.write_sync(f"ITF0_T:{fall}\n")
+        self.bridge.write_sync(f"ITF0_R:{rise}\n".encode())
+        self.bridge.write_sync(f"ITF0_T:{fall}\n".encode())
 
     def next_trigger_slope(self) -> None:
         cur: str = parse_resp(self.scope.query("TRIGGER:A:EDGE:SLOPE?"), str).upper()
