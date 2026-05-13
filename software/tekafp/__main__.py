@@ -436,6 +436,12 @@ class Controller:
                 self.adjust_horizontal_position(detents)
             return
 
+        # Encoder HP0 press: center horizontal position globally
+        if msg_id == "HP0":
+            if int(val) == 1:
+                self.center_horizontal_position()
+            return
+
         # Encoder VS1 rotation: vertical scale of current source channel (1/2/5 steps)
         if msg_id == "VS1":
             detents = int(val)
