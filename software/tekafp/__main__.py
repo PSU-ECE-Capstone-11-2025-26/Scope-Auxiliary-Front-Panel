@@ -106,7 +106,7 @@ class Controller:
             self.scope.query("DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:STATE?"), str
         )
         self._zoom = resp not in ("OFF", 0)
-        msg = f"IHZ0:{self._zoom}\n".encode()
+        msg = f"IHZ0:{int(self._zoom)}\n".encode()
         self.bridge.write_sync(msg)
 
     def _channels_from_idn(self, idn: str) -> int:
@@ -635,6 +635,7 @@ class Controller:
         if msg_id == "HZ0":
             new: int = int(not self._zoom)
             self.scope.write(f"DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:STATE {new}")
+            return
 
         # zoom encoder
         if msg_id == "HZ1":
@@ -642,7 +643,7 @@ class Controller:
                 self.scope.query("DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:HORIZONTAL:SCALE?"),
                 float
             )
-            if cur <= 1 and inp.value > 0:
+            if not self._zoom and cur <= 1 and val > 0:
                 # match MSO behavior: if the zoom is adjusted, then turn it on
                 self.scope.write("DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:STATE ON")
             nearest = min(
@@ -650,10 +651,14 @@ class Controller:
                 key=lambda i: abs(HORIZ_SCALE_STEPS[i] - cur),
             )
             new_idx = int(
-                clamp(nearest + int(inp.value), 0, len(HORIZ_SCALE_STEPS) - 1)
+                clamp(nearest + val, 0, len(HORIZ_SCALE_STEPS) - 1)
             )
-            new: int = int(clamp(HORIZ_SCALE_STEPS[new_idx], 0.0, 10.0))
-            self.scope.write(f"DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:HORIZONTAL:SCALE {new}")
+            new: int = int(clamp(HORIZ_SCALE_STEPS[new_idx], 0.0, 10e3))
+            if new < 2.0:
+                self.scope.write("DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:STATE OFF")
+            else:
+                self.scope.write(f"DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:HORIZONTAL:SCALE {new}")
+            return
 
         # pan encoder
         if msg_id == "HX1":
@@ -664,6 +669,7 @@ class Controller:
             # TODO: how many percent to change for each detent?
             new: float = clamp(cur + inp.value * 10, 0.0, 100.0)
             self.scope.write(f"DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:HORIZONTAL:POSITION {new}")
+            return
 
 
 class MacroManager:
