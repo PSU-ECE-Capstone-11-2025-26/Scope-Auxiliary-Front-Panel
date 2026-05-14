@@ -2,6 +2,7 @@ import argparse
 import threading
 import time
 from time import sleep
+from typing import Optional
 
 import pyvisa
 from pyvisa import VisaIOError
@@ -26,6 +27,16 @@ from tekafp.api_server.packets import (
 from tekafp.input import Input
 from tekafp.uart import MockUARTBridge, UARTBridge
 from tekafp.util import clamp, parse_resp
+
+from tekafp.api_server.packets import (
+    ErrorPacketData,
+    MacroRecordPacketData,
+    MacroStatePacketData,
+    PacketData,
+    ScopeActionPacketData,
+    ScopeInfoPacketData,
+    ScopeListPacketData,
+)
 
 
 # UART config
@@ -478,6 +489,110 @@ class Controller:
         if msg_id == "XA0":
             self.autoset()
             return
+
+class MacroManager:
+    NUM_SLOTS = 4
+
+    PHYSICAL_MACRO_IDS = {
+        "M10": 0,
+        "M20": 1,
+        "M30": 2,
+        "M40": 3,
+    }
+
+    def __init__(self) -> None:
+        self.macros: list[list[bytes]] = [[] for _ in range(self.NUM_SLOTS)]
+        self.recording_slot: Optional[int] = None
+        self._playing_back = False
+
+    def _valid_slot(self, slot: int) -> bool:
+        return 0 <= slot < self.NUM_SLOTS
+
+    def send_macro_state(self) -> None:
+        send_packet_data(
+            MacroStatePacketData(
+                [bool(macro) for macro in self.macros]
+            )
+        )
+
+    def start_recording(self, slot: int) -> None:
+        if not self._valid_slot(slot):
+            print(f"[MACRO] Invalid slot {slot}")
+            return
+
+        if self.recording_slot is not None and self.recording_slot != slot:
+            print(f"[MACRO] Stopping slot {self.recording_slot} before recording slot {slot}")
+
+        self.recording_slot = slot
+        self.macros[slot] = []
+        print(f"[MACRO] Recording started for slot {slot}")
+
+    def stop_recording(self, slot: int) -> None:
+        if not self._valid_slot(slot):
+            print(f"[MACRO] Invalid slot {slot}")
+            return
+
+        if self.recording_slot != slot:
+            print(f"[MACRO] Stop ignored for slot {slot}; currently recording {self.recording_slot}")
+            return
+
+        self.recording_slot = None
+        print(f"[MACRO] Recording stopped for slot {slot}. {len(self.macros[slot])} events saved.")
+        self.send_macro_state()
+
+    def handle_uart_input(self, raw: bytes, inp: Input, ctrl: Controller) -> None:
+        msg_id = str(inp.id)
+
+        if msg_id in self.PHYSICAL_MACRO_IDS:
+            try:
+                if int(inp.value) != 1:
+                    return
+            except Exception:
+                return
+
+            slot = self.PHYSICAL_MACRO_IDS[msg_id]
+            self.playback(slot, ctrl)
+            return
+
+        if self.recording_slot is not None and not self._playing_back:
+            self.macros[self.recording_slot].append(raw)
+            print(f"[MACRO] slot {self.recording_slot} + {raw!r}")
+
+        ctrl.handle_input(inp)
+
+    def playback(self, slot: int, ctrl: Controller) -> None:
+        if not self._valid_slot(slot):
+            print(f"[MACRO] Invalid slot {slot}")
+            return
+
+        if self.recording_slot is not None:
+            print("[MACRO] Playback ignored while recording")
+            return
+
+        macro = self.macros[slot]
+        if not macro:
+            print(f"[MACRO] Slot {slot} is empty")
+            return
+
+        print(f"[MACRO] Playing slot {slot}: {len(macro)} events")
+        self._playing_back = True
+
+        try:
+            for raw in macro:
+                try:
+                    inp = Input.from_bytes(raw)
+                except Exception as e:
+                    print(f"[MACRO] Bad recorded message {raw!r}: {e}")
+                    continue
+
+                if str(inp.id) in self.PHYSICAL_MACRO_IDS:
+                    continue
+
+                ctrl.handle_input(inp)
+        finally:
+            self._playing_back = False
+            print(f"[MACRO] Playback done for slot {slot}")
+            
 
 def main() -> None:
     parser = argparse.ArgumentParser()
