@@ -740,7 +740,7 @@ def main() -> None:
 
                 # iterating all scopes here would allow control of multiple at once
                 ctrl = list(scopes.values())[0]
-                ctrl.handle_input(inp)
+                macro_manager.handle_uart_input(raw, inp, ctrl)
                 last_input = time.monotonic()
 
             new_packet = get_raw_packet()
