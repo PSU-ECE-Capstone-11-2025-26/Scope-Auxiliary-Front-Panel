@@ -592,7 +592,7 @@ class MacroManager:
         finally:
             self._playing_back = False
             print(f"[MACRO] Playback done for slot {slot}")
-            
+
 
 def main() -> None:
     parser = argparse.ArgumentParser()
@@ -614,6 +614,8 @@ def main() -> None:
     # ctrl setup
     rm: pyvisa.ResourceManager = pyvisa.ResourceManager(PYVISA_BACKEND)
     scopes: dict[str, Controller] = {}
+
+    macro_manager = MacroManager()
 
     def connect_to_scope(resource_name: str) -> None:
         try:
@@ -713,11 +715,9 @@ def main() -> None:
                             print(f"Unknown action: {a}")
                 case MacroRecordPacketData():
                     if data.record:
-                        pass
-                        # TODO record for slot data.slot
-                        # If a different slot is recording, stop that one first.
+                        macro_manager.start_recordng(data.slot)
                     else:
-                        pass # TODO stop recording for slot data.slot
+                        macro_manager.stop_recording(data.slot)
                 case _:
                     print(f"Unknown or incorrect packet type {data.type}")
 
