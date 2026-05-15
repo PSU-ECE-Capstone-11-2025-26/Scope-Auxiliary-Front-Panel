@@ -555,7 +555,7 @@ def main() -> None:
         scopes[resource_name] = ctrl
         send_packet_data(
             ScopeInfoPacketData(
-                resource_name=resource_name, idn=ctrl.idn, channel_count=len(ctrl.channel_count)
+                resource_name=resource_name, idn=ctrl.idn, channel_count=ctrl.channel_count
             )
         )
 
