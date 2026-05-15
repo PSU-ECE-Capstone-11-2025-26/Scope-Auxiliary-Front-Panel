@@ -204,38 +204,22 @@ COLOR_MACROS = {
     "V60": {"V60_R": 0, "V60_G": 0,  "V60_B": 2000},     # Blue
     "V70": {"V70_R": 1000, "V70_G": 0,  "V70_B": 500},   # Pink
     "V80": {"V80_R": 75, "V80_G": 300,  "V80_B": 75},    # Forest Green
-    # --- Encoder Macros (Matches Channel 1) ---
+    # --- Encoder Macros 1 ---
     "VP1_C1": {"VP1_R": 300, "VP1_G": 300,  "VP1_B": 0}, 
     "VS1_C1": {"VS1_R": 300, "VS1_G": 300,  "VS1_B": 0},
     "TL1_C1": {"TL1_R": 300, "TL1_G": 300,  "TL1_B": 0},
-    # --- Encoder Macros (Matches Channel 2) ---
+    # --- Encoder Macros 2 ---
     "VP1_C2": {"VP1_R": 0, "VP1_G": 300,  "VP1_B": 300},
     "VS1_C2": {"VS1_R": 0, "VS1_G": 300,  "VS1_B": 300},
     "TL1_C2": {"TL1_R": 0, "TL1_G": 300,  "TL1_B": 300},
-    # --- Encoder Macros (Matches Channel 3) ---
+    # --- Encoder Macros 3 ---
     "VP1_C3": {"VP1_R": 300, "VP1_G": 0,  "VP1_B": 0},
     "VS1_C3": {"VS1_R": 300, "VS1_G": 0,  "VS1_B": 0},
     "TL1_C3": {"TL1_R": 300, "TL1_G": 0,  "TL1_B": 0},
-    # --- Encoder Macros (Matches Channel 4) ---
+    # --- Encoder Macros 4 ---
     "VP1_C4": {"VP1_R": 0, "VP1_G": 300,  "VP1_B": 0},
     "VS1_C4": {"VS1_R": 0, "VS1_G": 300,  "VS1_B": 0},
     "TL1_C4": {"TL1_R": 0, "TL1_G": 300,  "TL1_B": 0},
-    # --- Encoder Macros (Matches Channel 5) ---
-    "VP1_C5": {"VP1_R": 300, "VP1_G": 150,  "VP1_B": 0},
-    "VS1_C5": {"VS1_R": 300, "VS1_G": 150,  "VS1_B": 0},
-    "TL1_C5": {"TL1_R": 300, "TL1_G": 150,  "TL1_B": 0},
-    # --- Encoder Macros (Matches Channel 6) ---
-    "VP1_C6": {"VP1_R": 0, "VP1_G": 0,  "VP1_B": 300},
-    "VS1_C6": {"VS1_R": 0, "VS1_G": 0,  "VS1_B": 300},
-    "TL1_C6": {"TL1_R": 0, "TL1_G": 0,  "TL1_B": 300},
-    # --- Encoder Macros (Matches Channel 7) ---
-    "VP1_C7": {"VP1_R": 300, "VP1_G": 0,  "VP1_B": 150},
-    "VS1_C7": {"VS1_R": 300, "VS1_G": 0,  "VS1_B": 150},
-    "TL1_C7": {"TL1_R": 300, "TL1_G": 0,  "TL1_B": 150},
-    # --- Encoder Macros (Matches Channel 8) ---
-    "VP1_C8": {"VP1_R": 75, "VP1_G": 300,  "VP1_B": 75},
-    "VS1_C8": {"VS1_R": 75, "VS1_G": 300,  "VS1_B": 75},
-    "TL1_C8": {"TL1_R": 75, "TL1_G": 300,  "TL1_B": 75},
 }
 
 # ============================================================================
