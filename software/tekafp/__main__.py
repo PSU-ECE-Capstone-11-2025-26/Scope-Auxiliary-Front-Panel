@@ -89,6 +89,8 @@ class Controller:
         self._source_channel: int = 0
         self._vert_fine: bool = False # fine mode toggle for vertical scale
 
+        self._fast_acquire: bool = False
+
     def get_scope_channel_state(self, channel: int) -> bool:
         resp = self.scope.query(f"DISPLAY:GLOBAL:CH{channel}:STATE?").strip().upper()
         return resp.endswith("1") or resp.endswith("ON")
@@ -108,6 +110,7 @@ class Controller:
 
         self.set_scope_selected_source()
         self.send_selected_channel_leds()
+        self.sync_fast_acquire_from_scope(force=True)
 
     def sync_all_changed_channels_from_scope(self) -> None:
         any_changed = False
@@ -371,17 +374,32 @@ class Controller:
 
     # Toggle the scope's Fast Acquire state
     def toggle_fast_acquire(self) -> None:
-        resp = self.scope.query("FASTACQ:STATE?").strip().upper()
+        current = self.get_scope_fast_acquire_state()
+        new_state = not current
 
-        # Tek scopes may return headers, e.g. ":FASTACQ:STATE 1"
-        if resp.endswith("1") or resp.endswith("ON"):
-            self.scope.write("FASTACQ:STATE OFF")
-            print("[SCOPE] Fast Acquire -> OFF")
-            return
-        else:
-            self.scope.write("FASTACQ:STATE ON")
-            print("[SCOPE] Fast Acquire -> ON")
-            return
+        self.scope.write(f"ACQUIRE:FASTACQ:STATE {int(new_state)}")
+
+        self._fast_acquire = new_state
+        self.send_fast_acquire_led(new_state)
+
+        print(f"[SCOPE] Fast Acquire -> {'ON' if new_state else 'OFF'}")
+
+    def get_scope_fast_acquire_state(self) -> bool:
+        resp = self.scope.query("ACQUIRE:FASTACQ:STATE?").strip().upper()
+        return resp.endswith("1") or resp.endswith("ON")
+
+    def send_fast_acquire_led(self, state: bool) -> None:
+        msg = f"IAF0:{int(state)}\n".encode("utf-8")
+        self.bridge.write_sync(msg)
+        print(f"[UART->PICO] {msg.decode().strip()}")
+
+    def sync_fast_acquire_from_scope(self, force: bool = False) -> None:
+        actual = self.get_scope_fast_acquire_state()
+
+        if force or self._fast_acquire != actual:
+            self._fast_acquire = actual
+            self.send_fast_acquire_led(actual)
+            print(f"[SYNC] Fast Acquire -> {actual}")
 
     # UART event handler
     def handle_input(self, inp: Input) -> None:
@@ -637,6 +655,7 @@ def main() -> None:
                 ctrl = list(scopes.values())[0]
                 ctrl.sync_all_changed_channels_from_scope()
                 ctrl.sync_selected_source_from_scope()
+                ctrl.sync_fast_acquire_from_scope()
                 last_sync = now
 
     except KeyboardInterrupt:
