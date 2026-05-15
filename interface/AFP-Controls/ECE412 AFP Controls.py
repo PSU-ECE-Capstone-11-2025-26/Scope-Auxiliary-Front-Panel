@@ -6,7 +6,7 @@ import utime
 """
 AFP Oscilloscope Master Firmware (Thin Client)
 - Architecture: 1x Pico, 4x MCP23017, 3x TLC5947
-- Logic: High-speed I2C caching, Auto-Reset Encoders, Color Macros
+- Logic: High-speed I2C caching, Auto-Reset Encoders, Color Macros, Run/Stop Interceptor
 """
 
 # ============================================================================
@@ -86,7 +86,6 @@ class TLC5947:
         self.write() 
         self.oe.value(0) 
 
-    # UPGRADED: Now accepts a specific PWM value (0-4095)
     def set_pin(self, pin, pwm_value):
         if 0 <= pin < self.n:
             idx = (self.n - 1) - pin
@@ -195,22 +194,16 @@ LED_MAP = {
     "M40_R": 66, "SP_CON": 67, "HS0": 68, "T_OFF": 69
 }
 
-# --- NEW: COLOR MACROS ---
-# Define specific color mixes for multi-channel LEDs here.
-# Brightness values can be from 0 to 4095. Try to keep max values around 300 to match LED_BRIGHTNESS.
 COLOR_MACROS = {
-    # --- Run/Stop ---
-    "AR0_RUN": {"V10_R": 2000, "V10_G": 0,  "V10_B": 0},
-    "AR0_STOP": {"V10_R": 0, "V10_G": 2000,  "V10_B": 0},
     # --- Channel Buttons ---
     "V10": {"V10_R": 2000, "V10_G": 500,  "V10_B": 0},   # Yellow
-    "V20": {"V20_R": 0, "V20_G": 300,  "V20_B": 300},	# Cyan
-    "V30": {"V30_R": 2000, "V30_G": 0,  "V30_B": 0},		# Red
-    "V40": {"V40_R": 0, "V40_G": 300,  "V40_B": 0},		# Green
-    "V50": {"V50_R": 2000, "V50_G": 200,  "V50_B": 0},	# Orange
-    "V60": {"V60_R": 0, "V60_G": 0,  "V60_B": 2000},		# Blue
-    "V70": {"V70_R": 1000, "V70_G": 0,  "V70_B": 500},	# Pink
-    "V80": {"V80_R": 75, "V80_G": 300,  "V80_B": 75},	# Forest Green
+    "V20": {"V20_R": 0, "V20_G": 300,  "V20_B": 300},    # Cyan
+    "V30": {"V30_R": 2000, "V30_G": 0,  "V30_B": 0},     # Red
+    "V40": {"V40_R": 0, "V40_G": 300,  "V40_B": 0},      # Green
+    "V50": {"V50_R": 2000, "V50_G": 200,  "V50_B": 0},   # Orange
+    "V60": {"V60_R": 0, "V60_G": 0,  "V60_B": 2000},     # Blue
+    "V70": {"V70_R": 1000, "V70_G": 0,  "V70_B": 500},   # Pink
+    "V80": {"V80_R": 75, "V80_G": 300,  "V80_B": 75},    # Forest Green
     # --- Encoder Macros (Matches Channel 1) ---
     "VP1_C1": {"VP1_R": 300, "VP1_G": 300,  "VP1_B": 0}, 
     "VS1_C1": {"VS1_R": 300, "VS1_G": 300,  "VS1_B": 0},
@@ -227,7 +220,22 @@ COLOR_MACROS = {
     "VP1_C4": {"VP1_R": 0, "VP1_G": 300,  "VP1_B": 0},
     "VS1_C4": {"VS1_R": 0, "VS1_G": 300,  "VS1_B": 0},
     "TL1_C4": {"TL1_R": 0, "TL1_G": 300,  "TL1_B": 0},
-
+    # --- Encoder Macros (Matches Channel 5) ---
+    "VP1_C5": {"VP1_R": 300, "VP1_G": 150,  "VP1_B": 0},
+    "VS1_C5": {"VS1_R": 300, "VS1_G": 150,  "VS1_B": 0},
+    "TL1_C5": {"TL1_R": 300, "TL1_G": 150,  "TL1_B": 0},
+    # --- Encoder Macros (Matches Channel 6) ---
+    "VP1_C6": {"VP1_R": 0, "VP1_G": 0,  "VP1_B": 300},
+    "VS1_C6": {"VS1_R": 0, "VS1_G": 0,  "VS1_B": 300},
+    "TL1_C6": {"TL1_R": 0, "TL1_G": 0,  "TL1_B": 300},
+    # --- Encoder Macros (Matches Channel 7) ---
+    "VP1_C7": {"VP1_R": 300, "VP1_G": 0,  "VP1_B": 150},
+    "VS1_C7": {"VS1_R": 300, "VS1_G": 0,  "VS1_B": 150},
+    "TL1_C7": {"TL1_R": 300, "TL1_G": 0,  "TL1_B": 150},
+    # --- Encoder Macros (Matches Channel 8) ---
+    "VP1_C8": {"VP1_R": 75, "VP1_G": 300,  "VP1_B": 75},
+    "VS1_C8": {"VS1_R": 75, "VS1_G": 300,  "VS1_B": 75},
+    "TL1_C8": {"TL1_R": 75, "TL1_G": 300,  "TL1_B": 75},
 }
 
 # ============================================================================
@@ -236,14 +244,28 @@ COLOR_MACROS = {
 def process_command(line):
     line = line.strip()
     if not line or ":" not in line: return
+    
     try:
         msg_id, value = line.split(":")
         value = int(value)
         if msg_id.startswith("I"):
             base_id = msg_id[1:]
             
+            # --- NEW: Run/Stop Button Interceptor ---
+            if base_id == "AR0":
+                # If Pi sends 1 (Run) -> Green. If Pi sends 0 (Stop) -> Red.
+                r_val = 0 if value == 1 else 2000
+                g_val = 2000 if value == 1 else 0
+                
+                tlc.set_pin(LED_MAP["AR0_R"], r_val)
+                tlc.set_pin(LED_MAP["AR0_G"], g_val)
+                tlc.set_pin(LED_MAP["AR0_B"], 0)
+                
+                if DEBUG_ECHO: print(f"[COMMAND] Run/Stop -> {'GREEN' if value == 1 else 'RED'}")
+                return # Stop processing here so it doesn't try to run the code below!
+
             # 1. Check if the command is a Color Macro (e.g. "IV10:1")
-            if base_id in COLOR_MACROS:
+            elif base_id in COLOR_MACROS:
                 for sub_pin, intensity in COLOR_MACROS[base_id].items():
                     if sub_pin in LED_MAP:
                         # Set to specific mix if 1, or turn completely off if 0
@@ -261,10 +283,12 @@ def process_command(line):
         if DEBUG_ECHO: print("Parse error:", e)
 
 def poll_inputs():
+    # 1. Drain the ENTIRE Hardware UART buffer
     while uart.any():
         line = uart.readline().decode().strip()
         process_command(line)
         
+    # 2. Drain the ENTIRE USB Shell buffer
     while spoll.poll(0):
         line = sys.stdin.readline()
         process_command(line)
@@ -329,7 +353,7 @@ def update_button(b):
 # ============================================================================
 # 6. MAIN LOOP
 # ============================================================================
-print("\nSystem Ready. Type commands in Thonny Shell (e.g., IVP1_R:1 or IV10:1)")
+print("\nSystem Ready. Type commands in Thonny Shell (e.g., IVP1_R:1 or IAR0:1)")
 send("BOOT", 1)
 
 while True:
