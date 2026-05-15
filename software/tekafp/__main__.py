@@ -105,7 +105,7 @@ class Controller:
         resp: str = parse_resp(
             self.scope.query("DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:STATE?"), str
         )
-        self._zoom = resp not in ("OFF", 0)
+        self._zoom = resp not in ("OFF", "0")
         msg = f"IHZ0:{int(self._zoom)}\n".encode()
         self.bridge.write_sync(msg)
 
@@ -643,7 +643,7 @@ class Controller:
                 self.scope.query("DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:HORIZONTAL:SCALE?"),
                 float
             )
-            if not self._zoom and cur <= 1 and val > 0:
+            if not self._zoom and cur <= 2 and val > 0:
                 # match MSO behavior: if the zoom is adjusted, then turn it on
                 self.scope.write("DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:STATE ON")
             nearest = min(
@@ -662,12 +662,14 @@ class Controller:
 
         # pan encoder
         if msg_id == "HX1":
+            if not self._zoom:
+                return
             cur: float = parse_resp(
                 self.scope.query("DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:HORIZONTAL:POSITION?"),
                 float
             )
             # TODO: how many percent to change for each detent?
-            new: float = clamp(cur + inp.value * 10, 0.0, 100.0)
+            new: float = clamp(cur + val * 2, 0.0, 100.0)
             self.scope.write(f"DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:HORIZONTAL:POSITION {new}")
             return
 
