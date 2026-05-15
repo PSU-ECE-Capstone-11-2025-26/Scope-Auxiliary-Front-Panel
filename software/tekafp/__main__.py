@@ -589,6 +589,7 @@ class MacroManager:
                     continue
 
                 ctrl.handle_input(inp)
+                time.sleep(0.25)
         finally:
             self._playing_back = False
             print(f"[MACRO] Playback done for slot {slot}")
@@ -715,7 +716,7 @@ def main() -> None:
                             print(f"Unknown action: {a}")
                 case MacroRecordPacketData():
                     if data.record:
-                        macro_manager.start_recordng(data.slot)
+                        macro_manager.start_recording(data.slot)
                     else:
                         macro_manager.stop_recording(data.slot)
                 case _:
