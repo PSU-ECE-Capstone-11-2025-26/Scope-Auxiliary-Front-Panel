@@ -23,8 +23,8 @@ from tekafp.api_server import (
 from tekafp.api_server.error import APIError
 from tekafp.api_server.packets import (
     ErrorPacketData,
-    MacroRecordPacketData,
     MacroStatePacketData,
+    MacroActionPacketData,
     PacketData,
     ScopeActionPacketData,
     ScopeInfoPacketData,
@@ -962,7 +962,7 @@ def main() -> None:
                                 )
                         case _:
                             logger.error(f"Unknown action: {a}")
-                case MacroRecordPacketData():
+                case MacroActionPacketData():
                     if data.record:
                         macro_manager.start_recording(data.slot)
                     else:

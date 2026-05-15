@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://dlmt3vjqlb5lq"]
 
-[ext_resource type="Script" uid="uid://bdb186sp52h0l" path="res://Components/MacroControl.cs" id="1_xoksk"]
+[ext_resource type="Script" path="res://Components/MacroControl.cs" id="1_xoksk"]
 
 [node name="MacroControl" type="VBoxContainer" unique_id=1497165245]
 custom_minimum_size = Vector2(130, 0)

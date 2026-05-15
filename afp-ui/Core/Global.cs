@@ -30,6 +30,7 @@ public partial class Global : Node
     {
         Instance = this;
         Logger.OnToast += OnToast;
+        LoadConfig();
     }
 
     public override void _ExitTree()
