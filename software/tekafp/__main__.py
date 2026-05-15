@@ -73,7 +73,7 @@ HORIZ_SCALE_STEPS = [
 def connect_uart(mock: bool = False) -> UARTBridge:
     if mock:
         return MockUARTBridge(PORT, baudrate=BAUD, timeout=1, write_timeout=1)
-    bridge = UARTBridge(PORT, baudrate=BAUD, timeout=1, write_timeout=1)
+    bridge = UARTBridge(PORT, baudrate=BAUD, timeout=0.1, write_timeout=1)
     if not bridge.connect():
         raise RuntimeError(f"Failed to open UART on {PORT}")
     print(f"Connected UART: {PORT} @ {BAUD}")

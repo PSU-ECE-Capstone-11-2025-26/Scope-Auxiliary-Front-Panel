@@ -31,25 +31,24 @@ class UARTBridge:
         self.baudrate: int = baudrate
         self.timeout: Optional[float] = timeout
         self.write_timeout: Optional[float] = write_timeout
-        self.serial: serial.Serial | None = None
+        self.serial: serial.Serial = None
         self._thread = None
         self._close_thread = False
 
     def _thread_main(self) -> None:
         while not self._close_thread:
             # writing
-            try:
-                data = self._write_queue.get_nowait()
-            except Empty:
-                pass
-            except ShutDown:
-                pass
-            else:
+            while True:
                 try:
-                    self.serial.write(data)
-                except serial.SerialTimeoutException:
-                    self._write_queue.put(data)
-                self._write_queue.task_done()
+                    data = self._write_queue.get_nowait()
+                except (Empty, ShutDown):
+                    break
+                else:
+                    try:
+                        self.serial.write(data)
+                    except serial.SerialTimeoutException:
+                        self._write_queue.put(data)
+                    self._write_queue.task_done()
 
             # reading
             data: bytes = self.serial.readline()
@@ -61,6 +60,8 @@ class UARTBridge:
                         break
                 else:
                     print("UART error: incomplete message")
+                    # discard until beginning of next packet
+                    self.serial.read_until(b"\n")
 
     def connect(self) -> bool:
         """
@@ -78,9 +79,7 @@ class UARTBridge:
                     timeout=self.timeout,
                     write_timeout=self.write_timeout
                 )
-        except serial.SerialException:
-            return False
-        except ValueError:
+        except (serial.SerialException, ValueError):
             return False
         self._queue = Queue()
         self._close_thread = False
@@ -118,9 +117,7 @@ class UARTBridge:
                 data = self._queue.get_nowait()
             self._queue.task_done()
             return data
-        except Empty:
-            return None
-        except ShutDown:
+        except (Empty, ShutDown):
             return None
 
     def queue_write(self, data: bytes) -> None:
@@ -132,7 +129,7 @@ class UARTBridge:
         try:
             self._write_queue.put(data)
         except ShutDown:
-            pass
+            return
 
     def write_sync(self, data: bytes) -> bool:
         """
