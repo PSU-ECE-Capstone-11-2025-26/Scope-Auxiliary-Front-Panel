@@ -64,8 +64,8 @@ _HORIZ_MANTISSAS = [1.0, 2.0, 4.0]
 _HORIZ_MIN_IDX = -29
 _HORIZ_MAX_IDX = 9
 
-# Level encoder step size: 2/4/8 sequence tracking vertical scale, index 0 = 2 V/step
-# Range: index -10 (800 µV/step) to index 6 (200 V/step)
+# Level encoder step size: 2/4/8 sequence indexed as (vert_idx - 6), ~2% of vert scale per detent
+# e.g. 100mV/div -> 2mV/step, 200mV/div -> 4mV/step, 1V/div -> 20mV/step
 _LEVEL_MANTISSAS = [2.0, 4.0, 8.0]
 
 
@@ -359,11 +359,11 @@ class Controller:
         # FIXME: the MSO has both A (primary) and B (delay) triggers for sequencing.
         # for now, default to A
         source: str = parse_resp(self.scope.query(f"TRIGGER:{trigger}:EDGE:SOURCE?"), str)
-        query = f"TRIGGER:{trigger}:LEVEL:CH{source}"
+        query = f"TRIGGER:{trigger}:LEVEL:{source}"
         cur: float = parse_resp(self.scope.query(query + "?"), float)
 
-        vert_scale: float = parse_resp(self.scope.query(f"CH{source}:SCALE?"), float)
-        step = _scale_idx_to_val(_LEVEL_MANTISSAS, _scale_val_to_idx(vert_scale))
+        vert_scale: float = parse_resp(self.scope.query(f"{source}:SCALE?"), float)
+        step = _scale_idx_to_val(_LEVEL_MANTISSAS, _scale_val_to_idx(vert_scale) - 6)
         new = clamp(cur + detents * step, -100.0, 100.0)
 
         self.scope.write(query + f" {new}")
@@ -373,10 +373,12 @@ class Controller:
         source: str = parse_resp(
             self.scope.query("TRIGGER:A:EDGE:SOURCE?"), str
         )
-        r, g, b = self.CHANNEL_COLORS[int(source.strip("CH"))]
-        self.bridge.write_sync(f"ITL1_R:{r}".encode())
-        self.bridge.write_sync(f"ITL1_G:{g}".encode())
-        self.bridge.write_sync(f"ITL1_B:{b}".encode())
+        # FIXME the [2] index on this string is due to subchannels, e.g. for a digital probe
+        #  where channel 1 could have CH1_D0, CH1_D1, etc. source[2] gives just the channel (1)
+        r, g, b = self.CHANNEL_COLORS[int(source[2])]
+        self.bridge.write_sync(f"ITL1_R:{r}\n".encode())
+        self.bridge.write_sync(f"ITL1_G:{g}\n".encode())
+        self.bridge.write_sync(f"ITL1_B:{b}\n".encode())
         cur: str = parse_resp(self.scope.query("TRIGGER:A:EDGE:SLOPE?"), str).upper()
         match cur:
             case "RISE":
@@ -768,6 +770,7 @@ def main() -> None:
                 ctrl.sync_selected_source_from_scope()
                 ctrl.sync_fast_acquire_from_scope()
                 ctrl.sync_run_stop_from_scope()
+                ctrl.sync_trigger_state()
                 last_sync = now
 
     except KeyboardInterrupt:
