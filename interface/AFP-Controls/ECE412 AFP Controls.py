@@ -195,7 +195,7 @@ LED_MAP = {
 }
 
 COLOR_MACROS = {
-    # --- Channel Buttons ---
+    # --- Channel Buttons 1-8 ---
     "V10": {"V10_R": 2000, "V10_G": 500,  "V10_B": 0},   # Yellow
     "V20": {"V20_R": 0, "V20_G": 300,  "V20_B": 300},    # Cyan
     "V30": {"V30_R": 2000, "V30_G": 0,  "V30_B": 0},     # Red
@@ -204,22 +204,38 @@ COLOR_MACROS = {
     "V60": {"V60_R": 0, "V60_G": 0,  "V60_B": 2000},     # Blue
     "V70": {"V70_R": 1000, "V70_G": 0,  "V70_B": 500},   # Pink
     "V80": {"V80_R": 75, "V80_G": 300,  "V80_B": 75},    # Forest Green
-    # --- Encoder Macros 1 ---
-    "VP1_C1": {"VP1_R": 300, "VP1_G": 300,  "VP1_B": 0}, 
-    "VS1_C1": {"VS1_R": 300, "VS1_G": 300,  "VS1_B": 0},
-    "TL1_C1": {"TL1_R": 300, "TL1_G": 300,  "TL1_B": 0},
-    # --- Encoder Macros 2 ---
+    # --- Encoder Macros (Matches Channel 1) ---
+    "VP1_C1": {"VP1_R": 2000, "VP1_G": 500,  "VP1_B": 0}, 
+    "VS1_C1": {"VS1_R": 2000, "VS1_G": 500,  "VS1_B": 0},
+    "TL1_C1": {"TL1_R": 2000, "TL1_G": 500,  "TL1_B": 0},
+    # --- Encoder Macros (Matches Channel 2) ---
     "VP1_C2": {"VP1_R": 0, "VP1_G": 300,  "VP1_B": 300},
     "VS1_C2": {"VS1_R": 0, "VS1_G": 300,  "VS1_B": 300},
     "TL1_C2": {"TL1_R": 0, "TL1_G": 300,  "TL1_B": 300},
-    # --- Encoder Macros 3 ---
-    "VP1_C3": {"VP1_R": 300, "VP1_G": 0,  "VP1_B": 0},
-    "VS1_C3": {"VS1_R": 300, "VS1_G": 0,  "VS1_B": 0},
-    "TL1_C3": {"TL1_R": 300, "TL1_G": 0,  "TL1_B": 0},
-    # --- Encoder Macros 4 ---
+    # --- Encoder Macros (Matches Channel 3) ---
+    "VP1_C3": {"VP1_R": 2000, "VP1_G": 0,  "VP1_B": 0},
+    "VS1_C3": {"VS1_R": 2000, "VS1_G": 0,  "VS1_B": 0},
+    "TL1_C3": {"TL1_R": 2000, "TL1_G": 0,  "TL1_B": 0},
+    # --- Encoder Macros (Matches Channel 4) ---
     "VP1_C4": {"VP1_R": 0, "VP1_G": 300,  "VP1_B": 0},
     "VS1_C4": {"VS1_R": 0, "VS1_G": 300,  "VS1_B": 0},
     "TL1_C4": {"TL1_R": 0, "TL1_G": 300,  "TL1_B": 0},
+    # --- Encoder Macros (Matches Channel 5) ---
+    "VP1_C5": {"VP1_R": 2000, "VP1_G": 200,  "VP1_B": 0},
+    "VS1_C5": {"VS1_R": 2000, "VS1_G": 200,  "VS1_B": 0},
+    "TL1_C5": {"TL1_R": 2000, "TL1_G": 200,  "TL1_B": 0},
+    # --- Encoder Macros (Matches Channel 6) ---
+    "VP1_C6": {"VP1_R": 0, "VP1_G": 0,  "VP1_B": 2000},
+    "VS1_C6": {"VS1_R": 0, "VS1_G": 0,  "VS1_B": 2000},
+    "TL1_C6": {"TL1_R": 0, "TL1_G": 0,  "TL1_B": 2000},
+    # --- Encoder Macros (Matches Channel 7) ---
+    "VP1_C7": {"VP1_R": 1000, "VP1_G": 0,  "VP1_B": 500},
+    "VS1_C7": {"VS1_R": 1000, "VS1_G": 0,  "VS1_B": 500},
+    "TL1_C7": {"TL1_R": 1000, "TL1_G": 0,  "TL1_B": 500},
+    # --- Encoder Macros (Matches Channel 8) ---
+    "VP1_C8": {"VP1_R": 75, "VP1_G": 300,  "VP1_B": 75},
+    "VS1_C8": {"VS1_R": 75, "VS1_G": 300,  "VS1_B": 75},
+    "TL1_C8": {"TL1_R": 75, "TL1_G": 300,  "TL1_B": 75},
 }
 
 # ============================================================================
