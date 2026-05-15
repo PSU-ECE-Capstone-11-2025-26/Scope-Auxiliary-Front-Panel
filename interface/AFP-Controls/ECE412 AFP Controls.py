@@ -199,6 +199,9 @@ LED_MAP = {
 # Define specific color mixes for multi-channel LEDs here.
 # Brightness values can be from 0 to 4095. Try to keep max values around 300 to match LED_BRIGHTNESS.
 COLOR_MACROS = {
+    # --- Run/Stop ---
+    "AR0_RUN": {"V10_R": 2000, "V10_G": 0,  "V10_B": 0},
+    "AR0_STOP": {"V10_R": 0, "V10_G": 2000,  "V10_B": 0},
     # --- Channel Buttons ---
     "V10": {"V10_R": 2000, "V10_G": 500,  "V10_B": 0},   # Yellow
     "V20": {"V20_R": 0, "V20_G": 300,  "V20_B": 300},	# Cyan
@@ -224,22 +227,7 @@ COLOR_MACROS = {
     "VP1_C4": {"VP1_R": 0, "VP1_G": 300,  "VP1_B": 0},
     "VS1_C4": {"VS1_R": 0, "VS1_G": 300,  "VS1_B": 0},
     "TL1_C4": {"TL1_R": 0, "TL1_G": 300,  "TL1_B": 0},
-    # --- Encoder Macros (Matches Channel 5) ---
-    "VP1_C5": {"VP1_R": 300, "VP1_G": 150,  "VP1_B": 0},
-    "VS1_C5": {"VS1_R": 300, "VS1_G": 150,  "VS1_B": 0},
-    "TL1_C5": {"TL1_R": 300, "TL1_G": 150,  "TL1_B": 0},
-    # --- Encoder Macros (Matches Channel 6) ---
-    "VP1_C6": {"VP1_R": 0, "VP1_G": 0,  "VP1_B": 300},
-    "VS1_C6": {"VS1_R": 0, "VS1_G": 0,  "VS1_B": 300},
-    "TL1_C6": {"TL1_R": 0, "TL1_G": 0,  "TL1_B": 300},
-    # --- Encoder Macros (Matches Channel 7) ---
-    "VP1_C7": {"VP1_R": 300, "VP1_G": 0,  "VP1_B": 150},
-    "VS1_C7": {"VS1_R": 300, "VS1_G": 0,  "VS1_B": 150},
-    "TL1_C7": {"TL1_R": 300, "TL1_G": 0,  "TL1_B": 150},
-    # --- Encoder Macros (Matches Channel 8) ---
-    "VP1_C8": {"VP1_R": 75, "VP1_G": 300,  "VP1_B": 75},
-    "VS1_C8": {"VS1_R": 75, "VS1_G": 300,  "VS1_B": 75},
-    "TL1_C8": {"TL1_R": 75, "TL1_G": 300,  "TL1_B": 75},
+
 }
 
 # ============================================================================
