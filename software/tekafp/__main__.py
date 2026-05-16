@@ -620,6 +620,9 @@ def main() -> None:
                                 else:
                                     c = scopes.pop(data.resource_name)
                                     c.scope.close()
+
+                                    if not scopes:
+                                        send_scope_connection_led(False)
                             else:
                                 print(
                                     f"scope {data.resource_name} not enabled: ignoring"
@@ -697,6 +700,7 @@ def main() -> None:
         for ctrl in scopes.values():
             if ctrl:
                 ctrl.scope.close()
+        send_scope_connection_led(False)
         bridge.close()
 
 
