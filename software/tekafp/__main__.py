@@ -387,17 +387,15 @@ class Controller:
 
     # Toggle the scope's Run/Stop state
     def toggle_run_stop(self) -> None:
-        resp = self.scope.query("ACQUIRE:STATE?").strip().upper()
+        current = self.get_scope_run_state()
+        new_state = not current
 
-        # Tek scopes may return RUN/STOP, ON/OFF, or 1/0
-        if resp in ("RUN", "ON", "1"):
-            self.scope.write("ACQUIRE:STATE STOP")
-            print("[SCOPE] Run/Stop -> STOP")
-            return
-        else:
-            self.scope.write("ACQUIRE:STATE RUN")
-            print("[SCOPE] Run/Stop -> RUN")
-            return
+        self.scope.write(f"ACQUIRE:STATE {'RUN' if new_state else 'STOP'}")
+
+        self._run_state = new_state
+        self.send_run_stop_led(new_state)
+
+        print(f"[SCOPE] Run/Stop -> {'RUN' if new_state else 'STOP'}")
 
     # Run the scope's AutoSet feature
     def autoset(self) -> None:
