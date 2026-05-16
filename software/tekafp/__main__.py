@@ -1,4 +1,5 @@
 import argparse
+import re
 import threading
 import time
 from time import sleep
@@ -83,13 +84,27 @@ def connect_uart(mock: bool = False) -> UARTBridge:
 class Controller:
     def __init__(self, scope: MessageBasedResource, bridge: UARTBridge) -> None:
         self.scope: MessageBasedResource = scope
-        self.bridge: UARTBridge = bridge 
+        self.bridge: UARTBridge = bridge
+        # Make sure we're in a mode where horizontal position behaves like the
+        # front panel knob
+        # delay mode OFF => HORizontal:POSition works like HORIZONTAL POSITION knob
+        self.scope.write("HORIZONTAL:DELAY:MODE OFF")
+        self.idn = self.scope.query("*IDN?").strip()
+        print("Connected ctrl:", self.idn)
+        self.channel_count = self._channels_from_idn(self.idn)
+        print(f"Channel count = {self.channel_count}")
 
-        self._channels: dict[int, bool] = {ch: False for ch in range(1, 9)}
+        self._channels: dict[int, bool] = {ch: False for ch in range(1, self.channel_count + 1)}
         self._source_channel: int = 0
         self._vert_fine: bool = False # fine mode toggle for vertical scale
 
         self._fast_acquire: bool = False
+
+    def _channels_from_idn(self, idn: str) -> int:
+        m = re.search(r"MSO\d(\d)", idn, re.IGNORECASE)
+        if m is None:
+            return 1
+        return int(m.group(1))
 
     def get_scope_channel_state(self, channel: int) -> bool:
         resp = self.scope.query(f"DISPLAY:GLOBAL:CH{channel}:STATE?").strip().upper()
@@ -561,16 +576,15 @@ def main() -> None:
                 )
             )
             return
-        # Make sure we're in a mode where horizontal position behaves like the
-        # front panel knob
-        # delay mode OFF => HORizontal:POSition works like HORIZONTAL POSITION knob
-        scope.write("HORIZONTAL:DELAY:MODE OFF")
-        idn = scope.query("*IDN?").strip()
-        print("Connected ctrl:", idn)
 
         ctrl = Controller(scope, bridge)
         ctrl.sync_all_channels_from_scope()
         scopes[resource_name] = ctrl
+        send_packet_data(
+            ScopeInfoPacketData(
+                resource_name=resource_name, idn=ctrl.idn, channel_count=ctrl.channel_count
+            )
+        )
 
     def auto_connect_first_scope() -> None:
         resources = rm.list_resources("(USB?*::INSTR|TCPIP?*::INSTR)")
