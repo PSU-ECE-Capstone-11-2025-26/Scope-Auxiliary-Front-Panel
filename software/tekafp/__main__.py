@@ -128,6 +128,7 @@ class Controller:
         self.set_scope_selected_source()
         self.send_selected_channel_leds()
         self.sync_fast_acquire_from_scope(force=True)
+        self.sync_run_stop_from_scope(force=True)
 
     def sync_all_changed_channels_from_scope(self) -> None:
         any_changed = False
@@ -716,6 +717,7 @@ def main() -> None:
                 ctrl.sync_all_changed_channels_from_scope()
                 ctrl.sync_selected_source_from_scope()
                 ctrl.sync_fast_acquire_from_scope()
+                ctrl.sync_run_stop_from_scope()
                 last_sync = now
 
     except KeyboardInterrupt:
