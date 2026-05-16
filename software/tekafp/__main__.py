@@ -273,6 +273,16 @@ class Controller:
         self.scope.write(f"CH{ch}:POSITION {new}")
         print(f"[SCOPE] CH{ch} vertical position: {cur:.3f} -> {new:.3f}")
 
+    def center_vertical_position(self) -> None:
+        ch = self._source_channel
+        if ch == 0:
+            print("[SCOPE] No active channel selected, ignoring vertical center.")
+            return
+
+        cur = float(self.scope.query(f"CH{ch}:POSITION?").strip().split()[-1])
+        self.scope.write(f"CH{ch}:POSITION 0")
+        print(f"[SCOPE] CH{ch} vertical position centered: {cur:.3f} -> 0.000")
+
     def adjust_horizontal_position(self, detents: int) -> None:
         # HORizontal:POSition is ~0..100 (% trigger position on screen)
         cur = float(self.scope.query("HORIZONTAL:POSITION?").strip().split()[-1])
@@ -282,6 +292,11 @@ class Controller:
 
         self.scope.write(f"HORIZONTAL:POSITION {new}")
         print(f"[SCOPE] horizontal position (%): {cur:.2f} -> {new:.2f}")
+
+    def center_horizontal_position(self) -> None:
+        cur = float(self.scope.query("HORIZONTAL:POSITION?").strip().split()[-1])
+        self.scope.write("HORIZONTAL:POSITION 50")
+        print(f"[SCOPE] horizontal position centered (%): {cur:.2f} -> 50.00")
 
     def adjust_vertical_scale(self, detents: int) -> None:
         ch = self._source_channel
@@ -426,11 +441,23 @@ class Controller:
                 self.adjust_vertical_position(detents)
             return
 
+        # Encoder VP0 press: center vertical position of current active channel
+        if msg_id == "VP0":
+            if int(val) == 1:
+                self.center_vertical_position()
+            return
+
         # Encoder HP1 rotation: horizontal position (global)
         if msg_id == "HP1":
             detents = int(val)
             if detents:
                 self.adjust_horizontal_position(detents)
+            return
+
+        # Encoder HP0 press: center horizontal position globally
+        if msg_id == "HP0":
+            if int(val) == 1:
+                self.center_horizontal_position()
             return
 
         # Encoder VS1 rotation: vertical scale of current source channel (1/2/5 steps)
