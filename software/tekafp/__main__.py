@@ -546,7 +546,7 @@ def main() -> None:
     scopes: dict[str, Controller] = {}
 
     def send_scope_connection_led(state: bool) -> None:
-        msg = f"SP_CON:{int(state)}\n".encode("utf-8")
+        msg = f"ISP_CON:{int(state)}\n".encode("utf-8")
         bridge.write_sync(msg)
         print(f"[UART->PICO] {msg.decode().strip()}")
 
