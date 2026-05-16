@@ -545,6 +545,11 @@ def main() -> None:
     rm: pyvisa.ResourceManager = pyvisa.ResourceManager(PYVISA_BACKEND)
     scopes: dict[str, Controller] = {}
 
+    def send_scope_connection_led(state: bool) -> None:
+        msg = f"SP_CON:{int(state)}\n".encode("utf-8")
+        bridge.write_sync(msg)
+        print(f"[UART->PICO] {msg.decode().strip()}")
+
     def connect_to_scope(resource_name: str) -> None:
         try:
             scope: MessageBasedResource = rm.open_resource(
@@ -571,6 +576,7 @@ def main() -> None:
         ctrl = Controller(scope, bridge)
         ctrl.sync_all_channels_from_scope()
         scopes[resource_name] = ctrl
+        send_scope_connection_led(True)
 
     def auto_connect_first_scope() -> None:
         resources = rm.list_resources("(USB?*::INSTR|TCPIP?*::INSTR)")
