@@ -567,7 +567,7 @@ class Controller:
             return
         # trigger level push
         if msg_id == "TL0":
-            self.scope.write("TRIGGER:A: SETLevel")
+            self.scope.write("TRIGGER:A SETLevel")
             return
 
         # trigger force
