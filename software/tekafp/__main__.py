@@ -100,6 +100,8 @@ class Controller:
 
         self._fast_acquire: bool = False
 
+        self._run_state: bool = False
+
     def _channels_from_idn(self, idn: str) -> int:
         m = re.search(r"MSO\d(\d)", idn, re.IGNORECASE)
         if m is None:
@@ -430,6 +432,25 @@ class Controller:
             self._fast_acquire = actual
             self.send_fast_acquire_led(actual)
             print(f"[SYNC] Fast Acquire -> {actual}")
+
+    def get_scope_run_state(self) -> bool:
+        resp = self.scope.query("ACQUIRE:STATE?").strip().upper()
+        return resp in ("RUN", "ON", "1")
+
+
+    def send_run_stop_led(self, state: bool) -> None:
+        msg = f"IAR0:{int(state)}\n".encode("utf-8")
+        self.bridge.write_sync(msg)
+        print(f"[UART->PICO] {msg.decode().strip()}")
+
+
+    def sync_run_stop_from_scope(self, force: bool = False) -> None:
+        actual = self.get_scope_run_state()
+
+        if force or self._run_state != actual:
+            self._run_state = actual
+            self.send_run_stop_led(actual)
+            print(f"[SYNC] Run/Stop -> {actual}")
 
     # UART event handler
     def handle_input(self, inp: Input) -> None:
