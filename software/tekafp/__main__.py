@@ -267,6 +267,25 @@ class Controller:
             f"[SCOPE] CH{channel} display -> {self._channels[channel]} (source={self._source_channel})"  # noqa: E501
         )
 
+    def force_channel_display(self, channel: int, desired: bool) -> None:
+        if channel not in range(1, 9):
+            return
+
+        self._channels[channel] = desired
+
+        if self._source_channel == channel and not desired:
+            self._source_channel = max(
+                (k for k, v in self._channels.items() if v),
+                default=0,
+            )
+
+        self.scope.write(f"DISPLAY:GLOBAL:CH{channel}:STATE {int(desired)}")
+        self.send_channel_led(channel, desired)
+
+        print(
+            f"[SCOPE] CH{channel} forced -> {self._channels[channel]}"
+        )
+
     def adjust_vertical_position(self, detents: int) -> None:
         ch = self._source_channel
         if ch == 0:
@@ -501,7 +520,9 @@ class MacroManager:
     }
 
     def __init__(self) -> None:
-        self.macros: list[list[bytes]] = [[] for _ in range(self.NUM_SLOTS)]
+        self.macros: list[list[bytes | tuple[str, int, bool]]] = [
+            [] for _ in range(self.NUM_SLOTS)
+        ]
         self.recording_slot: Optional[int] = None
         self._playing_back = False
 
@@ -554,6 +575,23 @@ class MacroManager:
             self.playback(slot, ctrl)
             return
 
+        is_channel_toggle = msg_id in (
+            "V10", "V20", "V30", "V40",
+            "V50", "V60", "V70", "V80",
+        )
+
+        if self.recording_slot is not None and not self._playing_back and is_channel_toggle:
+            ch = int(msg_id[1])
+
+            ctrl.handle_input(inp)
+
+            desired = ctrl._channels[ch]
+            event = ("channel_state", ch, desired)
+
+            self.macros[self.recording_slot].append(event)
+            print(f"[MACRO] slot {self.recording_slot} + {event!r}")
+            return
+
         if self.recording_slot is not None and not self._playing_back:
             self.macros[self.recording_slot].append(raw)
             print(f"[MACRO] slot {self.recording_slot} + {raw!r}")
@@ -579,6 +617,14 @@ class MacroManager:
 
         try:
             for raw in macro:
+                if isinstance(raw, tuple):
+                    kind, ch, desired = raw
+
+                    if kind == "channel_state":
+                        ctrl.force_channel_display(ch, desired)
+                        time.sleep(0.25)
+                        continue
+
                 try:
                     inp = Input.from_bytes(raw)
                 except Exception as e:
@@ -590,6 +636,15 @@ class MacroManager:
 
                 ctrl.handle_input(inp)
                 time.sleep(0.25)
+            
+            ctrl._source_channel = max(
+                (k for k, v in ctrl._channels.items() if v),
+                default=0,
+            )
+
+            ctrl.set_scope_selected_source()
+            ctrl.send_selected_channel_leds()
+
         finally:
             self._playing_back = False
             print(f"[MACRO] Playback done for slot {slot}")
