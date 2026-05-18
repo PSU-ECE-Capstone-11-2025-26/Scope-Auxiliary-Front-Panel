@@ -560,6 +560,11 @@ def main() -> None:
     rm: pyvisa.ResourceManager = pyvisa.ResourceManager(PYVISA_BACKEND)
     scopes: dict[str, Controller] = {}
 
+    def send_scope_connection_led(state: bool) -> None:
+        msg = f"ISP_CON:{int(state)}\n".encode("utf-8")
+        bridge.write_sync(msg)
+        print(f"[UART->PICO] {msg.decode().strip()}")
+
     def connect_to_scope(resource_name: str) -> None:
         try:
             scope: MessageBasedResource = rm.open_resource(
@@ -580,6 +585,7 @@ def main() -> None:
         ctrl = Controller(scope, bridge)
         ctrl.sync_all_channels_from_scope()
         scopes[resource_name] = ctrl
+        send_scope_connection_led(True)
         send_packet_data(
             ScopeInfoPacketData(
                 resource_name=resource_name, idn=ctrl.idn, channel_count=ctrl.channel_count
@@ -628,6 +634,9 @@ def main() -> None:
                                 else:
                                     c = scopes.pop(data.resource_name)
                                     c.scope.close()
+
+                                    if not scopes:
+                                        send_scope_connection_led(False)
                             else:
                                 print(
                                     f"scope {data.resource_name} not enabled: ignoring"
@@ -705,6 +714,7 @@ def main() -> None:
         for ctrl in scopes.values():
             if ctrl:
                 ctrl.scope.close()
+        send_scope_connection_led(False)
         bridge.close()
 
 
