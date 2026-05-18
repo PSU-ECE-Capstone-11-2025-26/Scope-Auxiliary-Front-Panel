@@ -612,6 +612,8 @@ class MacroManager:
             print(f"[MACRO] Slot {slot} is empty")
             return
 
+        played_channel_event = False
+
         print(f"[MACRO] Playing slot {slot}: {len(macro)} events")
         self._playing_back = True
 
@@ -621,6 +623,7 @@ class MacroManager:
                     kind, ch, desired = raw
 
                     if kind == "channel_state":
+                        played_channel_event = True
                         ctrl.force_channel_display(ch, desired)
                         time.sleep(0.25)
                         continue
@@ -637,13 +640,14 @@ class MacroManager:
                 ctrl.handle_input(inp)
                 time.sleep(0.25)
             
-            ctrl._source_channel = max(
-                (k for k, v in ctrl._channels.items() if v),
-                default=0,
-            )
+            if played_channel_event:
+                ctrl._source_channel = max(
+                    (k for k, v in ctrl._channels.items() if v),
+                    default=0,
+                )
 
-            ctrl.set_scope_selected_source()
-            ctrl.send_selected_channel_leds()
+                ctrl.set_scope_selected_source()
+                ctrl.send_selected_channel_leds()
 
         finally:
             self._playing_back = False
