@@ -100,6 +100,8 @@ class Controller:
 
         self._fast_acquire: bool = False
 
+        self._run_state: bool = False
+
     def _channels_from_idn(self, idn: str) -> int:
         m = re.search(r"MSO\d(\d)", idn, re.IGNORECASE)
         if m is None:
@@ -126,6 +128,7 @@ class Controller:
         self.set_scope_selected_source()
         self.send_selected_channel_leds()
         self.sync_fast_acquire_from_scope(force=True)
+        self.sync_run_stop_from_scope(force=True)
 
     def sync_all_changed_channels_from_scope(self) -> None:
         any_changed = False
@@ -385,17 +388,15 @@ class Controller:
 
     # Toggle the scope's Run/Stop state
     def toggle_run_stop(self) -> None:
-        resp = self.scope.query("ACQUIRE:STATE?").strip().upper()
+        current = self.get_scope_run_state()
+        new_state = not current
 
-        # Tek scopes may return RUN/STOP, ON/OFF, or 1/0
-        if resp in ("RUN", "ON", "1"):
-            self.scope.write("ACQUIRE:STATE STOP")
-            print("[SCOPE] Run/Stop -> STOP")
-            return
-        else:
-            self.scope.write("ACQUIRE:STATE RUN")
-            print("[SCOPE] Run/Stop -> RUN")
-            return
+        self.scope.write(f"ACQUIRE:STATE {'RUN' if new_state else 'STOP'}")
+
+        self._run_state = new_state
+        self.send_run_stop_led(new_state)
+
+        print(f"[SCOPE] Run/Stop -> {'RUN' if new_state else 'STOP'}")
 
     # Run the scope's AutoSet feature
     def autoset(self) -> None:
@@ -430,6 +431,25 @@ class Controller:
             self._fast_acquire = actual
             self.send_fast_acquire_led(actual)
             print(f"[SYNC] Fast Acquire -> {actual}")
+
+    def get_scope_run_state(self) -> bool:
+        resp = self.scope.query("ACQUIRE:STATE?").strip().upper()
+        return resp in ("RUN", "ON", "1")
+
+
+    def send_run_stop_led(self, state: bool) -> None:
+        msg = f"IAR0:{int(state)}\n".encode("utf-8")
+        self.bridge.write_sync(msg)
+        print(f"[UART->PICO] {msg.decode().strip()}")
+
+
+    def sync_run_stop_from_scope(self, force: bool = False) -> None:
+        actual = self.get_scope_run_state()
+
+        if force or self._run_state != actual:
+            self._run_state = actual
+            self.send_run_stop_led(actual)
+            print(f"[SYNC] Run/Stop -> {actual}")
 
     # UART event handler
     def handle_input(self, inp: Input) -> None:
@@ -706,6 +726,7 @@ def main() -> None:
                 ctrl.sync_all_changed_channels_from_scope()
                 ctrl.sync_selected_source_from_scope()
                 ctrl.sync_fast_acquire_from_scope()
+                ctrl.sync_run_stop_from_scope()
                 last_sync = now
 
     except KeyboardInterrupt:
