@@ -638,7 +638,7 @@ class MacroManager:
             try:
                 if int(inp.value) != 1:
                     return
-            except Exception:
+            except ValueError:
                 return
 
             slot = self.PHYSICAL_MACRO_IDS[msg_id]
