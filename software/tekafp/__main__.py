@@ -279,7 +279,7 @@ class Controller:
         )
 
     def force_channel_display(self, channel: int, desired: bool) -> None:
-        if channel not in range(1, 9):
+        if channel not in range(1, self.channel_count + 1):
             return
 
         self._channels[channel] = desired
