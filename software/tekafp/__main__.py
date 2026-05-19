@@ -745,7 +745,6 @@ def main() -> None:
     scopes: dict[str, Controller] = {}
 
     macro_manager = MacroManager()
-    
     def send_scope_connection_led(state: bool) -> None:
         msg = f"ISP_CON:{int(state)}\n".encode("utf-8")
         bridge.write_sync(msg)
