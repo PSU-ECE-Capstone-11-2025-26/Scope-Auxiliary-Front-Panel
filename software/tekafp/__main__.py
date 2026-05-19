@@ -406,7 +406,7 @@ class Controller:
         self.bridge.write_sync(f"ITM0_N:{fall}\n".encode())
         cur = parse_resp(self.scope.query("TRIGGER:STATE?"), str).upper()
         match cur:
-            case "READY":
+            case "READY" | "AUTO":
                 rise = 1
                 fall = 0
             case "TRIGGER":
