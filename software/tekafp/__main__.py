@@ -709,7 +709,6 @@ class MacroManager:
 
                 ctrl.handle_input(inp)
                 time.sleep(0.25)
-            
             if played_channel_event:
                 ctrl._source_channel = max(
                     (k for k, v in ctrl._channels.items() if v),
