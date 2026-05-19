@@ -20,6 +20,7 @@ from tekafp.api_server.error import APIError
 from tekafp.api_server.packets import (
     ErrorPacketData,
     MacroRecordPacketData,
+    MacroStatePacketData,
     PacketData,
     ScopeActionPacketData,
     ScopeInfoPacketData,
@@ -28,17 +29,6 @@ from tekafp.api_server.packets import (
 from tekafp.input import Input
 from tekafp.uart import MockUARTBridge, UARTBridge
 from tekafp.util import clamp, parse_resp
-
-from tekafp.api_server.packets import (
-    ErrorPacketData,
-    MacroRecordPacketData,
-    MacroStatePacketData,
-    PacketData,
-    ScopeActionPacketData,
-    ScopeInfoPacketData,
-    ScopeListPacketData,
-)
-
 
 # UART config
 PORT = "/dev/serial0"
