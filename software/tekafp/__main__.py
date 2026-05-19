@@ -1,4 +1,5 @@
 import argparse
+import re
 import threading
 import time
 from time import sleep
@@ -84,7 +85,7 @@ HORIZ_SCALE_STEPS = [
 def connect_uart(mock: bool = False) -> UARTBridge:
     if mock:
         return MockUARTBridge(PORT, baudrate=BAUD, timeout=1, write_timeout=1)
-    bridge = UARTBridge(PORT, baudrate=BAUD, timeout=1, write_timeout=1)
+    bridge = UARTBridge(PORT, baudrate=BAUD, timeout=0.1, write_timeout=1)
     if not bridge.connect():
         raise RuntimeError(f"Failed to open UART on {PORT}")
     print(f"Connected UART: {PORT} @ {BAUD}")
@@ -94,11 +95,29 @@ def connect_uart(mock: bool = False) -> UARTBridge:
 class Controller:
     def __init__(self, scope: MessageBasedResource, bridge: UARTBridge) -> None:
         self.scope: MessageBasedResource = scope
-        self.bridge: UARTBridge = bridge 
+        self.bridge: UARTBridge = bridge
+        # Make sure we're in a mode where horizontal position behaves like the
+        # front panel knob
+        # delay mode OFF => HORizontal:POSition works like HORIZONTAL POSITION knob
+        self.scope.write("HORIZONTAL:DELAY:MODE OFF")
+        self.idn = self.scope.query("*IDN?").strip()
+        print("Connected ctrl:", self.idn)
+        self.channel_count = self._channels_from_idn(self.idn)
+        print(f"Channel count = {self.channel_count}")
 
-        self._channels: dict[int, bool] = {ch: False for ch in range(1, 9)}
+        self._channels: dict[int, bool] = {ch: False for ch in range(1, self.channel_count + 1)}
         self._source_channel: int = 0
         self._vert_fine: bool = False # fine mode toggle for vertical scale
+
+        self._fast_acquire: bool = False
+
+        self._run_state: bool = False
+
+    def _channels_from_idn(self, idn: str) -> int:
+        m = re.search(r"MSO\d(\d)", idn, re.IGNORECASE)
+        if m is None:
+            return 1
+        return int(m.group(1))
 
     def get_scope_channel_state(self, channel: int) -> bool:
         resp = self.scope.query(f"DISPLAY:GLOBAL:CH{channel}:STATE?").strip().upper()
@@ -119,6 +138,8 @@ class Controller:
 
         self.set_scope_selected_source()
         self.send_selected_channel_leds()
+        self.sync_fast_acquire_from_scope(force=True)
+        self.sync_run_stop_from_scope(force=True)
 
     def sync_all_changed_channels_from_scope(self) -> None:
         any_changed = False
@@ -300,6 +321,16 @@ class Controller:
         self.scope.write(f"CH{ch}:POSITION {new}")
         print(f"[SCOPE] CH{ch} vertical position: {cur:.3f} -> {new:.3f}")
 
+    def center_vertical_position(self) -> None:
+        ch = self._source_channel
+        if ch == 0:
+            print("[SCOPE] No active channel selected, ignoring vertical center.")
+            return
+
+        cur = float(self.scope.query(f"CH{ch}:POSITION?").strip().split()[-1])
+        self.scope.write(f"CH{ch}:POSITION 0")
+        print(f"[SCOPE] CH{ch} vertical position centered: {cur:.3f} -> 0.000")
+
     def adjust_horizontal_position(self, detents: int) -> None:
         # HORizontal:POSition is ~0..100 (% trigger position on screen)
         cur = float(self.scope.query("HORIZONTAL:POSITION?").strip().split()[-1])
@@ -309,6 +340,11 @@ class Controller:
 
         self.scope.write(f"HORIZONTAL:POSITION {new}")
         print(f"[SCOPE] horizontal position (%): {cur:.2f} -> {new:.2f}")
+
+    def center_horizontal_position(self) -> None:
+        cur = float(self.scope.query("HORIZONTAL:POSITION?").strip().split()[-1])
+        self.scope.write("HORIZONTAL:POSITION 50")
+        print(f"[SCOPE] horizontal position centered (%): {cur:.2f} -> 50.00")
 
     def adjust_vertical_scale(self, detents: int) -> None:
         ch = self._source_channel
@@ -382,17 +418,15 @@ class Controller:
 
     # Toggle the scope's Run/Stop state
     def toggle_run_stop(self) -> None:
-        resp = self.scope.query("ACQUIRE:STATE?").strip().upper()
+        current = self.get_scope_run_state()
+        new_state = not current
 
-        # Tek scopes may return RUN/STOP, ON/OFF, or 1/0
-        if resp in ("RUN", "ON", "1"):
-            self.scope.write("ACQUIRE:STATE STOP")
-            print("[SCOPE] Run/Stop -> STOP")
-            return
-        else:
-            self.scope.write("ACQUIRE:STATE RUN")
-            print("[SCOPE] Run/Stop -> RUN")
-            return
+        self.scope.write(f"ACQUIRE:STATE {'RUN' if new_state else 'STOP'}")
+
+        self._run_state = new_state
+        self.send_run_stop_led(new_state)
+
+        print(f"[SCOPE] Run/Stop -> {'RUN' if new_state else 'STOP'}")
 
     # Run the scope's AutoSet feature
     def autoset(self) -> None:
@@ -401,17 +435,51 @@ class Controller:
 
     # Toggle the scope's Fast Acquire state
     def toggle_fast_acquire(self) -> None:
-        resp = self.scope.query("FASTACQ:STATE?").strip().upper()
+        current = self.get_scope_fast_acquire_state()
+        new_state = not current
 
-        # Tek scopes may return headers, e.g. ":FASTACQ:STATE 1"
-        if resp.endswith("1") or resp.endswith("ON"):
-            self.scope.write("FASTACQ:STATE OFF")
-            print("[SCOPE] Fast Acquire -> OFF")
-            return
-        else:
-            self.scope.write("FASTACQ:STATE ON")
-            print("[SCOPE] Fast Acquire -> ON")
-            return
+        self.scope.write(f"ACQUIRE:FASTACQ:STATE {int(new_state)}")
+
+        self._fast_acquire = new_state
+        self.send_fast_acquire_led(new_state)
+
+        print(f"[SCOPE] Fast Acquire -> {'ON' if new_state else 'OFF'}")
+
+    def get_scope_fast_acquire_state(self) -> bool:
+        resp = self.scope.query("ACQUIRE:FASTACQ:STATE?").strip().upper()
+        return resp.endswith("1") or resp.endswith("ON")
+
+    def send_fast_acquire_led(self, state: bool) -> None:
+        msg = f"IAF0:{int(state)}\n".encode("utf-8")
+        self.bridge.write_sync(msg)
+        print(f"[UART->PICO] {msg.decode().strip()}")
+
+    def sync_fast_acquire_from_scope(self, force: bool = False) -> None:
+        actual = self.get_scope_fast_acquire_state()
+
+        if force or self._fast_acquire != actual:
+            self._fast_acquire = actual
+            self.send_fast_acquire_led(actual)
+            print(f"[SYNC] Fast Acquire -> {actual}")
+
+    def get_scope_run_state(self) -> bool:
+        resp = self.scope.query("ACQUIRE:STATE?").strip().upper()
+        return resp in ("RUN", "ON", "1")
+
+
+    def send_run_stop_led(self, state: bool) -> None:
+        msg = f"IAR0:{int(state)}\n".encode("utf-8")
+        self.bridge.write_sync(msg)
+        print(f"[UART->PICO] {msg.decode().strip()}")
+
+
+    def sync_run_stop_from_scope(self, force: bool = False) -> None:
+        actual = self.get_scope_run_state()
+
+        if force or self._run_state != actual:
+            self._run_state = actual
+            self.send_run_stop_led(actual)
+            print(f"[SYNC] Run/Stop -> {actual}")
 
     # UART event handler
     def handle_input(self, inp: Input) -> None:
@@ -438,11 +506,23 @@ class Controller:
                 self.adjust_vertical_position(detents)
             return
 
+        # Encoder VP0 press: center vertical position of current active channel
+        if msg_id == "VP0":
+            if int(val) == 1:
+                self.center_vertical_position()
+            return
+
         # Encoder HP1 rotation: horizontal position (global)
         if msg_id == "HP1":
             detents = int(val)
             if detents:
                 self.adjust_horizontal_position(detents)
+            return
+
+        # Encoder HP0 press: center horizontal position globally
+        if msg_id == "HP0":
+            if int(val) == 1:
+                self.center_horizontal_position()
             return
 
         # Encoder VS1 rotation: vertical scale of current source channel (1/2/5 steps)
@@ -676,6 +756,11 @@ def main() -> None:
     scopes: dict[str, Controller] = {}
 
     macro_manager = MacroManager()
+    
+    def send_scope_connection_led(state: bool) -> None:
+        msg = f"ISP_CON:{int(state)}\n".encode("utf-8")
+        bridge.write_sync(msg)
+        print(f"[UART->PICO] {msg.decode().strip()}")
 
     def connect_to_scope(resource_name: str) -> None:
         try:
@@ -693,16 +778,16 @@ def main() -> None:
                 )
             )
             return
-        # Make sure we're in a mode where horizontal position behaves like the
-        # front panel knob
-        # delay mode OFF => HORizontal:POSition works like HORIZONTAL POSITION knob
-        scope.write("HORIZONTAL:DELAY:MODE OFF")
-        idn = scope.query("*IDN?").strip()
-        print("Connected ctrl:", idn)
 
         ctrl = Controller(scope, bridge)
         ctrl.sync_all_channels_from_scope()
         scopes[resource_name] = ctrl
+        send_scope_connection_led(True)
+        send_packet_data(
+            ScopeInfoPacketData(
+                resource_name=resource_name, idn=ctrl.idn, channel_count=ctrl.channel_count
+            )
+        )
 
     def auto_connect_first_scope() -> None:
         resources = rm.list_resources("(USB?*::INSTR|TCPIP?*::INSTR)")
@@ -746,6 +831,9 @@ def main() -> None:
                                 else:
                                     c = scopes.pop(data.resource_name)
                                     c.scope.close()
+
+                                    if not scopes:
+                                        send_scope_connection_led(False)
                             else:
                                 print(
                                     f"scope {data.resource_name} not enabled: ignoring"
@@ -812,6 +900,8 @@ def main() -> None:
                 ctrl = list(scopes.values())[0]
                 ctrl.sync_all_changed_channels_from_scope()
                 ctrl.sync_selected_source_from_scope()
+                ctrl.sync_fast_acquire_from_scope()
+                ctrl.sync_run_stop_from_scope()
                 last_sync = now
 
     except KeyboardInterrupt:
@@ -820,6 +910,7 @@ def main() -> None:
         for ctrl in scopes.values():
             if ctrl:
                 ctrl.scope.close()
+        send_scope_connection_led(False)
         bridge.close()
 
 
