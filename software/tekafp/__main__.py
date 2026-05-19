@@ -64,7 +64,8 @@ _HORIZ_MANTISSAS = [1.0, 2.0, 4.0]
 _HORIZ_MIN_IDX = -29
 _HORIZ_MAX_IDX = 9
 
-# Level encoder step size: 2/4/8 sequence indexed as (vert_idx - 6), ~2% of vert scale per detent
+# Level encoder step size: 2/4/8 sequence
+# to match the MSO, index as (vert_idx - 6) (~2% of vert scale per detent)
 # e.g. 100mV/div -> 2mV/step, 200mV/div -> 4mV/step, 1V/div -> 20mV/step
 _LEVEL_MANTISSAS = [2.0, 4.0, 8.0]
 
@@ -363,7 +364,8 @@ class Controller:
         cur: float = parse_resp(self.scope.query(query + "?"), float)
 
         vert_scale: float = parse_resp(self.scope.query(f"{source}:SCALE?"), float)
-        step = _scale_idx_to_val(_LEVEL_MANTISSAS, _scale_val_to_idx(vert_scale) - 6)
+        # index _LEVEL_MANTISSAS as (idx - 5) for feel (MSO matching would be -6)
+        step = _scale_idx_to_val(_LEVEL_MANTISSAS, _scale_val_to_idx(vert_scale) - 5)
         new = clamp(cur + detents * step, -100.0, 100.0)
 
         self.scope.write(query + f" {new}")
