@@ -1,4 +1,5 @@
 import argparse
+import math
 import re
 import threading
 import time
@@ -42,34 +43,32 @@ SCOPE_TIMEOUT_MS = 5000
 VERT_STEP_DIVS = 0.10  # Vertical position step per encoder detent (+/-1)
 HORIZ_STEP_PCT = 1.0  # Horizontal position step in percent (0..~100) per detent
 
-# Vertical scale sequences follow a 1/2/5 pattern per Tektronix spec
-# e.g. 100mV, 200mV, 500mV, 1V, 2V, 5V, 10V, ...
-VERT_SCALE_STEPS = [
-    500e-6, 1e-3, 2e-3, 5e-3,
-    10e-3, 20e-3, 50e-3,
-    100e-3, 200e-3, 500e-3,
-    1.0, 2.0, 5.0,
-    10.0, 20.0, 50.0,
-    100.0,
-]
+def _scale_idx_to_val(mantissas: list[float], idx: int) -> float:
+    return mantissas[idx % 3] * 10 ** (idx // 3)
 
-# Horizontal scale sequences follow a 1/2/4 pattern per Tektronix spec
-# e.g. 1ns, 2ns, 4ns, 10ns, 20ns, 40ns, 100ns, ...
-HORIZ_SCALE_STEPS = [
-    200e-12, 400e-12,
-    1e-9, 2e-9, 4e-9,
-    10e-9, 20e-9, 40e-9,
-    100e-9, 200e-9, 400e-9,
-    1e-6, 2e-6, 4e-6,
-    10e-6, 20e-6, 40e-6,
-    100e-6, 200e-6, 400e-6,
-    1e-3, 2e-3, 4e-3,
-    10e-3, 20e-3, 40e-3,
-    100e-3, 200e-3, 400e-3,
-    1.0, 2.0, 4.0, 10.0, 20.0, 40.0, 
-    100.0, 200.0, 400.0, 
-    1000.0,
-]
+
+def _scale_val_to_idx(v: float) -> int:
+    # Multiply log10 by 3 (steps/decade) and round to nearest step,
+    # which absorbs small floating-point error in scope-returned values.
+    return round(math.log10(v) * 3)
+
+
+# Vertical scale: 1/2/5 sequence per Tektronix spec, index 0 = 1 V/div
+# Range: index -10 (500 µV/div) to index 6 (100 V/div)
+_VERT_MANTISSAS = [1.0, 2.0, 5.0]
+_VERT_MIN_IDX = -10
+_VERT_MAX_IDX = 6
+
+# Horizontal scale: 1/2/4 sequence per Tektronix spec, index 0 = 1 s/div
+# Range: index -29 (200 ps/div) to index 9 (1000 s/div)
+_HORIZ_MANTISSAS = [1.0, 2.0, 4.0]
+_HORIZ_MIN_IDX = -29
+_HORIZ_MAX_IDX = 9
+
+# Level encoder step size: 2/4/8 sequence
+# to match the MSO, index as (vert_idx - 6) (~2% of vert scale per detent)
+# e.g. 100mV/div -> 2mV/step, 200mV/div -> 4mV/step, 1V/div -> 20mV/step
+_LEVEL_MANTISSAS = [2.0, 4.0, 8.0]
 
 
 def connect_uart(mock: bool = False) -> UARTBridge:
@@ -345,19 +344,19 @@ class Controller:
 
         if self._vert_fine:
             # Fine mode: find the coarse step that owns the current value,
-            # then use 1/10th of it as the fine step
-            nearest = min(range(len(VERT_SCALE_STEPS)), key=lambda i: abs(VERT_SCALE_STEPS[i] - cur))
-            coarse_step = VERT_SCALE_STEPS[nearest]
+            # then use 1/20th of it as the fine step
+            nearest = _scale_val_to_idx(cur)
+            coarse_step = _scale_idx_to_val(_VERT_MANTISSAS, nearest)
             fine_step = coarse_step / 20.0
             new = cur + detents * fine_step
             # Clamp between the two surrounding coarse steps
-            lower = VERT_SCALE_STEPS[max(nearest - 1, 0)]
-            upper = VERT_SCALE_STEPS[min(nearest + 1, len(VERT_SCALE_STEPS) - 1)]
+            lower = _scale_idx_to_val(_VERT_MANTISSAS, max(nearest - 1, _VERT_MIN_IDX))
+            upper = _scale_idx_to_val(_VERT_MANTISSAS, min(nearest + 1, _VERT_MAX_IDX))
             new = clamp(new, lower, upper)
-        else: 
-            nearest = min(range(len(VERT_SCALE_STEPS)), key=lambda i: abs(VERT_SCALE_STEPS[i] - cur))
-            new_idx = clamp(nearest + detents, 0, len(VERT_SCALE_STEPS) - 1)
-            new = VERT_SCALE_STEPS[new_idx]
+        else:
+            nearest = _scale_val_to_idx(cur)
+            new_idx = int(clamp(nearest + detents, _VERT_MIN_IDX, _VERT_MAX_IDX))
+            new = _scale_idx_to_val(_VERT_MANTISSAS, new_idx)
 
         self.scope.write(f"CH{ch}:SCALE {new}")
         print(f"[SCOPE] CH{ch} vertical scale ({'fine' if self._vert_fine else 'coarse'}): {cur:.3e} -> {new:.3e} V/div")
@@ -365,9 +364,9 @@ class Controller:
     def adjust_horizontal_scale(self, detents: int) -> None:
         cur = float(self.scope.query("HORIZONTAL:MODE:SCALE?").strip().split()[-1])
 
-        nearest = min(range(len(HORIZ_SCALE_STEPS)),key=lambda i: abs(HORIZ_SCALE_STEPS[i] - cur))
-        new_idx = int(clamp(nearest + detents, 0, len(HORIZ_SCALE_STEPS) - 1))
-        new = HORIZ_SCALE_STEPS[new_idx]
+        nearest = _scale_val_to_idx(cur)
+        new_idx = int(clamp(nearest + detents, _HORIZ_MIN_IDX, _HORIZ_MAX_IDX))
+        new = _scale_idx_to_val(_HORIZ_MANTISSAS, new_idx)
 
         self.scope.write(f"HORIZONTAL:MODE:SCALE {new}")
         actual = float(self.scope.query("HORIZONTAL:MODE:SCALE?").strip().split()[-1])
@@ -377,20 +376,66 @@ class Controller:
             f"{cur:.3e} -> {actual:.3e} s/div"
         )
 
-    def encoder_trigger_level(self, detents: int) -> None:
+    def encoder_trigger_level(self, detents: int, trigger: str = "A") -> None:
         # FIXME: the MSO has both A (primary) and B (delay) triggers for sequencing.
         # for now, default to A
-        ab = "A"
-        source: str = parse_resp(self.scope.query(f"TRIGGER:{ab}:EDGE:SOURCE?"), str)
-        query = f"TRIGGER:{ab}:LEVEL:CH{source}"
+        source: str = parse_resp(self.scope.query(f"TRIGGER:{trigger}:EDGE:SOURCE?"), str)
+        query = f"TRIGGER:{trigger}:LEVEL:{source}"
         cur: float = parse_resp(self.scope.query(query + "?"), float)
 
-        trigger_scale: float = 0.4
-        new = cur + detents * trigger_scale
-        new = clamp(new, -100.0, 100.0)
+        vert_scale: float = parse_resp(self.scope.query(f"{source}:SCALE?"), float)
+        # index _LEVEL_MANTISSAS as (idx - 5) for feel (MSO matching would be -6)
+        step = _scale_idx_to_val(_LEVEL_MANTISSAS, _scale_val_to_idx(vert_scale) - 5)
+        new = clamp(cur + detents * step, -100.0, 100.0)
 
         self.scope.write(query + f" {new}")
-        print(f"[SCOPE] trigger level (%): {cur:.2f} -> {new:.2f}")
+        print(f"[SCOPE] trigger level: {cur:.2f} -> {new:.2f} V")
+
+    def sync_trigger_state(self) -> None:
+        source: str = parse_resp(
+            self.scope.query("TRIGGER:A:EDGE:SOURCE?"), str
+        )
+        # FIXME the [2] index on this string is due to subchannels, e.g. for a digital probe
+        #  where channel 1 could have CH1_D0, CH1_D1, etc. source[2] gives just the channel (1)
+        r, g, b = self.CHANNEL_COLORS[int(source[2])]
+        self.bridge.write_sync(f"ITL1_R:{r}\n".encode())
+        self.bridge.write_sync(f"ITL1_G:{g}\n".encode())
+        self.bridge.write_sync(f"ITL1_B:{b}\n".encode())
+        cur: str = parse_resp(self.scope.query("TRIGGER:A:EDGE:SLOPE?"), str).upper()
+        match cur:
+            case "RISE":
+                rise = 1
+                fall = 0
+            case "FALL":
+                rise = 0
+                fall = 1
+            case "EITHER":
+                rise = fall = 1
+            case _:
+                raise AssertionError("Invalid trigger slope. Something is wrong!")
+        self.bridge.write_sync(f"ITS0_UP:{rise}\n".encode())
+        self.bridge.write_sync(f"ITS0_DN:{fall}\n".encode())
+        cur: str = parse_resp(self.scope.query("TRIGGER:A:MODE?"), str).upper()
+        if cur == "AUTO":
+            rise = 1
+            fall = 0
+        else:
+            rise = 0
+            fall = 1
+        self.bridge.write_sync(f"ITM0_A:{rise}\n".encode())
+        self.bridge.write_sync(f"ITM0_N:{fall}\n".encode())
+        cur = parse_resp(self.scope.query("TRIGGER:STATE?"), str).upper()
+        match cur:
+            case "READY" | "AUTO":
+                rise = 1
+                fall = 0
+            case "TRIGGER":
+                rise = 0
+                fall = 1
+            case _:
+                rise = fall = 0
+        self.bridge.write_sync(f"ITF0_R:{rise}\n".encode())
+        self.bridge.write_sync(f"ITF0_T:{fall}\n".encode())
 
     def next_trigger_slope(self) -> None:
         cur: str = parse_resp(self.scope.query("TRIGGER:A:EDGE:SLOPE?"), str).upper()
@@ -544,7 +589,7 @@ class Controller:
             return
         # trigger level push
         if msg_id == "TL0":
-            self.scope.write("TRIGGER:A: SETLevel")
+            self.scope.write("TRIGGER:A SETLevel")
             return
 
         # trigger force
@@ -901,6 +946,7 @@ def main() -> None:
                 ctrl.sync_selected_source_from_scope()
                 ctrl.sync_fast_acquire_from_scope()
                 ctrl.sync_run_stop_from_scope()
+                ctrl.sync_trigger_state()
                 last_sync = now
 
     except KeyboardInterrupt:
