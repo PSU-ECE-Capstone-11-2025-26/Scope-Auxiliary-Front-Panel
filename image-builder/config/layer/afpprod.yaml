@@ -13,6 +13,7 @@ mmdebstrap:
     - python3-pip
     - cloud-guest-utils
     - dbus-user-session
+    - seatd
     - libpam-systemd
     - libwayland-cursor0
     - libwayland-egl1
