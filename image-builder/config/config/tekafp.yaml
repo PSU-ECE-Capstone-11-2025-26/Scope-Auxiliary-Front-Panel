@@ -4,7 +4,7 @@ include:
 device:
   layer: rpi4
   class: pi4
-  hostname: tek-afp-$(uuidgen | cut -d'-' -f1)
+  hostname: tek-afp
   user1: tek
   user1pass: Team11Capstone!
   storage_type: sd

@@ -1,0 +1,12 @@
+[Unit]
+Description=Set unique hostname from MAC address on first boot
+ConditionPathExists=!/etc/.hostname-set
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'hostnamectl set-hostname "tek-afp-$(cat /sys/class/net/eth0/address | tr -d : | tail -c 9)"'
+ExecStart=/bin/touch /etc/.hostname-set
+
+[Install]
+WantedBy=multi-user.target
