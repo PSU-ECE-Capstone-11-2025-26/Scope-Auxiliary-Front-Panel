@@ -70,6 +70,11 @@ _HORIZ_MAX_IDX = 9
 # e.g. 100mV/div -> 2mV/step, 200mV/div -> 4mV/step, 1V/div -> 20mV/step
 _LEVEL_MANTISSAS = [2.0, 4.0, 8.0]
 
+# Zoom scale: 1/2/4 (same as horizontal)
+# Range: index 0 = 1x, 1 = (2x) to index 12 (10000x)
+_ZOOM_MIN_IDX = 1
+_ZOOM_MAX_IDX = 12
+
 
 def connect_uart(mock: bool = False) -> UARTBridge:
     if mock:
@@ -383,6 +388,22 @@ class Controller:
             f"{cur:.3e} -> {actual:.3e} s/div"
         )
 
+    def adjust_zoom_scale(self, detents: int) -> None:
+        cur: float = parse_resp(
+            self.scope.query("DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:HORIZONTAL:SCALE?"),
+            float
+        )
+        if not self._zoom and cur <= 2 and detents > 0:
+            self.scope.write("DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:STATE ON")
+        nearest = _scale_val_to_idx(max(cur, 1.0))
+        new_idx = int(clamp(nearest + detents, _ZOOM_MIN_IDX, _ZOOM_MAX_IDX))
+        new = _scale_idx_to_val(_HORIZ_MANTISSAS, new_idx)
+        if new < 2.0:
+            self.scope.write("DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:STATE OFF")
+        else:
+            self.scope.write(f"DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:HORIZONTAL:SCALE {new}")
+        print(f"[SCOPE] zoom scale: {cur:.3e} -> {new:.3e}x")
+
     def encoder_trigger_level(self, detents: int, trigger: str = "A") -> None:
         # FIXME: the MSO has both A (primary) and B (delay) triggers for sequencing.
         # for now, default to A
@@ -639,25 +660,7 @@ class Controller:
 
         # zoom encoder
         if msg_id == "HZ1":
-            cur: float = parse_resp(
-                self.scope.query("DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:HORIZONTAL:SCALE?"),
-                float
-            )
-            if not self._zoom and cur <= 2 and val > 0:
-                # match MSO behavior: if the zoom is adjusted, then turn it on
-                self.scope.write("DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:STATE ON")
-            nearest = min(
-                range(len(HORIZ_SCALE_STEPS)),
-                key=lambda i: abs(HORIZ_SCALE_STEPS[i] - cur),
-            )
-            new_idx = int(
-                clamp(nearest + val, 0, len(HORIZ_SCALE_STEPS) - 1)
-            )
-            new: int = int(clamp(HORIZ_SCALE_STEPS[new_idx], 0.0, 10e3))
-            if new < 2.0:
-                self.scope.write("DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:STATE OFF")
-            else:
-                self.scope.write(f"DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:HORIZONTAL:SCALE {new}")
+            self.adjust_zoom_scale(val)
             return
 
         # pan encoder
