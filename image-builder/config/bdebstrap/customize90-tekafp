@@ -25,8 +25,8 @@ chroot "$rootfs" /usr/bin/pip3 install --break-system-packages --no-cache-dir "$
 chroot "$rootfs" systemctl mask getty@tty1.service
 chroot "$rootfs" systemctl mask serial-getty@ttyAMA0
 
-"$BDEBSTRAP_HOOLS/enable-units" "$rootfs" seatd
-"$BDEBSTRAP_HOOLS/enable-units" "$rootfs" set-hostname
+"$BDEBSTRAP_HOOKS/enable-units" "$rootfs" seatd
+"$BDEBSTRAP_HOOKS/enable-units" "$rootfs" set-hostname
 "$BDEBSTRAP_HOOKS/enable-units" "$rootfs" greetd
 "$BDEBSTRAP_HOOKS/enable-units" "$rootfs" resize-rootfs
 "$BDEBSTRAP_HOOKS/enable-units" "$rootfs" tekafp
