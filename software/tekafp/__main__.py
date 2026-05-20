@@ -70,6 +70,11 @@ _HORIZ_MAX_IDX = 9
 # e.g. 100mV/div -> 2mV/step, 200mV/div -> 4mV/step, 1V/div -> 20mV/step
 _LEVEL_MANTISSAS = [2.0, 4.0, 8.0]
 
+# Zoom scale: 1/2/4 (same as horizontal)
+# Range: index 0 = 1x, 1 = (2x) to index 12 (10000x)
+_ZOOM_MIN_IDX = 0
+_ZOOM_MAX_IDX = 12
+
 
 def connect_uart(mock: bool = False) -> UARTBridge:
     if mock:
@@ -97,10 +102,17 @@ class Controller:
         self._channels: dict[int, bool] = {ch: False for ch in range(1, self.channel_count + 1)}
         self._source_channel: int = 0
         self._vert_fine: bool = False # fine mode toggle for vertical scale
-
         self._fast_acquire: bool = False
-
         self._run_state: bool = False
+        self._zoom: bool = False
+
+    def sync_zoom(self) -> None:
+        resp: str = parse_resp(
+            self.scope.query("DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:STATE?"), str
+        )
+        self._zoom = resp not in ("OFF", "0")
+        msg = f"IHZ0:{int(self._zoom)}\n".encode()
+        self.bridge.write_sync(msg)
 
     def _channels_from_idn(self, idn: str) -> int:
         m = re.search(r"MSO\d(\d)", idn, re.IGNORECASE)
@@ -376,6 +388,22 @@ class Controller:
             f"{cur:.3e} -> {actual:.3e} s/div"
         )
 
+    def adjust_zoom_scale(self, detents: int) -> None:
+        cur: float = parse_resp(
+            self.scope.query("DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:HORIZONTAL:SCALE?"),
+            float
+        )
+        if not self._zoom and cur <= 2 and detents > 0:
+            self.scope.write("DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:STATE ON")
+        nearest = _scale_val_to_idx(max(cur, 1.0))
+        new_idx = int(clamp(nearest + detents, _ZOOM_MIN_IDX, _ZOOM_MAX_IDX))
+        new = _scale_idx_to_val(_HORIZ_MANTISSAS, new_idx)
+        if new < 2.0:
+            self.scope.write("DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:STATE OFF")
+        else:
+            self.scope.write(f"DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:HORIZONTAL:SCALE {new}")
+        print(f"[SCOPE] zoom scale: {cur:.3e} -> {new:.3e}x")
+
     def encoder_trigger_level(self, detents: int, trigger: str = "A") -> None:
         # FIXME: the MSO has both A (primary) and B (delay) triggers for sequencing.
         # for now, default to A
@@ -623,6 +651,31 @@ class Controller:
         if msg_id == "XA0":
             self.autoset()
             return
+
+        # zoom enable
+        if msg_id == "HZ0":
+            new: int = int(not self._zoom)
+            self.scope.write(f"DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:STATE {new}")
+            return
+
+        # zoom encoder
+        if msg_id == "HZ1":
+            self.adjust_zoom_scale(val)
+            return
+
+        # pan encoder
+        if msg_id == "HX1":
+            if not self._zoom:
+                return
+            cur: float = parse_resp(
+                self.scope.query("DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:HORIZONTAL:POSITION?"),
+                float
+            )
+            # TODO: how many percent to change for each detent?
+            new: float = clamp(cur + val * 2, 0.0, 100.0)
+            self.scope.write(f"DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:HORIZONTAL:POSITION {new}")
+            return
+
 
 class MacroManager:
     NUM_SLOTS = 4
@@ -947,6 +1000,7 @@ def main() -> None:
                 ctrl.sync_fast_acquire_from_scope()
                 ctrl.sync_run_stop_from_scope()
                 ctrl.sync_trigger_state()
+                ctrl.sync_zoom()
                 last_sync = now
 
     except KeyboardInterrupt:
