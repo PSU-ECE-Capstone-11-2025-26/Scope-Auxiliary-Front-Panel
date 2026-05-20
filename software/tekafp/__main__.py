@@ -72,7 +72,7 @@ _LEVEL_MANTISSAS = [2.0, 4.0, 8.0]
 
 # Zoom scale: 1/2/4 (same as horizontal)
 # Range: index 0 = 1x, 1 = (2x) to index 12 (10000x)
-_ZOOM_MIN_IDX = 1
+_ZOOM_MIN_IDX = 0
 _ZOOM_MAX_IDX = 12
 
 
