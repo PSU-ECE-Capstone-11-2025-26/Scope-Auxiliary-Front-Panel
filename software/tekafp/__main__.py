@@ -3,6 +3,7 @@ import re
 import threading
 import time
 from time import sleep
+from typing import Optional
 
 import pyvisa
 from pyvisa import VisaIOError
@@ -19,6 +20,7 @@ from tekafp.api_server.error import APIError
 from tekafp.api_server.packets import (
     ErrorPacketData,
     MacroRecordPacketData,
+    MacroStatePacketData,
     PacketData,
     ScopeActionPacketData,
     ScopeInfoPacketData,
@@ -27,7 +29,6 @@ from tekafp.api_server.packets import (
 from tekafp.input import Input
 from tekafp.uart import MockUARTBridge, UARTBridge
 from tekafp.util import clamp, parse_resp
-
 
 # UART config
 PORT = "/dev/serial0"
@@ -275,6 +276,25 @@ class Controller:
 
         print(
             f"[SCOPE] CH{channel} display -> {self._channels[channel]} (source={self._source_channel})"  # noqa: E501
+        )
+
+    def force_channel_display(self, channel: int, desired: bool) -> None:
+        if channel not in range(1, self.channel_count + 1):
+            return
+
+        self._channels[channel] = desired
+
+        if self._source_channel == channel and not desired:
+            self._source_channel = max(
+                (k for k, v in self._channels.items() if v),
+                default=0,
+            )
+
+        self.scope.write(f"DISPLAY:GLOBAL:CH{channel}:STATE {int(desired)}")
+        self.send_channel_led(channel, desired)
+
+        print(
+            f"[SCOPE] CH{channel} forced -> {self._channels[channel]}"
         )
 
     def adjust_vertical_position(self, detents: int) -> None:
@@ -559,6 +579,158 @@ class Controller:
             self.autoset()
             return
 
+class MacroManager:
+    NUM_SLOTS = 4
+
+    PHYSICAL_MACRO_IDS = {
+        "M10": 0,
+        "M20": 1,
+        "M30": 2,
+        "M40": 3,
+    }
+
+    def __init__(self) -> None:
+        self.macros: list[list[bytes | tuple[str, int, bool]]] = [
+            [] for _ in range(self.NUM_SLOTS)
+        ]
+        self.recording_slot: Optional[int] = None
+        self._playing_back = False
+
+    def _valid_slot(self, slot: int) -> bool:
+        return 0 <= slot < self.NUM_SLOTS
+
+    def should_handle(self, inp: Input) -> bool:
+        msg_id = str(inp.id)
+
+        return (
+            self.recording_slot is not None
+            or msg_id in self.PHYSICAL_MACRO_IDS
+        )
+
+    def send_macro_state(self) -> None:
+        send_packet_data(
+            MacroStatePacketData(
+                [bool(macro) for macro in self.macros]
+            )
+        )
+
+    def start_recording(self, slot: int) -> None:
+        if not self._valid_slot(slot):
+            print(f"[MACRO] Invalid slot {slot}")
+            return
+
+        if self.recording_slot is not None and self.recording_slot != slot:
+            print(f"[MACRO] Stopping slot {self.recording_slot} before recording slot {slot}")
+
+        self.recording_slot = slot
+        self.macros[slot] = []
+        print(f"[MACRO] Recording started for slot {slot}")
+
+    def stop_recording(self, slot: int) -> None:
+        if not self._valid_slot(slot):
+            print(f"[MACRO] Invalid slot {slot}")
+            return
+
+        if self.recording_slot != slot:
+            print(f"[MACRO] Stop ignored for slot {slot}; currently recording {self.recording_slot}")
+            return
+
+        self.recording_slot = None
+        print(f"[MACRO] Recording stopped for slot {slot}. {len(self.macros[slot])} events saved.")
+        self.send_macro_state()
+
+    def handle_uart_input(self, raw: bytes, inp: Input, ctrl: Controller) -> None:
+        msg_id = str(inp.id)
+
+        if msg_id in self.PHYSICAL_MACRO_IDS:
+            try:
+                if int(inp.value) != 1:
+                    return
+            except ValueError:
+                return
+
+            slot = self.PHYSICAL_MACRO_IDS[msg_id]
+            self.playback(slot, ctrl)
+            return
+
+        is_channel_toggle = msg_id in (
+            "V10", "V20", "V30", "V40",
+            "V50", "V60", "V70", "V80",
+        )
+
+        if self.recording_slot is not None and not self._playing_back and is_channel_toggle:
+            ch = int(msg_id[1])
+
+            ctrl.handle_input(inp)
+
+            desired = ctrl._channels[ch]
+            event = ("channel_state", ch, desired)
+
+            self.macros[self.recording_slot].append(event)
+            print(f"[MACRO] slot {self.recording_slot} + {event!r}")
+            return
+
+        if self.recording_slot is not None and not self._playing_back:
+            self.macros[self.recording_slot].append(raw)
+            print(f"[MACRO] slot {self.recording_slot} + {raw!r}")
+
+        ctrl.handle_input(inp)
+
+    def playback(self, slot: int, ctrl: Controller) -> None:
+        if not self._valid_slot(slot):
+            print(f"[MACRO] Invalid slot {slot}")
+            return
+
+        if self.recording_slot is not None:
+            print("[MACRO] Playback ignored while recording")
+            return
+
+        macro = self.macros[slot]
+        if not macro:
+            print(f"[MACRO] Slot {slot} is empty")
+            return
+
+        played_channel_event = False
+
+        print(f"[MACRO] Playing slot {slot}: {len(macro)} events")
+        self._playing_back = True
+
+        try:
+            for raw in macro:
+                if isinstance(raw, tuple):
+                    kind, ch, desired = raw
+
+                    if kind == "channel_state":
+                        played_channel_event = True
+                        ctrl.force_channel_display(ch, desired)
+                        time.sleep(0.25)
+                        continue
+
+                try:
+                    inp = Input.from_bytes(raw)
+                except Exception as e:
+                    print(f"[MACRO] Bad recorded message {raw!r}: {e}")
+                    continue
+
+                if str(inp.id) in self.PHYSICAL_MACRO_IDS:
+                    continue
+
+                ctrl.handle_input(inp)
+                time.sleep(0.25)
+            if played_channel_event:
+                ctrl._source_channel = max(
+                    (k for k, v in ctrl._channels.items() if v),
+                    default=0,
+                )
+
+                ctrl.set_scope_selected_source()
+                ctrl.send_selected_channel_leds()
+
+        finally:
+            self._playing_back = False
+            print(f"[MACRO] Playback done for slot {slot}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("-m", "--mock", action="store_true", help="Run in mock mode")
@@ -580,6 +752,7 @@ def main() -> None:
     rm: pyvisa.ResourceManager = pyvisa.ResourceManager(PYVISA_BACKEND)
     scopes: dict[str, Controller] = {}
 
+    macro_manager = MacroManager()
     def send_scope_connection_led(state: bool) -> None:
         msg = f"ISP_CON:{int(state)}\n".encode("utf-8")
         bridge.write_sync(msg)
@@ -686,11 +859,9 @@ def main() -> None:
                             print(f"Unknown action: {a}")
                 case MacroRecordPacketData():
                     if data.record:
-                        pass
-                        # TODO record for slot data.slot
-                        # If a different slot is recording, stop that one first.
+                        macro_manager.start_recording(data.slot)
                     else:
-                        pass # TODO stop recording for slot data.slot
+                        macro_manager.stop_recording(data.slot)
                 case _:
                     print(f"Unknown or incorrect packet type {data.type}")
 
@@ -713,7 +884,10 @@ def main() -> None:
 
                 # iterating all scopes here would allow control of multiple at once
                 ctrl = list(scopes.values())[0]
-                ctrl.handle_input(inp)
+                if macro_manager.should_handle(inp):
+                    macro_manager.handle_uart_input(raw, inp, ctrl)
+                else:
+                    ctrl.handle_input(inp)
                 last_input = time.monotonic()
 
             new_packet = get_raw_packet()
