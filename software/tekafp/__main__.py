@@ -599,6 +599,14 @@ class MacroManager:
     def _valid_slot(self, slot: int) -> bool:
         return 0 <= slot < self.NUM_SLOTS
 
+    def should_handle(self, inp: Input) -> bool:
+        msg_id = str(inp.id)
+
+        return (
+            self.recording_slot is not None
+            or msg_id in self.PHYSICAL_MACRO_IDS
+        )
+
     def send_macro_state(self) -> None:
         send_packet_data(
             MacroStatePacketData(
@@ -876,7 +884,10 @@ def main() -> None:
 
                 # iterating all scopes here would allow control of multiple at once
                 ctrl = list(scopes.values())[0]
-                macro_manager.handle_uart_input(raw, inp, ctrl)
+                if macro_manager.should_handle(inp):
+                    macro_manager.handle_uart_input(raw, inp, ctrl)
+                else:
+                    ctrl.handle_input(inp)
                 last_input = time.monotonic()
 
             new_packet = get_raw_packet()
