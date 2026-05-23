@@ -5,8 +5,10 @@ namespace AFP.View;
 
 public partial class Log : RichTextLabel
 {
+	private double _startupTime;
 	public override void _Ready()
 	{
+		_startupTime = Time.GetUnixTimeFromSystem();
 		Global.Logger.OnLog += _onLogCall;
 	}
 
@@ -20,6 +22,6 @@ public partial class Log : RichTextLabel
 			LogLevel.Debug => "[color=SEA_GREEN][lb]DEBUG[rb][/color] ",
 			_ => ""
 		};
-		AppendText(strLvl + message + "\n");
+		AppendText($" {Time.GetUnixTimeFromSystem() - _startupTime:0.000} " + strLvl + message + "\n");
 	}
 }
