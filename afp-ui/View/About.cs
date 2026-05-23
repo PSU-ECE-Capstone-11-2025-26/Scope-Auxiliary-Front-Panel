@@ -54,6 +54,8 @@ public partial class About : MarginContainer
 	public void AddGeneralInfo(string key, string value)
 	{
 		TreeItem newItem = _aboutTreeRoot.CreateChild();
+		newItem.SetSelectable(0, false);
+		newItem.SetSelectable(1, false);
 		newItem.SetText(0, key);
 		newItem.SetText(1, value);
 	}
