@@ -1,4 +1,5 @@
 import argparse
+import logging
 import math
 import re
 import socket
@@ -35,6 +36,8 @@ from tekafp.util import clamp, parse_resp
 
 __version__ = version("tek-afp")
 _HOSTNAME = socket.gethostname()
+
+logger = logging.getLogger(__name__)
 
 # UART config
 PORT = "/dev/serial0"
@@ -87,7 +90,7 @@ def connect_uart(mock: bool = False) -> UARTBridge:
     bridge = UARTBridge(PORT, baudrate=BAUD, timeout=0.1, write_timeout=1)
     if not bridge.connect():
         raise RuntimeError(f"Failed to open UART on {PORT}")
-    print(f"Connected UART: {PORT} @ {BAUD}")
+    logger.info(f"Connected UART: {PORT} @ {BAUD}")
     return bridge
 
 
@@ -100,9 +103,8 @@ class Controller:
         # delay mode OFF => HORizontal:POSition works like HORIZONTAL POSITION knob
         self.scope.write("HORIZONTAL:DELAY:MODE OFF")
         self.idn = self.scope.query("*IDN?").strip()
-        print("Connected ctrl:", self.idn)
         self.channel_count = self._channels_from_idn(self.idn)
-        print(f"Channel count = {self.channel_count}")
+        logger.info("Connected ctrl: %s, channels=%d", self.idn, self.channel_count)
 
         self._channels: dict[int, bool] = {ch: False for ch in range(1, self.channel_count + 1)}
         self._source_channel: int = 0
@@ -137,7 +139,7 @@ class Controller:
             self.send_channel_led(ch, actual)
             if actual:
                 highest = ch
-            print(f"[INIT] CH{ch} -> {actual}")
+            logger.debug(f"CH{ch} -> {actual}")
 
         # Chooses highest enabled channel as the active selected channel
         self._source_channel = highest
@@ -155,7 +157,7 @@ class Controller:
             if self._channels[ch] != actual:
                 self._channels[ch] = actual
                 self.send_channel_led(ch, actual)
-                print(f"[SYNC] CH{ch} -> {actual}")
+                logger.debug(f"CH{ch} -> {actual}")
                 any_changed = True
 
                 if actual:
@@ -177,7 +179,7 @@ class Controller:
 
         # If nothing changed, stay quiet
         if any_changed:
-            print("[SYNC] Full channel sync pass complete")
+            logger.debug("Full channel sync pass complete")
 
     # Per-channel RGB color (R,G,B)
     CHANNEL_COLORS: dict[int, tuple[int, int, int]] = {
@@ -209,7 +211,7 @@ class Controller:
 
         for msg in msgs:
             self.bridge.write_sync(msg)
-            print(f"[UART->PICO] {msg.decode().strip()}")
+            logger.debug(f"[UART->PICO] {msg.decode().strip()}")
 
 
     def send_selected_channel_leds(self) -> None:
@@ -229,7 +231,7 @@ class Controller:
 
         for msg in msgs:
             self.bridge.write_sync(msg)
-            print(f"[UART->PICO] {msg.decode().strip()}")
+            logger.debug(f"[UART->PICO] {msg.decode().strip()}")
 
     def get_scope_selected_source(self) -> int:
         resp = self.scope.query("DISPLAY:SELECT:SOURCE?").strip().upper()
@@ -241,7 +243,7 @@ class Controller:
             if resp.endswith(f"CH{ch}") or f"CH{ch}" in resp:
                 return ch
 
-        print(f"[SYNC] Unknown selected source response: {resp}")
+        logger.error(f"Unknown selected source response: {resp}")
         return self._source_channel
 
 
@@ -258,7 +260,7 @@ class Controller:
         if actual_source != self._source_channel:
             self._source_channel = actual_source
             self.send_selected_channel_leds()
-            print(f"[SYNC] selected source -> CH{actual_source}")
+            logger.debug(f"selected source -> CH{actual_source}")
 
     def set_channel_display(self, channel: int) -> None:
         if channel not in range(1, self.channel_count + 1):
@@ -290,8 +292,8 @@ class Controller:
             )
             self.send_channel_led(channel, self._channels[channel])
 
-        print(
-            f"[SCOPE] CH{channel} display -> {self._channels[channel]} (source={self._source_channel})"  # noqa: E501
+        logger.debug(
+            f"CH{channel} display -> {self._channels[channel]} (source={self._source_channel})"  # noqa: E501
         )
 
     def force_channel_display(self, channel: int, desired: bool) -> None:
@@ -309,14 +311,14 @@ class Controller:
         self.scope.write(f"DISPLAY:GLOBAL:CH{channel}:STATE {int(desired)}")
         self.send_channel_led(channel, desired)
 
-        print(
-            f"[SCOPE] CH{channel} forced -> {self._channels[channel]}"
+        logger.debug(
+            f"CH{channel} forced -> {self._channels[channel]}"
         )
 
     def adjust_vertical_position(self, detents: int) -> None:
         ch = self._source_channel
         if ch == 0:
-            print("[SCOPE] No active channel selected, ignoring vertical position.")
+            logger.debug("No active channel selected, ignoring vertical position.")
             return
         cur = float(self.scope.query(f"CH{ch}:POSITION?").strip().split()[-1])
 
@@ -325,17 +327,16 @@ class Controller:
         new = clamp(new, -10.0, 10.0)
 
         self.scope.write(f"CH{ch}:POSITION {new}")
-        print(f"[SCOPE] CH{ch} vertical position: {cur:.3f} -> {new:.3f}")
+        logger.debug(f"CH{ch} vertical position: {cur:.3f} -> {new:.3f}")
 
     def center_vertical_position(self) -> None:
         ch = self._source_channel
         if ch == 0:
-            print("[SCOPE] No active channel selected, ignoring vertical center.")
             return
 
         cur = float(self.scope.query(f"CH{ch}:POSITION?").strip().split()[-1])
         self.scope.write(f"CH{ch}:POSITION 0")
-        print(f"[SCOPE] CH{ch} vertical position centered: {cur:.3f} -> 0.000")
+        logger.debug(f"CH{ch} vertical position centered: {cur:.3f} -> 0.000")
 
     def adjust_horizontal_position(self, detents: int) -> None:
         # HORizontal:POSition is ~0..100 (% trigger position on screen)
@@ -345,17 +346,16 @@ class Controller:
         new = clamp(new, 0.0, 100.0)
 
         self.scope.write(f"HORIZONTAL:POSITION {new}")
-        print(f"[SCOPE] horizontal position (%): {cur:.2f} -> {new:.2f}")
+        logger.debug(f"horizontal position (%): {cur:.2f} -> {new:.2f}")
 
     def center_horizontal_position(self) -> None:
         cur = float(self.scope.query("HORIZONTAL:POSITION?").strip().split()[-1])
         self.scope.write("HORIZONTAL:POSITION 50")
-        print(f"[SCOPE] horizontal position centered (%): {cur:.2f} -> 50.00")
+        logger.debug(f"horizontal position centered (%): {cur:.2f} -> 50.00")
 
     def adjust_vertical_scale(self, detents: int) -> None:
         ch = self._source_channel
         if ch == 0:
-            print("[SCOPE] No active channel selected, ignoring vertical scale.")
             return
         cur = float(self.scope.query(f"CH{ch}:SCALE?").strip().split()[-1])
 
@@ -376,7 +376,8 @@ class Controller:
             new = _scale_idx_to_val(_VERT_MANTISSAS, new_idx)
 
         self.scope.write(f"CH{ch}:SCALE {new}")
-        print(f"[SCOPE] CH{ch} vertical scale ({'fine' if self._vert_fine else 'coarse'}): {cur:.3e} -> {new:.3e} V/div")
+        mode = "fine" if self._vert_fine else "coarse"
+        logger.debug(f"CH{ch} vertical ({mode}): {cur:.3e} -> {new:.3e} V/div")
 
     def adjust_horizontal_scale(self, detents: int) -> None:
         cur = float(self.scope.query("HORIZONTAL:MODE:SCALE?").strip().split()[-1])
@@ -388,10 +389,7 @@ class Controller:
         self.scope.write(f"HORIZONTAL:MODE:SCALE {new}")
         actual = float(self.scope.query("HORIZONTAL:MODE:SCALE?").strip().split()[-1])
 
-        print(
-            f"[SCOPE] horizontal scale (coarse): "
-            f"{cur:.3e} -> {actual:.3e} s/div"
-        )
+        logger.debug(f"horizontal scale (coarse): {cur:.3e} -> {actual:.3e} s/div")
 
     def adjust_zoom_scale(self, detents: int) -> None:
         cur: float = parse_resp(
@@ -407,7 +405,7 @@ class Controller:
             self.scope.write("DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:STATE OFF")
         else:
             self.scope.write(f"DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:HORIZONTAL:SCALE {new}")
-        print(f"[SCOPE] zoom scale: {cur:.3e} -> {new:.3e}x")
+        logger.debug(f"zoom scale: {cur:.3e} -> {new:.3e}x")
 
     def encoder_trigger_level(self, detents: int, trigger: str = "A") -> None:
         # FIXME: the MSO has both A (primary) and B (delay) triggers for sequencing.
@@ -422,7 +420,7 @@ class Controller:
         new = clamp(cur + detents * step, -100.0, 100.0)
 
         self.scope.write(query + f" {new}")
-        print(f"[SCOPE] trigger level: {cur:.2f} -> {new:.2f} V")
+        logger.debug(f"trigger level: {cur:.2f} -> {new:.2f} V")
 
     def sync_trigger_state(self) -> None:
         source: str = parse_resp(
@@ -494,12 +492,11 @@ class Controller:
         self._run_state = new_state
         self.send_run_stop_led(new_state)
 
-        print(f"[SCOPE] Run/Stop -> {'RUN' if new_state else 'STOP'}")
+        logger.debug(f"Run/Stop -> {'RUN' if new_state else 'STOP'}")
 
     # Run the scope's AutoSet feature
     def autoset(self) -> None:
         self.scope.write("AUTOSET EXECUTE")
-        print("[SCOPE] AutoSet executed")
 
     # Toggle the scope's Fast Acquire state
     def toggle_fast_acquire(self) -> None:
@@ -511,7 +508,7 @@ class Controller:
         self._fast_acquire = new_state
         self.send_fast_acquire_led(new_state)
 
-        print(f"[SCOPE] Fast Acquire -> {'ON' if new_state else 'OFF'}")
+        logger.debug(f"Fast Acquire -> {'ON' if new_state else 'OFF'}")
 
     def get_scope_fast_acquire_state(self) -> bool:
         resp = self.scope.query("ACQUIRE:FASTACQ:STATE?").strip().upper()
@@ -520,7 +517,7 @@ class Controller:
     def send_fast_acquire_led(self, state: bool) -> None:
         msg = f"IAF0:{int(state)}\n".encode("utf-8")
         self.bridge.write_sync(msg)
-        print(f"[UART->PICO] {msg.decode().strip()}")
+        logger.debug(f"[UART->PICO] {msg.decode().strip()}")
 
     def sync_fast_acquire_from_scope(self, force: bool = False) -> None:
         actual = self.get_scope_fast_acquire_state()
@@ -528,7 +525,7 @@ class Controller:
         if force or self._fast_acquire != actual:
             self._fast_acquire = actual
             self.send_fast_acquire_led(actual)
-            print(f"[SYNC] Fast Acquire -> {actual}")
+            logger.debug(f"Fast Acquire -> {actual}")
 
     def get_scope_run_state(self) -> bool:
         resp = self.scope.query("ACQUIRE:STATE?").strip().upper()
@@ -538,7 +535,7 @@ class Controller:
     def send_run_stop_led(self, state: bool) -> None:
         msg = f"IAR0:{int(state)}\n".encode("utf-8")
         self.bridge.write_sync(msg)
-        print(f"[UART->PICO] {msg.decode().strip()}")
+        logger.debug(f"[UART->PICO] {msg.decode().strip()}")
 
 
     def sync_run_stop_from_scope(self, force: bool = False) -> None:
@@ -547,7 +544,7 @@ class Controller:
         if force or self._run_state != actual:
             self._run_state = actual
             self.send_run_stop_led(actual)
-            print(f"[SYNC] Run/Stop -> {actual}")
+            logger.debug(f"Run/Stop -> {actual}")
 
     # UART event handler
     def handle_input(self, inp: Input) -> None:
@@ -611,7 +608,9 @@ class Controller:
         if msg_id == "VS0":
             if int(val) == 1:
                 self._vert_fine = not self._vert_fine
-                print(f"[SCOPE] Vertical scale fine mode -> {'ON' if self._vert_fine else 'OFF'}")
+                logger.debug(
+                    f"Vertical scale fine mode -> {'ON' if self._vert_fine else 'OFF'}"
+                )
             return
 
         # trigger level encoder
@@ -719,27 +718,30 @@ class MacroManager:
 
     def start_recording(self, slot: int) -> None:
         if not self._valid_slot(slot):
-            print(f"[MACRO] Invalid slot {slot}")
+            logger.error(f"Invalid slot {slot}")
             return
 
         if self.recording_slot is not None and self.recording_slot != slot:
-            print(f"[MACRO] Stopping slot {self.recording_slot} before recording slot {slot}")
+            logger.debug(
+                f"Stopping slot {self.recording_slot} before recording slot {slot}"
+            )
 
         self.recording_slot = slot
         self.macros[slot] = []
-        print(f"[MACRO] Recording started for slot {slot}")
+        logger.debug(f"Recording started for slot {slot}")
 
     def stop_recording(self, slot: int) -> None:
         if not self._valid_slot(slot):
-            print(f"[MACRO] Invalid slot {slot}")
+            logger.debug(f"Invalid slot {slot}")
             return
 
         if self.recording_slot != slot:
-            print(f"[MACRO] Stop ignored for slot {slot}; currently recording {self.recording_slot}")
             return
 
         self.recording_slot = None
-        print(f"[MACRO] Recording stopped for slot {slot}. {len(self.macros[slot])} events saved.")
+        logger.debug(
+            f"Recording stopped for slot {slot}. {len(self.macros[slot])} events saved."
+        )
         self.send_macro_state()
 
     def handle_uart_input(self, raw: bytes, inp: Input, ctrl: Controller) -> None:
@@ -770,32 +772,29 @@ class MacroManager:
             event = ("channel_state", ch, desired)
 
             self.macros[self.recording_slot].append(event)
-            print(f"[MACRO] slot {self.recording_slot} + {event!r}")
+            logger.debug(f"slot {self.recording_slot} + {event!r}")
             return
 
         if self.recording_slot is not None and not self._playing_back:
             self.macros[self.recording_slot].append(raw)
-            print(f"[MACRO] slot {self.recording_slot} + {raw!r}")
+            logger.debug(f"slot {self.recording_slot} + {raw!r}")
 
         ctrl.handle_input(inp)
 
     def playback(self, slot: int, ctrl: Controller) -> None:
         if not self._valid_slot(slot):
-            print(f"[MACRO] Invalid slot {slot}")
+            logger.error(f"Invalid slot {slot}")
             return
 
         if self.recording_slot is not None:
-            print("[MACRO] Playback ignored while recording")
             return
 
         macro = self.macros[slot]
         if not macro:
-            print(f"[MACRO] Slot {slot} is empty")
             return
 
         played_channel_event = False
 
-        print(f"[MACRO] Playing slot {slot}: {len(macro)} events")
         self._playing_back = True
 
         try:
@@ -811,8 +810,8 @@ class MacroManager:
 
                 try:
                     inp = Input.from_bytes(raw)
-                except Exception as e:
-                    print(f"[MACRO] Bad recorded message {raw!r}: {e}")
+                except (IndexError, ValueError) as e:
+                    logger.exception(f"Bad recorded message {raw!r}: {e}")
                     continue
 
                 if str(inp.id) in self.PHYSICAL_MACRO_IDS:
@@ -831,12 +830,13 @@ class MacroManager:
 
         finally:
             self._playing_back = False
-            print(f"[MACRO] Playback done for slot {slot}")
+            logger.debug(f"Playback done for slot {slot}")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("-m", "--mock", action="store_true", help="Run in mock mode")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output")
     parser.add_argument(
         "-a",
         "--auto",
@@ -844,9 +844,12 @@ def main() -> None:
         help="Automatically connect to the first available scope",
     )
     args = parser.parse_args()
+    log_level = logging.DEBUG if args.verbose else logging.INFO
+    logging.basicConfig()
+    logging.getLogger("tekafp").setLevel(log_level)
     # internal setup
     bridge = connect_uart(args.mock)
-    print("Starting WebSocket API thread...")
+    logger.info("Starting WebSocket API thread...")
     api_thead = threading.Thread(target=run_api_server, daemon=True)
     api_thead.start()
     startup_event.wait()
@@ -859,7 +862,7 @@ def main() -> None:
     def send_scope_connection_led(state: bool) -> None:
         msg = f"ISP_CON:{int(state)}\n".encode("utf-8")
         bridge.write_sync(msg)
-        print(f"[UART->PICO] {msg.decode().strip()}")
+        logger.debug(f"[UART->PICO] {msg.decode().strip()}")
 
     def connect_to_scope(resource_name: str) -> None:
         try:
@@ -892,11 +895,11 @@ def main() -> None:
         resources = rm.list_resources("(USB?*::INSTR|TCPIP?*::INSTR)")
 
         if not resources:
-            print("[AUTO] No scopes found")
+            logger.info("No scopes found")
             return
 
         first = resources[0]
-        print(f"[AUTO] Connecting to: {first}")
+        logger.info(f"Connecting to: {first}")
 
         if first not in scopes:
             connect_to_scope(first)
@@ -906,14 +909,14 @@ def main() -> None:
             data = PacketData.decode(pd)
             match data:
                 case HandshakePacketData(client_id, client_version):
-                    print(f"[WebSocket]: client {client_id} {client_version} connected")
+                    logger.info(f"client {client_id} {client_version} connected")
                     send_packet_data(HandshakePacketData(_HOSTNAME, __version__))
                 case ScopeActionPacketData(action=a):
-                    print(f"Received packet action='{a}'")
+                    logger.debug(f"Received packet action='{a}'")
                     match a:
                         case "enable":
                             if data.resource_name not in scopes:
-                                print(f"enabling scope {data.resource_name}")
+                                logger.info(f"enabling scope {data.resource_name}")
                                 if args.mock:
                                     scopes[data.resource_name] = None
                                     send_packet_data(
@@ -927,7 +930,7 @@ def main() -> None:
                                     connect_to_scope(data.resource_name)
                         case "disable":
                             if data.resource_name in scopes:
-                                print(f"disabling scope {data.resource_name}")
+                                logger.info(f"disabling scope {data.resource_name}")
                                 if args.mock:
                                     del scopes[data.resource_name]
                                 else:
@@ -936,10 +939,6 @@ def main() -> None:
 
                                     if not scopes:
                                         send_scope_connection_led(False)
-                            else:
-                                print(
-                                    f"scope {data.resource_name} not enabled: ignoring"
-                                )
                         case "list":
                             if args.mock:
                                 send_packet_data(
@@ -962,14 +961,14 @@ def main() -> None:
                                     )
                                 )
                         case _:
-                            print(f"Unknown action: {a}")
+                            logger.error(f"Unknown action: {a}")
                 case MacroRecordPacketData():
                     if data.record:
                         macro_manager.start_recording(data.slot)
                     else:
                         macro_manager.stop_recording(data.slot)
                 case _:
-                    print(f"Unknown or incorrect packet type {data.type}")
+                    logger.error(f"Unknown or incorrect packet type {data.type}")
 
     if args.auto:
         auto_connect_first_scope()
@@ -984,8 +983,8 @@ def main() -> None:
             if not args.mock and scopes and raw:
                 try:
                     inp = Input.from_bytes(raw)
-                except Exception as e:
-                    print(f"Bad UART message {raw!r}: {e}")
+                except (ValueError, IndexError) as e:
+                    logger.error(f"Bad UART message {raw!r}: {e}")
                     continue
 
                 # iterating all scopes here would allow control of multiple at once
@@ -1012,8 +1011,9 @@ def main() -> None:
                 last_sync = now
 
     except KeyboardInterrupt:
-        print("\nExiting...")
+        logger.info("\nExiting...\n")
     finally:
+        logger.info("Closing connections...")
         for ctrl in scopes.values():
             if ctrl:
                 ctrl.scope.close()
