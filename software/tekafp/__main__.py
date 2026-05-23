@@ -126,7 +126,7 @@ class Controller:
 
     def sync_all_channels_from_scope(self) -> None:
         highest = 0
-        for ch in range(1, 9):
+        for ch in range(1, self.channel_count + 1):
             actual = self.get_scope_channel_state(ch)
             self._channels[ch] = actual
             self.send_channel_led(ch, actual)
@@ -145,7 +145,7 @@ class Controller:
     def sync_all_changed_channels_from_scope(self) -> None:
         any_changed = False
 
-        for ch in range(1,9):
+        for ch in range(1, self.channel_count + 1):
             actual = self.get_scope_channel_state(ch)
             if self._channels[ch] != actual:
                 self._channels[ch] = actual
@@ -188,7 +188,7 @@ class Controller:
 
     def send_channel_led(self, channel: int, state: bool) -> None:
         # Send indicator update back to Pico
-        if channel not in range(1,9):
+        if channel not in range(1, self.channel_count + 1):
             return
 
         r, g, b = self.CHANNEL_COLORS[channel]
@@ -232,7 +232,7 @@ class Controller:
         if resp.endswith("NONE"):
             return 0
 
-        for ch in range(1, 9):
+        for ch in range(1, self.channel_count + 1):
             if resp.endswith(f"CH{ch}") or f"CH{ch}" in resp:
                 return ch
 
@@ -256,7 +256,7 @@ class Controller:
             print(f"[SYNC] selected source -> CH{actual_source}")
 
     def set_channel_display(self, channel: int) -> None:
-        if channel not in range(1, 9):
+        if channel not in range(1, self.channel_count + 1):
             return
         last_state: bool = self._channels[channel]
 
