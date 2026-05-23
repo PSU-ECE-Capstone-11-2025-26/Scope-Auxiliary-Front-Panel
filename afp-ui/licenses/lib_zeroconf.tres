@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="SoftwareCredit" format=3 uid="uid://dpk4vhifs5wg0"]
+
+[ext_resource type="Script" uid="uid://dkxfccc8c8d2j" path="res://Resources/SoftwareCredit.cs" id="1_p7wla"]
+
+[resource]
+script = ExtResource("1_p7wla")
+SoftwareName = "zeroconf"
+LicenseFile = "res://licenses/raw/zeroconf.COPYING.txt"
+metadata/_custom_type_script = "uid://dkxfccc8c8d2j"

@@ -128,6 +128,11 @@ public partial class WebSocketClient : Node
 					Global.Logger.Log(LogLevel.Debug, "WebSocket: connected");
 					_connectionAttemptTime = 0;
 					EmitSignal(SignalName.Connected);
+					QueuePacketData(new HandshakePacketData
+					{
+						Id = ProjectSettings.GetSetting("application/config/name").ToString(),
+						Version = ProjectSettings.GetSetting("application/config/version").ToString(),
+					});
 					break;
 				case WebSocketPeer.State.Closing:
 					GD.Print("WebSocket: closing...");

@@ -1,15 +1,21 @@
+using System.Collections.Generic;
 using AFP.Core;
+using AFP.Resources;
 using Godot;
 
 namespace AFP.View;
 
-public partial class Settings : MarginContainer
+public partial class About : MarginContainer
 {
 	[Export] private Button _forceCloseButton;
-	[Export] private Label _aboutLabel;
+	[Export] private Tree _aboutTree;
 	[Export] private CheckButton _debugToggle;
 	[Export] private Button _setDevWinSize;
 	[Export] private OptionButton _autoConnect;
+	[Export] private SoftwareCredit[] _softwareCredits;
+
+	private TreeItem _aboutTreeRoot;
+	private VBoxContainer _licenseList;
 
 	// specs from https://4dsystems.com.au/products/gen4-4dpi-70ct-clb/
 	private const float DisplaySize = 7.0f;
@@ -19,7 +25,9 @@ public partial class Settings : MarginContainer
 	public override void _Ready()
 	{
 		_forceCloseButton.Pressed += () => GetTree().Quit(0);
-		_aboutLabel.Text = $"AFP-UI v{ProjectSettings.GetSetting("application/config/version")}";
+		_aboutTreeRoot = _aboutTree.CreateItem();
+		AddGeneralInfo("Device Hostname", System.Net.Dns.GetHostName());
+		AddGeneralInfo("afp-ui version", ProjectSettings.GetSetting("application/config/version").ToString());
 		_debugToggle.Toggled += _onDebugToggled;
 		_autoConnect.ItemSelected += OnItemSelected;
 		if (OS.HasFeature("debug"))
@@ -27,6 +35,38 @@ public partial class Settings : MarginContainer
 			_setDevWinSize.Show();
 			_setDevWinSize.Pressed += SetDevWindowSize;
 		}
+
+		_licenseList = GetNode<VBoxContainer>("%LicenseList");
+		{
+			using FileAccess afpLicense =
+				FileAccess.Open("res://licenses/raw/afp.LICENSE.txt", FileAccess.ModeFlags.Read);
+			AddLicense("Auxiliary Front Panel", afpLicense.GetAsText());
+		}
+		AddLicense("Godot Engine", Engine.GetLicenseText());
+		foreach (SoftwareCredit softwareCredit in _softwareCredits)
+		{
+			FileAccess licenseFile = FileAccess.Open(softwareCredit.LicenseFile, FileAccess.ModeFlags.Read);
+			AddLicense(softwareCredit.SoftwareName, licenseFile.GetAsText());
+			licenseFile.Close();
+		}
+	}
+
+	public void AddGeneralInfo(string key, string value)
+	{
+		TreeItem newItem = _aboutTreeRoot.CreateChild();
+		newItem.SetText(0, key);
+		newItem.SetText(1, value);
+	}
+
+	private void AddLicense(string title, string licenseText)
+	{
+		var item = new FoldableContainer();
+		item.Folded = true;
+		item.Title = title;
+		var label = new Label();
+		label.Text = licenseText;
+		item.AddChild(label);
+		_licenseList.AddChild(item);
 	}
 
 	public void SetFromConfig(Config cfg)
