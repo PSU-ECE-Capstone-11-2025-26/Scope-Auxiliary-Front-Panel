@@ -6,7 +6,7 @@ namespace AFP.Packet.Data;
 [JsonDerivedType(typeof(ScopeInfoPacketData), typeDiscriminator: "ScopeInfo")]
 [JsonDerivedType(typeof(ScopeStatePacketData), typeDiscriminator: "ScopeState")]
 [JsonDerivedType(typeof(ScopeListPacketData), typeDiscriminator: "ScopeList")]
-[JsonDerivedType(typeof(MacroActionPacketData), typeDiscriminator: "MacroRecord")]
+[JsonDerivedType(typeof(MacroActionPacketData), typeDiscriminator: "MacroAction")]
 [JsonDerivedType(typeof(MacroStatePacketData), typeDiscriminator: "MacroState")]
 [JsonDerivedType(typeof(ScopeActionPacketData), typeDiscriminator: "ScopeAction")]
 [JsonDerivedType(typeof(LogMessagePacketData), typeDiscriminator: "LogMessage")]
