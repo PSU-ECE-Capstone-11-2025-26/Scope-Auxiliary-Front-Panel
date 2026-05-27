@@ -14,13 +14,25 @@ from tekafp.api_server.packets import (
 SAMPLE_DATA = [
     (MacroActionPacketData, {"type": "MacroRecord", "record": True, "slot": 2}),
     (MacroStatePacketData, {"type": "MacroState", "macros": [True, False, True, False]}),
-    (ScopeActionPacketData, {"type": "ScopeAction", "action": "enable", "scope": "USB0::::::::INSTR"}),
-    (ScopeInfoPacketData, {"type": "ScopeInfo", "channel_count": 8}),
+    (
+        ScopeActionPacketData,
+        {"type": "ScopeAction", "resource_name": "USB0::::::::INSTR", "action": "enable"},
+    ),
+    (
+        ScopeInfoPacketData,
+        {
+            "type": "ScopeInfo",
+            "resource_name": "USB0::::::::INSTR",
+            "idn": "TEKTRONIX,MSO46,000000,CF:91.1CT FV:2.7.8.1",
+            "channel_count": 8,
+        },
+    ),
     (ScopeListPacketData, {"type": "ScopeList", "scopes": ["USB0::A::INSTR", "USB0::B::INSTR"]}),
     (
         ScopeStatePacketData,
         {
             "type": "ScopeState",
+            "resource_name": "USB0::::::::INSTR",
             "status": "connected",
             "channels": [False, False, False, True],
             "source_channel": 0,
@@ -35,7 +47,17 @@ SAMPLE_DATA = [
 
 
 def test_registry_keys() -> None:
-    expected = {"MacroRecord", "MacroState", "ScopeAction", "ScopeInfo", "ScopeList", "ScopeState"}
+    expected = {
+        "Handshake",
+        "LogMessage",
+        "Error",
+        "MacroRecord",
+        "MacroState",
+        "ScopeAction",
+        "ScopeInfo",
+        "ScopeList",
+        "ScopeState",
+    }
     assert set(PacketData._registry.keys()) == expected
 
 
@@ -60,7 +82,13 @@ def test_roundtrip(cls: type[PacketData], data: dict) -> None:
 
 
 def test_from_dict_ignores_extra_keys() -> None:
-    data = {"type": "ScopeInfo", "channel_count": 4, "extra": "ignored"}
+    data = {
+        "type": "ScopeInfo",
+        "resource_name": "USB0::::::::INSTR",
+        "idn": "TEKTRONIX,MSO46,000000,CF:91.1CT FV:2.7.8.1",
+        "channel_count": 4,
+        "extra": "ignored",
+    }
     pkt = ScopeInfoPacketData.from_dict(data)
     assert pkt.channel_count == 4
     assert not hasattr(pkt, "extra")
