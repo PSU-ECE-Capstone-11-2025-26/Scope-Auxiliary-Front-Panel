@@ -20,7 +20,8 @@ from tekafp.api_server.error import APIError
 from tekafp.api_server.packets import (
     ErrorPacketData,
     HandshakePacketData,
-    MacroRecordPacketData,
+    MacroAction,
+    MacroActionPacketData,
     PacketData,
     ScopeActionPacketData,
     ScopeInfoPacketData,
@@ -235,11 +236,16 @@ class TekAfp:
                                 )
                         case _:
                             logger.error(f"Unknown action: {a}")
-                case MacroRecordPacketData():
-                    if data.record:
-                        self.macro_manager.start_recording(data.slot)
+                case MacroRecordPacketData(action=a, slot=slot):
+                    pass
+                    if a == MacroAction.RECORD:
+                        self.macro_manager.start_recording(slot)
+                    elif a == MacroAction.SAVE:
+                        self.macro_manager.stop_recording(slot)
+                    elif a == MacroAction.DELETE:
+                        self.macro_manager.delete_macro(slot)
                     else:
-                        self.macro_manager.stop_recording(data.slot)
+                        logger.error("Unknown macro action: %s", a)
                 case _:
                     logger.error(f"Unknown or incorrect packet type {data.type}")
 
