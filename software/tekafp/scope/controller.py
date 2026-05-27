@@ -98,53 +98,15 @@ class Controller:
         return resp.endswith("1") or resp.endswith("ON")
 
     def sync_all_channels_from_scope(self) -> None:
-        highest = 0
         for ch, obs in self.scope.channels.items():
             actual = self.get_scope_channel_state(ch)
             obs.value = ChannelState(enabled=actual)
             self.send_channel_led(ch, actual)
-            logger.debug(f"CH{ch} -> {actual}")
+            logger.debug(f"{ch.label} -> {actual}")
 
-        self.scope.source_channel.value = self.get_scope_selected_source()
-        self.sync_fast_acquire_from_scope(force=True)
-        self.sync_run_stop_from_scope(force=True)
-
-    def sync_all_changed_channels_from_scope(self) -> None:
-        any_changed = False
-
-        for ch in range(1, self.scope.channel_count + 1):
-            actual = self.get_scope_channel_state(ch)
-            if self.scope.channels[ch] != actual:
-                self.scope.channels[ch] = actual
-                self.send_channel_led(ch, actual)
-                logger.debug(f"CH{ch} -> {actual}")
-                any_changed = True
-
-                if actual:
-                    self.scope.source_channel.value = ch
-                    self.scope.resource.write(
-                        f"DISPLAY:SELECT:SOURCE CH{self.scope.source_channel.value}"
-                    )
-                    self.send_selected_channel_leds()
-
-        # Keep selected source sane if current source is now off
-        if (
-            self.scope.source_channel.value != 0
-            and not self.scope.channels[self.scope.source_channel.value]
-        ):
-            highest = 0
-            for k, v in self.scope.channels.items():
-                if v:
-                    highest = k
-
-            self.scope.source_channel.value = highest
-
-            self.set_scope_selected_source()
-            self.send_selected_channel_leds()
-
-        # If nothing changed, stay quiet
-        if any_changed:
-            logger.debug("Full channel sync pass complete")
+        if not self.scope.channels[self.scope.source_channel].value.enabled:
+            highest = self._get_highest_enabled_channel()
+            self.scope.resource.write(f"DISPLAY:SELECT:SOURCE {highest.label}")
 
     # Per-channel RGB color (R,G,B)
     CHANNEL_COLORS: dict[int, tuple[int, int, int]] = {
@@ -350,7 +312,7 @@ class Controller:
     def encoder_trigger_level(self, detents: int, trigger: str = "A") -> None:
         # FIXME: the MSO has both A (primary) and B (delay) triggers for sequencing.
         # for now, default to A
-        source: str = parse_resp(self.scope.resource.query(f"TRIGGER:{trigger}:EDGE:SOURCE?"), str)
+        source = self.scope.trigger_source.value.label
         query = f"TRIGGER:{trigger}:LEVEL:{source}"
         cur: float = parse_resp(self.scope.resource.query(query + "?"), float)
 
@@ -407,7 +369,7 @@ class Controller:
         self.bridge.write_sync(f"ITF0_T:{fall}\n".encode())
 
     def next_trigger_slope(self) -> None:
-        cur: str = parse_resp(self.scope.resource.query("TRIGGER:A:EDGE:SLOPE?"), str).upper()
+        cur = self.scope.trigger_edge_slope.value
         new: str = ""
         match cur:
             case "RISE":
@@ -422,15 +384,8 @@ class Controller:
 
     # Toggle the scope's Run/Stop state
     def toggle_run_stop(self) -> None:
-        current = self.get_scope_run_state()
-        new_state = not current
-
+        new_state = not self.scope.run.value
         self.scope.resource.write(f"ACQUIRE:STATE {'RUN' if new_state else 'STOP'}")
-
-        self.scope.run.value = new_state
-        self.send_run_stop_led(new_state)
-
-        logger.debug(f"Run/Stop -> {'RUN' if new_state else 'STOP'}")
 
     # Run the scope's AutoSet feature
     def autoset(self) -> None:
@@ -444,15 +399,8 @@ class Controller:
 
     # Toggle the scope's Fast Acquire state
     def toggle_fast_acquire(self) -> None:
-        current = self.get_scope_fast_acquire_state()
-        new_state = not current
-
+        new_state = not self.scope.fast_acquire.value
         self.scope.resource.write(f"ACQUIRE:FASTACQ:STATE {int(new_state)}")
-
-        self.scope.fast_acquire.value = new_state
-        self.send_fast_acquire_led(new_state)
-
-        logger.debug(f"Fast Acquire -> {'ON' if new_state else 'OFF'}")
 
     def get_scope_fast_acquire_state(self) -> bool:
         resp = self.scope.resource.query("ACQUIRE:FASTACQ:STATE?").strip().upper()
@@ -600,7 +548,7 @@ class Controller:
 
             # Trigger mode
             case "TM0":
-                cur: str = parse_resp(self.scope.resource.query("TRIGGER:A:MODE?"), str).upper()
+                cur = self.scope.trigger_mode.value
                 new: str = "AUTO" if cur == "NORMAL" else "NORMAL"
                 self.scope.resource.write(f"TRIGGER:A:MODE {new}")
 
