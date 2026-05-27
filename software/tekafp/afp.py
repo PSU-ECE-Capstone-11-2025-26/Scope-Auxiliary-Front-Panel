@@ -141,7 +141,7 @@ class TekAfp:
             logger.info("Closing connections...")
             for ctrl in self.scopes.values():
                 if ctrl:
-                    ctrl.scope.close()
+                    ctrl.res.close()
             self.send_scope_connection_led(False)
             self.bridge.close()
 
@@ -211,7 +211,7 @@ class TekAfp:
                                     del self.scopes[data.resource_name]
                                 else:
                                     c = self.scopes.pop(data.resource_name)
-                                    c.scope.close()
+                                    c.res.close()
 
                                     if not self.scopes:
                                         self.send_scope_connection_led(False)

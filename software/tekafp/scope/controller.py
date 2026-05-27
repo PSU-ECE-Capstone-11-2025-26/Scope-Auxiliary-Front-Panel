@@ -18,8 +18,11 @@ from tekafp.scope.constants import (
     ZOOM_MAX_IDX,
     ZOOM_MIN_IDX,
 )
+from tekafp.scope.scope import Scope
+from tekafp.scope.state import Channel, ChannelState, TriggerEdgeSlope, TriggerMode, TriggerState
 from tekafp.uart import UARTBridge
 from tekafp.util import clamp, parse_resp
+from tekafp.util.observable import ObservableVariable
 
 
 logger = logging.getLogger(__name__)
@@ -36,19 +39,35 @@ def _scale_val_to_idx(v: float) -> int:
 
 
 class Controller:
-    def __init__(self, scope: MessageBasedResource, bridge: UARTBridge) -> None:
-        self.scope: MessageBasedResource = scope
+    def __init__(self, res: MessageBasedResource, bridge: UARTBridge) -> None:
         self.bridge: UARTBridge = bridge
+        idn = (res.query("*IDN?").strip(),)
+        channel_count = self._channels_from_idn(idn)
+        self.scope = Scope(
+            resource=res,
+            resource_name=res.resource_name,
+            connected=True,
+            idn=idn,
+            channel_count=channel_count,
+            channels={
+                Channel(ch): ObservableVariable(ChannelState())
+                for ch in range(1, channel_count + 1)
+            },
+            source_channel=ObservableVariable(Channel.NONE),
+            run=ObservableVariable(True),
+            fast_acquire=ObservableVariable(False),
+            zoom=ObservableVariable(False),
+            trigger_mode=ObservableVariable(TriggerMode.AUTO),
+            trigger_edge_slope=ObservableVariable(TriggerEdgeSlope.FALL),
+            trigger_state=ObservableVariable(TriggerState.TRIGGERED),
+            trigger_source=ObservableVariable(Channel.NONE),
+        )
         # Make sure we're in a mode where horizontal position behaves like the
         # front panel knob
         # delay mode OFF => HORizontal:POSition works like HORIZONTAL POSITION knob
-        self.scope.write("HORIZONTAL:DELAY:MODE OFF")
-        self.idn = self.scope.query("*IDN?").strip()
-        self.channel_count = self._channels_from_idn(self.idn)
-        logger.info("Connected ctrl: %s, channels=%d", self.idn, self.channel_count)
+        self.scope.resource.write("HORIZONTAL:DELAY:MODE OFF")
+        logger.info("Connected ctrl: %s, channels=%d", self.scope.idn, self.scope.channel_count)
 
-        self._channels: dict[int, bool] = {ch: False for ch in range(1, self.channel_count + 1)}
-        self._source_channel: int = 0
         self._vert_fine: bool = False  # fine mode toggle for vertical scale
         self._fast_acquire: bool = False
         self._run_state: bool = False
@@ -57,9 +76,11 @@ class Controller:
         self._high_res: bool = False
 
     def sync_zoom(self) -> None:
-        resp: str = parse_resp(self.scope.query("DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:STATE?"), str)
-        self._zoom = resp not in ("OFF", "0")
-        msg = f"IHZ0:{int(self._zoom)}\n".encode()
+        resp: str = parse_resp(
+            self.scope.resource.query("DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:STATE?"), str
+        )
+        self.scope.zoom.value = resp not in ("OFF", "0")
+        msg = f"IHZ0:{int(self.scope.zoom.value)}\n".encode()
         self.bridge.write_sync(msg)
 
     def _channels_from_idn(self, idn: str) -> int:
@@ -69,21 +90,21 @@ class Controller:
         return int(m.group(1))
 
     def get_scope_channel_state(self, channel: int) -> bool:
-        resp = self.scope.query(f"DISPLAY:GLOBAL:CH{channel}:STATE?").strip().upper()
+        resp = self.scope.resource.query(f"DISPLAY:GLOBAL:CH{channel}:STATE?").strip().upper()
         return resp.endswith("1") or resp.endswith("ON")
 
     def sync_all_channels_from_scope(self) -> None:
         highest = 0
-        for ch in range(1, self.channel_count + 1):
+        for ch in range(1, self.scope.channel_count + 1):
             actual = self.get_scope_channel_state(ch)
-            self._channels[ch] = actual
+            self.scope.channels[ch] = actual
             self.send_channel_led(ch, actual)
             if actual:
                 highest = ch
             logger.debug(f"CH{ch} -> {actual}")
 
         # Chooses highest enabled channel as the active selected channel
-        self._source_channel = highest
+        self.scope.source_channel.value = highest
 
         self.set_scope_selected_source()
         self.send_selected_channel_leds()
@@ -93,27 +114,32 @@ class Controller:
     def sync_all_changed_channels_from_scope(self) -> None:
         any_changed = False
 
-        for ch in range(1, self.channel_count + 1):
+        for ch in range(1, self.scope.channel_count + 1):
             actual = self.get_scope_channel_state(ch)
-            if self._channels[ch] != actual:
-                self._channels[ch] = actual
+            if self.scope.channels[ch] != actual:
+                self.scope.channels[ch] = actual
                 self.send_channel_led(ch, actual)
                 logger.debug(f"CH{ch} -> {actual}")
                 any_changed = True
 
                 if actual:
-                    self._source_channel = ch
-                    self.scope.write(f"DISPLAY:SELECT:SOURCE CH{self._source_channel}")
+                    self.scope.source_channel.value = ch
+                    self.scope.resource.write(
+                        f"DISPLAY:SELECT:SOURCE CH{self.scope.source_channel.value}"
+                    )
                     self.send_selected_channel_leds()
 
         # Keep selected source sane if current source is now off
-        if self._source_channel != 0 and not self._channels[self._source_channel]:
+        if (
+            self.scope.source_channel.value != 0
+            and not self.scope.channels[self.scope.source_channel.value]
+        ):
             highest = 0
-            for k, v in self._channels.items():
+            for k, v in self.scope.channels.items():
                 if v:
                     highest = k
 
-            self._source_channel = highest
+            self.scope.source_channel.value = highest
 
             self.set_scope_selected_source()
             self.send_selected_channel_leds()
@@ -136,7 +162,7 @@ class Controller:
 
     def send_channel_led(self, channel: int, state: bool) -> None:
         # Send indicator update back to Pico
-        if channel not in range(1, self.channel_count + 1):
+        if channel not in range(1, self.scope.channel_count + 1):
             return
 
         r, g, b = self.CHANNEL_COLORS[channel]
@@ -158,7 +184,7 @@ class Controller:
         # Two RGB LEDs used to show the active selected channel:
         # VP1_RGB and VS1_RGB should always match the selected channel color
 
-        r, g, b = self.CHANNEL_COLORS.get(self._source_channel, (0, 0, 0))
+        r, g, b = self.CHANNEL_COLORS.get(self.scope.source_channel.value, (0, 0, 0))
 
         msgs = [
             f"IVP1_R:{r}\n".encode("utf-8"),
@@ -174,121 +200,125 @@ class Controller:
             logger.debug(f"[UART->PICO] {msg.decode().strip()}")
 
     def get_scope_selected_source(self) -> int:
-        resp = self.scope.query("DISPLAY:SELECT:SOURCE?").strip().upper()
+        resp = self.scope.resource.query("DISPLAY:SELECT:SOURCE?").strip().upper()
 
         if resp.endswith("NONE"):
             return 0
 
-        for ch in range(1, self.channel_count + 1):
+        for ch in range(1, self.scope.channel_count + 1):
             if resp.endswith(f"CH{ch}") or f"CH{ch}" in resp:
                 return ch
 
         logger.error(f"Unknown selected source response: {resp}")
-        return self._source_channel
+        return self.scope.source_channel.value
 
     def set_scope_selected_source(self) -> None:
-        if self._source_channel == 0:
-            self.scope.write("DISPLAY:SELECT:SOURCE NONE")
+        if self.scope.source_channel.value == 0:
+            self.scope.resource.write("DISPLAY:SELECT:SOURCE NONE")
         else:
-            self.scope.write(f"DISPLAY:SELECT:SOURCE CH{self._source_channel}")
+            self.scope.resource.write(f"DISPLAY:SELECT:SOURCE CH{self.scope.source_channel.value}")
 
     def sync_selected_source_from_scope(self) -> None:
         actual_source = self.get_scope_selected_source()
 
-        if actual_source != self._source_channel:
-            self._source_channel = actual_source
+        if actual_source != self.scope.source_channel.value:
+            self.scope.source_channel.value = actual_source
             self.send_selected_channel_leds()
             logger.debug(f"selected source -> CH{actual_source}")
 
     def set_channel_display(self, channel: int) -> None:
-        if channel not in range(1, self.channel_count + 1):
+        if channel not in range(1, self.scope.channel_count + 1):
             return
-        last_state: bool = self._channels[channel]
+        last_state: bool = self.scope.channels[channel]
 
-        if self._source_channel == channel:
+        if self.scope.source_channel.value == channel:
             # enabled and source => disable, select highest enabled as active
-            self._channels[channel] = False
+            self.scope.channels[channel] = False
             highest: int = 0
-            for k, v in self._channels.items():
+            for k, v in self.scope.channels.items():
                 if v:
                     highest = k
-            self._source_channel = highest
+            self.scope.source_channel.value = highest
         elif last_state:
             # enabled => set as source
-            self._source_channel = channel
+            self.scope.source_channel.value = channel
         else:
             # disabled => enable, set as source
-            self._channels[channel] = True
-            self._source_channel = channel
+            self.scope.channels[channel] = True
+            self.scope.source_channel.value = channel
 
         self.set_scope_selected_source()
         self.send_selected_channel_leds()
 
-        if last_state != self._channels[channel]:
-            self.scope.write(f"DISPLAY:GLOBAL:CH{channel}:STATE {int(self._channels[channel])}")
-            self.send_channel_led(channel, self._channels[channel])
+        if last_state != self.scope.channels[channel]:
+            self.scope.resource.write(
+                f"DISPLAY:GLOBAL:CH{channel}:STATE {int(self.scope.channels[channel])}"
+            )
+            self.send_channel_led(channel, self.scope.channels[channel])
 
         logger.debug(
-            f"CH{channel} display -> {self._channels[channel]} (source={self._source_channel})"  # noqa: E501
+            f"CH{channel} display -> {self.scope.channels[channel]} (source={self.scope.source_channel.value})"  # noqa: E501
         )
 
     def force_channel_display(self, channel: int, desired: bool) -> None:
-        if channel not in range(1, self.channel_count + 1):
+        if channel not in range(1, self.scope.channel_count + 1):
             return
 
-        self._channels[channel] = desired
+        self.scope.channels[channel] = desired
 
-        if self._source_channel == channel and not desired:
-            self._source_channel = max((k for k, v in self._channels.items() if v), default=0)
+        if self.scope.source_channel.value == channel and not desired:
+            self.scope.source_channel.value = max(
+                (k for k, v in self.scope.channels.items() if v), default=0
+            )
 
-        self.scope.write(f"DISPLAY:GLOBAL:CH{channel}:STATE {int(desired)}")
+        self.scope.resource.write(f"DISPLAY:GLOBAL:CH{channel}:STATE {int(desired)}")
         self.send_channel_led(channel, desired)
 
-        logger.debug(f"CH{channel} forced -> {self._channels[channel]}")
+        logger.debug(f"CH{channel} forced -> {self.scope.channels[channel]}")
 
     def adjust_vertical_position(self, detents: int) -> None:
-        ch = self._source_channel
+        ch = self.scope.source_channel.value
         if ch == 0:
             logger.debug("No active channel selected, ignoring vertical position.")
             return
-        cur = float(self.scope.query(f"CH{ch}:POSITION?").strip().split()[-1])
+        cur = float(self.scope.resource.query(f"CH{ch}:POSITION?").strip().split()[-1])
 
         new = cur + detents * VERT_STEP_DIVS
         # No hard guarantee on min/max in the snippet we pulled, so clamp conservatively
         new = clamp(new, -10.0, 10.0)
 
-        self.scope.write(f"CH{ch}:POSITION {new}")
+        self.scope.resource.write(f"CH{ch}:POSITION {new}")
         logger.debug(f"CH{ch} vertical position: {cur:.3f} -> {new:.3f}")
 
     def center_vertical_position(self) -> None:
-        ch = self._source_channel
+        ch = self.scope.source_channel.value
         if ch == 0:
             return
 
-        cur = float(self.scope.query(f"CH{ch}:POSITION?").strip().split()[-1])
-        self.scope.write(f"CH{ch}:POSITION 0")
+        cur = float(self.scope.resource.query(f"CH{ch}:POSITION?").strip().split()[-1])
+        self.scope.resource.write(f"CH{ch}:POSITION 0")
         logger.debug(f"CH{ch} vertical position centered: {cur:.3f} -> 0.000")
 
     def adjust_horizontal_position(self, detents: int) -> None:
         # HORizontal:POSition is ~0..100 (% trigger position on screen)
-        cur = float(self.scope.query("HORIZONTAL:POSITION?").strip().split()[-1])
+        cur = float(self.scope.resource.query("HORIZONTAL:POSITION?").strip().split()[-1])
 
         new = cur + detents * HORIZ_STEP_PCT
         new = clamp(new, 0.0, 100.0)
 
-        self.scope.write(f"HORIZONTAL:POSITION {new}")
+        self.scope.resource.write(f"HORIZONTAL:POSITION {new}")
         logger.debug(f"horizontal position (%): {cur:.2f} -> {new:.2f}")
 
     def center_horizontal_position(self) -> None:
-        cur = float(self.scope.query("HORIZONTAL:POSITION?").strip().split()[-1])
-        self.scope.write("HORIZONTAL:POSITION 50")
+        cur = float(self.scope.resource.query("HORIZONTAL:POSITION?").strip().split()[-1])
+        self.scope.resource.write("HORIZONTAL:POSITION 50")
         logger.debug(f"horizontal position centered (%): {cur:.2f} -> 50.00")
 
     def adjust_vertical_scale(self, detents: int) -> None:
-        ch = self._source_channel
+        ch = self.scope.source_channel.value
         if ch == 0:
             return
-        cur = float(self.scope.query(f"CH{ch}:SCALE?").strip().split()[-1])
+        cur = float(self.scope.resource.query(f"CH{ch}:SCALE?").strip().split()[-1])
 
         if self._vert_fine:
             # Fine mode: find the coarse step that owns the current value,
@@ -306,61 +336,61 @@ class Controller:
             new_idx = int(clamp(nearest + detents, VERT_MIN_IDX, VERT_MAX_IDX))
             new = _scale_idx_to_val(VERT_MANTISSAS, new_idx)
 
-        self.scope.write(f"CH{ch}:SCALE {new}")
+        self.scope.resource.write(f"CH{ch}:SCALE {new}")
         mode = "fine" if self._vert_fine else "coarse"
         logger.debug(f"CH{ch} vertical ({mode}): {cur:.3e} -> {new:.3e} V/div")
 
     def adjust_horizontal_scale(self, detents: int) -> None:
-        cur = float(self.scope.query("HORIZONTAL:MODE:SCALE?").strip().split()[-1])
+        cur = float(self.scope.resource.query("HORIZONTAL:MODE:SCALE?").strip().split()[-1])
 
         nearest = _scale_val_to_idx(cur)
         new_idx = int(clamp(nearest + detents, HORIZ_MIN_IDX, HORIZ_MAX_IDX))
         new = _scale_idx_to_val(HORIZ_MANTISSAS, new_idx)
 
-        self.scope.write(f"HORIZONTAL:MODE:SCALE {new}")
-        actual = float(self.scope.query("HORIZONTAL:MODE:SCALE?").strip().split()[-1])
+        self.scope.resource.write(f"HORIZONTAL:MODE:SCALE {new}")
+        actual = float(self.scope.resource.query("HORIZONTAL:MODE:SCALE?").strip().split()[-1])
 
         logger.debug(f"horizontal scale (coarse): {cur:.3e} -> {actual:.3e} s/div")
 
     def adjust_zoom_scale(self, detents: int) -> None:
         cur: float = parse_resp(
-            self.scope.query("DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:HORIZONTAL:SCALE?"), float
+            self.scope.resource.query("DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:HORIZONTAL:SCALE?"), float
         )
-        if not self._zoom and cur <= 2 and detents > 0:
-            self.scope.write("DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:STATE ON")
+        if not self.scope.zoom.value and cur <= 2 and detents > 0:
+            self.scope.resource.write("DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:STATE ON")
         nearest = _scale_val_to_idx(max(cur, 1.0))
         new_idx = int(clamp(nearest + detents, ZOOM_MIN_IDX, ZOOM_MAX_IDX))
         new = _scale_idx_to_val(HORIZ_MANTISSAS, new_idx)
         if new < 2.0:
-            self.scope.write("DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:STATE OFF")
+            self.scope.resource.write("DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:STATE OFF")
         else:
-            self.scope.write(f"DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:HORIZONTAL:SCALE {new}")
+            self.scope.resource.write(f"DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:HORIZONTAL:SCALE {new}")
         logger.debug(f"zoom scale: {cur:.3e} -> {new:.3e}x")
 
     def encoder_trigger_level(self, detents: int, trigger: str = "A") -> None:
         # FIXME: the MSO has both A (primary) and B (delay) triggers for sequencing.
         # for now, default to A
-        source: str = parse_resp(self.scope.query(f"TRIGGER:{trigger}:EDGE:SOURCE?"), str)
+        source: str = parse_resp(self.scope.resource.query(f"TRIGGER:{trigger}:EDGE:SOURCE?"), str)
         query = f"TRIGGER:{trigger}:LEVEL:{source}"
-        cur: float = parse_resp(self.scope.query(query + "?"), float)
+        cur: float = parse_resp(self.scope.resource.query(query + "?"), float)
 
-        vert_scale: float = parse_resp(self.scope.query(f"{source}:SCALE?"), float)
+        vert_scale: float = parse_resp(self.scope.resource.query(f"{source}:SCALE?"), float)
         # index _LEVEL_MANTISSAS as (idx - 5) for feel (MSO matching would be -6)
         step = _scale_idx_to_val(LEVEL_MANTISSAS, _scale_val_to_idx(vert_scale) - 5)
         new = clamp(cur + detents * step, -100.0, 100.0)
 
-        self.scope.write(query + f" {new}")
+        self.scope.resource.write(query + f" {new}")
         logger.debug(f"trigger level: {cur:.2f} -> {new:.2f} V")
 
     def sync_trigger_state(self) -> None:
-        source: str = parse_resp(self.scope.query("TRIGGER:A:EDGE:SOURCE?"), str)
+        source: str = parse_resp(self.scope.resource.query("TRIGGER:A:EDGE:SOURCE?"), str)
         # FIXME the [2] index on this string is due to subchannels, e.g. for a digital probe
         #  where channel 1 could have CH1_D0, CH1_D1, etc. source[2] gives just the channel (1)
         r, g, b = self.CHANNEL_COLORS[int(source[2])]
         self.bridge.write_sync(f"ITL1_R:{r}\n".encode())
         self.bridge.write_sync(f"ITL1_G:{g}\n".encode())
         self.bridge.write_sync(f"ITL1_B:{b}\n".encode())
-        cur: str = parse_resp(self.scope.query("TRIGGER:A:EDGE:SLOPE?"), str).upper()
+        cur: str = parse_resp(self.scope.resource.query("TRIGGER:A:EDGE:SLOPE?"), str).upper()
         match cur:
             case "RISE":
                 rise = 1
@@ -374,7 +404,7 @@ class Controller:
                 raise AssertionError("Invalid trigger slope. Something is wrong!")
         self.bridge.write_sync(f"ITS0_UP:{rise}\n".encode())
         self.bridge.write_sync(f"ITS0_DN:{fall}\n".encode())
-        cur: str = parse_resp(self.scope.query("TRIGGER:A:MODE?"), str).upper()
+        cur: str = parse_resp(self.scope.resource.query("TRIGGER:A:MODE?"), str).upper()
         if cur == "AUTO":
             rise = 1
             fall = 0
@@ -383,7 +413,7 @@ class Controller:
             fall = 1
         self.bridge.write_sync(f"ITM0_A:{rise}\n".encode())
         self.bridge.write_sync(f"ITM0_N:{fall}\n".encode())
-        cur = parse_resp(self.scope.query("TRIGGER:STATE?"), str).upper()
+        cur = parse_resp(self.scope.resource.query("TRIGGER:STATE?"), str).upper()
         match cur:
             case "READY" | "AUTO":
                 rise = 1
@@ -397,7 +427,7 @@ class Controller:
         self.bridge.write_sync(f"ITF0_T:{fall}\n".encode())
 
     def next_trigger_slope(self) -> None:
-        cur: str = parse_resp(self.scope.query("TRIGGER:A:EDGE:SLOPE?"), str).upper()
+        cur: str = parse_resp(self.scope.resource.query("TRIGGER:A:EDGE:SLOPE?"), str).upper()
         new: str = ""
         match cur:
             case "RISE":
@@ -408,23 +438,23 @@ class Controller:
                 new = "RISE"
             case _:
                 raise AssertionError("Invalid trigger slope. Something is wrong!")
-        self.scope.write(f"TRIGGER:A:EDGE:SLOPE {new}")
+        self.scope.resource.write(f"TRIGGER:A:EDGE:SLOPE {new}")
 
     # Toggle the scope's Run/Stop state
     def toggle_run_stop(self) -> None:
         current = self.get_scope_run_state()
         new_state = not current
 
-        self.scope.write(f"ACQUIRE:STATE {'RUN' if new_state else 'STOP'}")
+        self.scope.resource.write(f"ACQUIRE:STATE {'RUN' if new_state else 'STOP'}")
 
-        self._run_state = new_state
+        self.scope.run.value = new_state
         self.send_run_stop_led(new_state)
 
         logger.debug(f"Run/Stop -> {'RUN' if new_state else 'STOP'}")
 
     # Run the scope's AutoSet feature
     def autoset(self) -> None:
-        self.scope.write("AUTOSET EXECUTE")
+        self.scope.resource.write("AUTOSET EXECUTE")
 
     def clear(self) -> None:
         self.scope.write("CLEAR")
@@ -437,15 +467,15 @@ class Controller:
         current = self.get_scope_fast_acquire_state()
         new_state = not current
 
-        self.scope.write(f"ACQUIRE:FASTACQ:STATE {int(new_state)}")
+        self.scope.resource.write(f"ACQUIRE:FASTACQ:STATE {int(new_state)}")
 
-        self._fast_acquire = new_state
+        self.scope.fast_acquire.value = new_state
         self.send_fast_acquire_led(new_state)
 
         logger.debug(f"Fast Acquire -> {'ON' if new_state else 'OFF'}")
 
     def get_scope_fast_acquire_state(self) -> bool:
-        resp = self.scope.query("ACQUIRE:FASTACQ:STATE?").strip().upper()
+        resp = self.scope.resource.query("ACQUIRE:FASTACQ:STATE?").strip().upper()
         return resp.endswith("1") or resp.endswith("ON")
 
     def send_fast_acquire_led(self, state: bool) -> None:
@@ -456,13 +486,13 @@ class Controller:
     def sync_fast_acquire_from_scope(self, force: bool = False) -> None:
         actual = self.get_scope_fast_acquire_state()
 
-        if force or self._fast_acquire != actual:
-            self._fast_acquire = actual
+        if force or self.scope.fast_acquire.value != actual:
+            self.scope.fast_acquire.value = actual
             self.send_fast_acquire_led(actual)
             logger.debug(f"Fast Acquire -> {actual}")
 
     def get_scope_run_state(self) -> bool:
-        resp = self.scope.query("ACQUIRE:STATE?").strip().upper()
+        resp = self.scope.resource.query("ACQUIRE:STATE?").strip().upper()
         return resp in ("RUN", "ON", "1")
 
     def send_run_stop_led(self, state: bool) -> None:
@@ -473,8 +503,8 @@ class Controller:
     def sync_run_stop_from_scope(self, force: bool = False) -> None:
         actual = self.get_scope_run_state()
 
-        if force or self._run_state != actual:
-            self._run_state = actual
+        if force or self.scope.run.value != actual:
+            self.scope.run.value = actual
             self.send_run_stop_led(actual)
             logger.debug(f"Run/Stop -> {actual}")
 
@@ -578,11 +608,11 @@ class Controller:
 
             # Trigger level push: set to 50%
             case "TL0":
-                self.scope.write("TRIGGER:A SETLevel")
+                self.scope.resource.write("TRIGGER:A SETLevel")
 
             # Trigger force
             case "TF0":
-                self.scope.write("TRIGGER FORCE")
+                self.scope.resource.write("TRIGGER FORCE")
 
             # Trigger slope type
             case "TS0":
@@ -590,9 +620,9 @@ class Controller:
 
             # Trigger mode
             case "TM0":
-                cur: str = parse_resp(self.scope.query("TRIGGER:A:MODE?"), str).upper()
+                cur: str = parse_resp(self.scope.resource.query("TRIGGER:A:MODE?"), str).upper()
                 new: str = "AUTO" if cur == "NORMAL" else "NORMAL"
-                self.scope.write(f"TRIGGER:A:MODE {new}")
+                self.scope.resource.write(f"TRIGGER:A:MODE {new}")
 
             # Run/Stop button
             case "AR0":
@@ -608,7 +638,9 @@ class Controller:
 
             # Zoom enable toggle
             case "HZ0":
-                self.scope.write(f"DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:STATE {int(not self._zoom)}")
+                self.scope.resource.write(
+                    f"DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:STATE {int(not self.scope.zoom.value)}"
+                )
 
             # Zoom encoder
             case "HZ1":
@@ -616,12 +648,16 @@ class Controller:
 
             # Pan encoder
             case "HX1":
-                if self._zoom:
+                if self.scope.zoom.value:
                     cur: float = parse_resp(
-                        self.scope.query("DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:HORIZONTAL:POSITION?"), float
+                        self.scope.resource.query(
+                            "DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:HORIZONTAL:POSITION?"
+                        ), float
                     )
                     new: float = clamp(cur + val * 2, 0.0, 100.0)
-                    self.scope.write(f"DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:HORIZONTAL:POSITION {new}")
+                    self.scope.resource.write(
+                        f"DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:HORIZONTAL:POSITION {new}"
+                    )
             case "XD0":
                 if int(val) == 1:
                     self.default_setup()
