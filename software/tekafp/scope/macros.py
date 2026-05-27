@@ -56,6 +56,13 @@ class MacroManager:
         logger.debug(f"Recording stopped for slot {slot}. {len(self.macros[slot])} events saved.")
         self.send_macro_state()
 
+    def delete_macro(self, slot: int) -> None:
+        if not self._valid_slot(slot):
+            logger.error("Invalid slot %d", slot)
+            return
+        self.macros[slot] = []
+        self.send_macro_state()
+
     def handle_uart_input(self, raw: bytes, inp: Input, ctrl: Controller) -> None:
         msg_id = str(inp.id)
 
