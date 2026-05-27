@@ -125,7 +125,6 @@ class TekAfp:
                     and now - last_input > 0.05
                 ):
                     ctrl = list(self.scopes.values())[0]
-                    ctrl.sync_all_changed_channels_from_scope()
                     ctrl.sync_selected_source_from_scope()
                     ctrl.sync_fast_acquire_from_scope()
                     ctrl.sync_run_stop_from_scope()

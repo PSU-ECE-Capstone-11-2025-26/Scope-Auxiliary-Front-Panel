@@ -50,8 +50,12 @@ class Controller:
             idn=idn,
             channel_count=channel_count,
             channels={
-                Channel(ch): ObservableVariable(ChannelState())
+                Channel.from_number(ch): ObservableVariable(ChannelState())
                 for ch in range(1, channel_count + 1)
+            }
+            | {
+                Channel.MATH: ObservableVariable(ChannelState()),
+                Channel.BUS: ObservableVariable(ChannelState()),
             },
             source_channel=ObservableVariable(Channel.NONE),
             run=ObservableVariable(True),
@@ -89,25 +93,19 @@ class Controller:
             return 1
         return int(m.group(1))
 
-    def get_scope_channel_state(self, channel: int) -> bool:
-        resp = self.scope.resource.query(f"DISPLAY:GLOBAL:CH{channel}:STATE?").strip().upper()
+    def get_scope_channel_state(self, channel: Channel) -> bool:
+        resp = self.scope.resource.query(f"DISPLAY:GLOBAL:{channel.label}:STATE?").strip().upper()
         return resp.endswith("1") or resp.endswith("ON")
 
     def sync_all_channels_from_scope(self) -> None:
         highest = 0
-        for ch in range(1, self.scope.channel_count + 1):
+        for ch, obs in self.scope.channels.items():
             actual = self.get_scope_channel_state(ch)
-            self.scope.channels[ch] = actual
+            obs.value = ChannelState(enabled=actual)
             self.send_channel_led(ch, actual)
-            if actual:
-                highest = ch
             logger.debug(f"CH{ch} -> {actual}")
 
-        # Chooses highest enabled channel as the active selected channel
-        self.scope.source_channel.value = highest
-
-        self.set_scope_selected_source()
-        self.send_selected_channel_leds()
+        self.scope.source_channel.value = self.get_scope_selected_source()
         self.sync_fast_acquire_from_scope(force=True)
         self.sync_run_stop_from_scope(force=True)
 
@@ -199,18 +197,9 @@ class Controller:
             self.bridge.write_sync(msg)
             logger.debug(f"[UART->PICO] {msg.decode().strip()}")
 
-    def get_scope_selected_source(self) -> int:
+    def get_scope_selected_source(self) -> Channel:
         resp = self.scope.resource.query("DISPLAY:SELECT:SOURCE?").strip().upper()
-
-        if resp.endswith("NONE"):
-            return 0
-
-        for ch in range(1, self.scope.channel_count + 1):
-            if resp.endswith(f"CH{ch}") or f"CH{ch}" in resp:
-                return ch
-
-        logger.error(f"Unknown selected source response: {resp}")
-        return self.scope.source_channel.value
+        return Channel.from_label(resp)
 
     def set_scope_selected_source(self) -> None:
         if self.scope.source_channel.value == 0:
@@ -226,55 +215,46 @@ class Controller:
             self.send_selected_channel_leds()
             logger.debug(f"selected source -> CH{actual_source}")
 
-    def set_channel_display(self, channel: int) -> None:
-        if channel not in range(1, self.scope.channel_count + 1):
-            return
-        last_state: bool = self.scope.channels[channel]
+    def set_channel_display(self, channel: Channel) -> None:
+        last_state: bool = self.scope.channels[channel].value.enabled
 
         if self.scope.source_channel.value == channel:
             # enabled and source => disable, select highest enabled as active
-            self.scope.channels[channel] = False
-            highest: int = 0
-            for k, v in self.scope.channels.items():
-                if v:
-                    highest = k
-            self.scope.source_channel.value = highest
+            self.scope.resource.write(
+                f"DISPLAY:GLOBAL:{channel.label}:STATE {int(self.scope.channels[channel].value.enabled)}"  # noqa: E501
+            )
+            highest: Channel = self._get_highest_enabled_channel()
+            self.scope.resource.write(f"DISPLAY:SELECT:SOURCE {highest.label}")
         elif last_state:
             # enabled => set as source
-            self.scope.source_channel.value = channel
+            self.scope.resource.write(f"DISPLAY:SELECT:SOURCE {channel.label}")
         else:
             # disabled => enable, set as source
-            self.scope.channels[channel] = True
-            self.scope.source_channel.value = channel
+            self.scope.resource.write(f"DISPLAY:GLOBAL:{channel.label}:STATE ON")
+            self.scope.resource.write(f"DISPLAY:SELECT:SOURCE {channel.label}")
 
-        self.set_scope_selected_source()
-        self.send_selected_channel_leds()
-
-        if last_state != self.scope.channels[channel]:
+        if last_state != self.scope.channels[channel].value.enabled:
             self.scope.resource.write(
-                f"DISPLAY:GLOBAL:CH{channel}:STATE {int(self.scope.channels[channel])}"
-            )
-            self.send_channel_led(channel, self.scope.channels[channel])
-
-        logger.debug(
-            f"CH{channel} display -> {self.scope.channels[channel]} (source={self.scope.source_channel.value})"  # noqa: E501
-        )
-
-    def force_channel_display(self, channel: int, desired: bool) -> None:
-        if channel not in range(1, self.scope.channel_count + 1):
-            return
-
-        self.scope.channels[channel] = desired
-
-        if self.scope.source_channel.value == channel and not desired:
-            self.scope.source_channel.value = max(
-                (k for k, v in self.scope.channels.items() if v), default=0
+                f"DISPLAY:GLOBAL:CH{channel}:STATE {int(self.scope.channels[channel].value.enabled)}"
             )
 
-        self.scope.resource.write(f"DISPLAY:GLOBAL:CH{channel}:STATE {int(desired)}")
-        self.send_channel_led(channel, desired)
+        new_value: bool = self.scope.channels[channel].value.enabled
+        new_source: str = self.scope.source_channel.value.label
+        logger.debug(f"{channel.label} display -> {new_value} (source={new_source})")
 
-        logger.debug(f"CH{channel} forced -> {self.scope.channels[channel]}")
+    def force_channel_display(self, channel: Channel, desired: bool) -> None:
+        if self.scope.source_channel == channel and not desired:
+            highest: Channel = self._get_highest_enabled_channel()
+            self.scope.resource.write(f"DISPLAY:SELECT:SOURCE {highest.label}")
+        self.scope.resource.write(f"DISPLAY:GLOBAL:{channel.label}:STATE {int(desired)}")
+        logger.debug(f"{channel.label} forced -> {self.scope.channels[channel]}")
+
+    def _get_highest_enabled_channel(self) -> Channel:
+        highest: Channel = Channel.NONE
+        for ch, obs in self.scope.channels.items():
+            if obs.value:
+                highest = ch
+        return highest
 
     def adjust_vertical_position(self, detents: int) -> None:
         ch = self.scope.source_channel.value

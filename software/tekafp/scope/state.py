@@ -8,6 +8,7 @@ class TriggerState(StrEnum):
     AUTO = "AUTO"
     TRIGGERED = "TRIGGER"
 
+
 class TriggerMode(StrEnum):
     AUTO = "AUTO"
     NORMAL = "NORMAL"
@@ -21,7 +22,7 @@ class TriggerEdgeSlope(StrEnum):
 
 @dataclass(frozen=True)
 class ChannelState:
-    enabled: bool
+    enabled: bool = False
 
 
 class Channel(Enum):
@@ -40,8 +41,8 @@ class Channel(Enum):
     CH6 = (6, "CH6")
     CH7 = (7, "CH7")
     CH8 = (8, "CH8")
-    MATH = (None, "MATH")
-    BUS = (None, "BUS")
+    MATH = (None, "MATH1")
+    BUS = (None, "BUS1")
 
     def __init__(self, number: Optional[int], label: str) -> None:
         self.number = number
@@ -50,3 +51,17 @@ class Channel(Enum):
     @property
     def is_numbered(self) -> bool:
         return self.number is not None
+
+    @classmethod
+    def from_number(cls, n: int) -> "Channel":
+        for member in cls:
+            if member.number == n:
+                return member
+        raise ValueError(f"Invalid channel number: {n}")
+
+    @classmethod
+    def from_label(cls, label: str) -> str:
+        for member in cls:
+            if member.label == label or label.startswith(member.label):
+                return member
+        raise ValueError(f"Invalid channel label: {label!r}")
