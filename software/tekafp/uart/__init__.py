@@ -1,8 +1,12 @@
+import logging
 from queue import Empty, Queue, ShutDown
 import threading
 from typing import Optional
 
 import serial
+
+
+logger = logging.getLogger(__name__)
 
 
 class UARTBridge:
@@ -18,12 +22,13 @@ class UARTBridge:
     :type write_timeout: float, optional
     :param write_timeout: The write timeout of the UART.
     """
+
     def __init__(
-            self,
-            port: str,
-            baudrate: int = 9600,
-            timeout: Optional[float] = None,
-            write_timeout: Optional[float] = None,
+        self,
+        port: str,
+        baudrate: int = 9600,
+        timeout: Optional[float] = None,
+        write_timeout: Optional[float] = None,
     ) -> None:
         self._queue: Queue[bytes] = Queue()
         self._write_queue: Queue[bytes] = Queue()
@@ -53,13 +58,13 @@ class UARTBridge:
             # reading
             data: bytes = self.serial.readline()
             if data:
-                if data.endswith(b'\n'):
+                if data.endswith(b"\n"):
                     try:
                         self._queue.put(data)
                     except ShutDown:
                         break
                 else:
-                    print("UART error: incomplete message")
+                    logger.error("incomplete message")
                     # discard until beginning of next packet
                     self.serial.read_until(b"\n")
 
@@ -74,10 +79,7 @@ class UARTBridge:
                 self.serial.open()
             else:
                 self.serial = serial.Serial(
-                    self.port,
-                    self.baudrate,
-                    timeout=self.timeout,
-                    write_timeout=self.write_timeout
+                    self.port, self.baudrate, timeout=self.timeout, write_timeout=self.write_timeout
                 )
         except (serial.SerialException, ValueError):
             return False
