@@ -7,7 +7,7 @@ from typing import AsyncGenerator
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 import uvicorn
 
-from .packets import PacketData, RawPacket, HandshakePacketData  # noqa: F401
+from .packets import HandshakePacketData, PacketData, RawPacket  # noqa: F401
 
 
 startup_event = threading.Event()
