@@ -482,121 +482,96 @@ class Controller:
         msg_id = str(inp.id)
         val = inp.value
 
-        # Channel Selection
-        if msg_id in ("V10", "V20", "V30", "V40", "V50", "V60", "V70", "V80"):
-            ch = int(msg_id[1])  # 'V10' -> 1, 'V80' -> 8
-            self.set_channel_display(ch)
-            return
+        match msg_id:
+            # Channel Selection: 'V10' -> ch 1, 'V80' -> ch 8
+            case "V10" | "V20" | "V30" | "V40" | "V50" | "V60" | "V70" | "V80":
+                self.set_channel_display(int(msg_id[1]))
 
-        # Encoder VP1 rotation: vertical position of current active channel
-        if msg_id == "VP1":
-            detents = int(val)  # should be +1 / -1
-            if detents:
-                self.adjust_vertical_position(detents)
-            return
+            # Encoder VP1 rotation: vertical position of current active channel
+            case "VP1":
+                if detents := int(val):
+                    self.adjust_vertical_position(detents)
 
-        # Encoder VP0 press: center vertical position of current active channel
-        if msg_id == "VP0":
-            if int(val) == 1:
-                self.center_vertical_position()
-            return
+            # Encoder VP0 press: center vertical position of current active channel
+            case "VP0":
+                if int(val) == 1:
+                    self.center_vertical_position()
 
-        # Encoder HP1 rotation: horizontal position (global)
-        if msg_id == "HP1":
-            detents = int(val)
-            if detents:
-                self.adjust_horizontal_position(detents)
-            return
+            # Encoder HP1 rotation: horizontal position (global)
+            case "HP1":
+                if detents := int(val):
+                    self.adjust_horizontal_position(detents)
 
-        # Encoder HP0 press: center horizontal position globally
-        if msg_id == "HP0":
-            if int(val) == 1:
-                self.center_horizontal_position()
-            return
+            # Encoder HP0 press: center horizontal position globally
+            case "HP0":
+                if int(val) == 1:
+                    self.center_horizontal_position()
 
-        # Encoder VS1 rotation: vertical scale of current source channel (1/2/5 steps)
-        if msg_id == "VS1":
-            detents = int(val)
-            if detents:
-                self.adjust_vertical_scale(-detents)
-            return
+            # Encoder VS1 rotation: vertical scale of current source channel (1/2/5 steps)
+            case "VS1":
+                if detents := int(val):
+                    self.adjust_vertical_scale(-detents)
 
-        # Encoder HS1 rotation: horizontal timebase scale (1/2/4 steps)
-        if msg_id == "HS1":
-            detents = int(val)
-            if detents:
-                self.adjust_horizontal_scale(-detents)
-            return
+            # Encoder HS1 rotation: horizontal timebase scale (1/2/4 steps)
+            case "HS1":
+                if detents := int(val):
+                    self.adjust_horizontal_scale(-detents)
 
-        # VS0: toggle fine mode for vertical scale encoder
-        if msg_id == "VS0":
-            if int(val) == 1:
-                self._vert_fine = not self._vert_fine
-                logger.debug(f"Vertical scale fine mode -> {'ON' if self._vert_fine else 'OFF'}")
-            return
+            # VS0: toggle fine mode for vertical scale encoder
+            case "VS0":
+                if int(val) == 1:
+                    self._vert_fine = not self._vert_fine
+                    logger.debug(f"Vertical scale fine mode -> {'ON' if self._vert_fine else 'OFF'}")
 
-        # trigger level encoder
-        if msg_id == "TL1":
-            detents = int(val)
-            if detents:
-                self.encoder_trigger_level(detents)
-            return
-        # trigger level push
-        if msg_id == "TL0":
-            self.scope.write("TRIGGER:A SETLevel")
-            return
+            # Trigger level encoder
+            case "TL1":
+                if detents := int(val):
+                    self.encoder_trigger_level(detents)
 
-        # trigger force
-        if msg_id == "TF0":
-            self.scope.write("TRIGGER FORCE")
-            return
+            # Trigger level push: set to 50%
+            case "TL0":
+                self.scope.write("TRIGGER:A SETLevel")
 
-        # trigger slope type
-        if msg_id == "TS0":
-            self.next_trigger_slope()
-            return
+            # Trigger force
+            case "TF0":
+                self.scope.write("TRIGGER FORCE")
 
-        # trigger mode
-        if msg_id == "TM0":
-            cur: str = parse_resp(self.scope.query("TRIGGER:A:MODE?"), str).upper()
-            new: str = "AUTO" if cur == "NORMAL" else "NORMAL"
-            self.scope.write(f"TRIGGER:A:MODE {new}")
-            return
+            # Trigger slope type
+            case "TS0":
+                self.next_trigger_slope()
 
-        # Run/Stop button
-        if msg_id == "AR0":
-            self.toggle_run_stop()
-            return
+            # Trigger mode
+            case "TM0":
+                cur: str = parse_resp(self.scope.query("TRIGGER:A:MODE?"), str).upper()
+                new: str = "AUTO" if cur == "NORMAL" else "NORMAL"
+                self.scope.write(f"TRIGGER:A:MODE {new}")
 
-        # Fast Acquire button
-        if msg_id == "AF0":
-            self.toggle_fast_acquire()
-            return
+            # Run/Stop button
+            case "AR0":
+                self.toggle_run_stop()
 
-        # AutoSet button
-        if msg_id == "XA0":
-            self.autoset()
-            return
+            # Fast Acquire button
+            case "AF0":
+                self.toggle_fast_acquire()
 
-        # zoom enable
-        if msg_id == "HZ0":
-            new: int = int(not self._zoom)
-            self.scope.write(f"DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:STATE {new}")
-            return
+            # AutoSet button
+            case "XA0":
+                self.autoset()
 
-        # zoom encoder
-        if msg_id == "HZ1":
-            self.adjust_zoom_scale(val)
-            return
+            # Zoom enable toggle
+            case "HZ0":
+                self.scope.write(f"DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:STATE {int(not self._zoom)}")
 
-        # pan encoder
-        if msg_id == "HX1":
-            if not self._zoom:
-                return
-            cur: float = parse_resp(
-                self.scope.query("DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:HORIZONTAL:POSITION?"), float
-            )
-            # TODO: how many percent to change for each detent?
-            new: float = clamp(cur + val * 2, 0.0, 100.0)
-            self.scope.write(f"DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:HORIZONTAL:POSITION {new}")
-            return
+            # Zoom encoder
+            case "HZ1":
+                self.adjust_zoom_scale(val)
+
+            # Pan encoder
+            case "HX1":
+                if self._zoom:
+                    cur: float = parse_resp(
+                        self.scope.query("DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:HORIZONTAL:POSITION?"),
+                        float,
+                    )
+                    new: float = clamp(cur + val * 2, 0.0, 100.0)
+                    self.scope.write(f"DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:HORIZONTAL:POSITION {new}")
