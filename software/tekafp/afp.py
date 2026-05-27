@@ -28,10 +28,10 @@ from tekafp.api_server.packets import (
     ScopeListPacketData,
 )
 from tekafp.input import Input
-from tekafp.scope.controller import Controller
+from tekafp.scope.actions import Action
 from tekafp.scope.macros import MacroManager
 from tekafp.scope.scope import Scope
-from tekafp.scope.state import TriggerMode, TriggerEdgeSlope, TriggerState
+from tekafp.scope.state import Channel, ChannelState, TriggerEdgeSlope, TriggerMode, TriggerState
 from tekafp.uart import MockUARTBridge, UARTBridge
 
 
@@ -58,11 +58,15 @@ class TekAfp:
         self._auto_connect: bool = False
         self.bridge: UARTBridge = None
         self._rm = pyvisa.ResourceManager(DEFAULT_VISA_BACKEND)
-        self.scopes: dict[str, Controller] = {}
+        self.scopes: dict[str, Scope] = {}
         self.synched_scope: str = None
         self.macro_manager: MacroManager = None
+        self._fine_mode: bool = False
         self._hostname: str = socket.gethostname()
-        self._led_tokens = []
+        self._led_tokens: list[int] = []
+        self._channel_led_tokens: dict[Channel, int] = {}
+        self._synch_thread = threading.Thread(target=self._synch_worker)
+        self._stop_synch = threading.Event()
 
     def _parse_args(self) -> None:
         parser = argparse.ArgumentParser()
@@ -93,13 +97,10 @@ class TekAfp:
 
         if self._auto_connect:
             self.auto_connect()
+        self._synch_thread.start()
 
     def run(self) -> None:
         try:
-            last_sync = time.monotonic()
-            last_input = 0.0  # no input yet
-            sync_period_s = 0.05
-
             while True:
                 raw = self.bridge.get()
                 if not self._mock and self.scopes and raw:
@@ -114,8 +115,7 @@ class TekAfp:
                     if self.macro_manager.should_handle(inp):
                         self.macro_manager.handle_uart_input(raw, inp, ctrl)
                     else:
-                        ctrl.handle_input(inp)
-                    last_input = time.monotonic()
+                        self._handle_input(inp)
 
                 new_packet = get_raw_packet()
                 if new_packet:
@@ -142,34 +142,22 @@ class TekAfp:
             logger.info("\nTEK AFP stopping...\n")
         finally:
             logger.info("Closing connections...")
-            for ctrl in self.scopes.values():
-                if ctrl:
-                    ctrl.res.close()
-            self.send_scope_connection_led(False)
+            self._stop_synch.set()
+            self._synch_thread.join()
+            for scope in self.scopes.values():
+                if scope:
+                    scope.resource.close()
             self.bridge.close()
 
     def _synch_worker(self) -> None:
         last_sync = time.monotonic()
-        last_input = 0.0  # no input yet
         sync_period_s = 0.05
 
-        while True:
-            for ctrl in self.scopes.values():
-                ctrl.scope
-        now = time.monotonic()
-        if (
-            not self._mock
-            and self.scopes
-            and now - last_sync > sync_period_s
-            and now - last_input > 0.05
-        ):
-            ctrl = list(self.scopes.values())[0]
-            ctrl.sync_selected_source_from_scope()
-            ctrl.sync_fast_acquire_from_scope()
-            ctrl.sync_run_stop_from_scope()
-            ctrl.sync_trigger_state()
-            ctrl.sync_zoom()
-            last_sync = now
+        while not self._stop_synch.is_set():
+            now = time.monotonic()
+            if self.synched_scope and now - last_sync > sync_period_s:
+                Action.synch(self.scopes[self.synched_scope])
+                last_sync = now
 
     @staticmethod
     def connect_uart(port: str, mock: bool = False) -> UARTBridge:
@@ -183,7 +171,7 @@ class TekAfp:
 
     def connect_to_scope(self, resource_name: str) -> None:
         try:
-            scope: MessageBasedResource = self._rm.open_resource(
+            resource: MessageBasedResource = self._rm.open_resource(
                 resource_name,
                 resource_pyclass=MessageBasedResource,
                 timeout=DEFAULT_VISA_TIMEOUT,
@@ -196,15 +184,91 @@ class TekAfp:
             )
             return
 
-        ctrl = Controller(scope, self.bridge)
-        ctrl.sync_all_channels_from_scope()
-        self.scopes[resource_name] = ctrl
-        self.send_scope_connection_led(True)
+        # delay mode OFF => HORizontal:POSition works like HORIZONTAL POSITION knob
+        resource.write("HORIZONTAL:DELAY:MODE OFF")
+        scope = Scope.connect(resource)
+        self.scopes[resource_name] = scope
+        logger.info("Connected ctrl: %s, channels=%d", scope.idn, scope.channel_count)
+        scope.connected.value = True
         send_packet_data(
             ScopeInfoPacketData(
-                resource_name=resource_name, idn=ctrl.idn, channel_count=ctrl.channel_count
+                resource_name=resource_name, idn=scope.idn, channel_count=scope.channel_count
             )
         )
+
+    def _handle_input(self, inp: Input) -> None:
+        """
+        inp.id is expected to be strings like:
+          V10..V80, VP1/VP0, HP1/HP0, etc.
+        inp.value for encoders is expected +/-1 per detent.
+        inp.value for toggles is expected 0/1 (latched state).
+        """
+
+        msg_id = str(inp.id)
+        val = inp.value
+        action = None
+
+        match msg_id:
+            # Channel Selection: 'V10' -> ch 1, 'V80' -> ch 8
+            case "V10" | "V20" | "V30" | "V40" | "V50" | "V60" | "V70" | "V80":
+                if ch := Channel.from_number(int(msg_id[1])):
+                    action = lambda scope, ch=ch: Action.set_channel_display(scope, ch)
+            case "VP1":
+                if detents := int(val):
+                    action = lambda scope, d=detents: Action.adjust_vertical_position(scope, d)
+            case "VP0":
+                if int(val) == 1:
+                    action = Action.center_vertical_position
+            case "HP1":
+                if detents := int(val):
+                    action = lambda scope, d=detents: Action.adjust_horizontal_position(scope, d)
+            case "HP0":
+                if int(val) == 1:
+                    action = Action.center_horizontal_position
+            case "VS1":
+                if detents := int(val):
+                    action = lambda scope, d=detents: Action.adjust_vertical_scale(
+                        scope, -d, self._fine_mode
+                    )
+            case "HS1":
+                if detents := int(val):
+                    action = lambda scope, d=detents: Action.adjust_horizontal_scale(scope, -d)
+            case "VS0":
+                # toggle fine mode for vertical scale encoder
+                if int(val) == 1:
+                    self._fine_mode = not self._fine_mode
+                    logger.debug(
+                        f"Vertical scale fine mode -> {'ON' if self._fine_mode else 'OFF'}"
+                    )
+            case "TL1":
+                if detents := int(val):
+                    action = lambda scope, d=detents: Action.adjust_trigger_level(scope, d)
+            case "TL0":
+                action = Action.center_trigger
+            case "TF0":
+                action = Action.force_trigger
+            case "TS0":
+                action = Action.cycle_trigger_slope
+            case "TM0":
+                action = Action.cycle_trigger_mode
+            case "AR0":
+                action = Action.toggle_run_stop
+            case "AF0":
+                action = Action.toggle_fast_acquire
+            case "XA0":
+                action = Action.run_autoset
+            case "HZ0":
+                action = Action.toggle_zoom
+            case "HZ1":
+                if detents := int(val):
+                    action = lambda scope, d=detents: Action.adjust_zoom_scale(scope, d)
+            case "HX1":
+                if detents := int(val):
+                    action = lambda scope, d=detents: Action.adjust_pan(scope, d)
+        if action:
+            for scope in self.scopes.values():
+                if scope.connected.value:
+                    action(scope)
 
     def _handle_packet(self, packet: RawPacket) -> None:
         for pd in packet["data"]:
@@ -237,10 +301,7 @@ class TekAfp:
                                     del self.scopes[data.resource_name]
                                 else:
                                     c = self.scopes.pop(data.resource_name)
-                                    c.res.close()
-
-                                    if not self.scopes:
-                                        self.send_scope_connection_led(False)
+                                    c.resource.close()
                         case "list":
                             if self._mock:
                                 send_packet_data(
@@ -278,7 +339,7 @@ class TekAfp:
 
     def set_synched_scope(self, resource_name: str) -> None:
         if self.synched_scope is not None:
-            self._register_led_callbacks(self.scopes[self.synched_scope])
+            self._unregister_led_callbacks(self.scopes[self.synched_scope])
         self.synched_scope = resource_name
         self._register_led_callbacks(self.scopes[self.synched_scope])
         # TODO: force sync
@@ -292,7 +353,7 @@ class TekAfp:
             scope.source_channel.register(
                 lambda _, v: self.bridge.queue_write(f"IVP1:{int(v)}\n".encode())
             ),
-            scope.run.register(lambda _, v: self.bridge.queue_write(f"IAF0:{int(v)}\n".encode())),
+            scope.run.register(lambda _, v: self.bridge.queue_write(f"IAR0:{int(v)}\n".encode())),
             scope.trigger_source.register(
                 lambda _, v: self.bridge.queue_write(f"ITL1:{v.number}\n".encode())
             ),
@@ -303,19 +364,44 @@ class TekAfp:
             scope.fast_acquire.register(
                 lambda _, v: self.bridge.queue_write(f"IAF0:{int(v)}\n".encode())
             ),
+            scope.connected.register(
+                lambda _, v: self.bridge.queue_write(f"ISP_CON:{int(v)}\n".encode())
+            ),
         ]
+        self._channel_led_tokens = {
+            ch: obs.register(lambda _, v, ch=ch: self._cb_channel(ch, v))
+            for ch, obs in scope.channels.items()
+        }
 
     def _unregister_led_callbacks(self, scope: Scope) -> None:
-        scope.connected.clear_callbacks()
-        scope.source_channel.clear_callbacks()
-        scope.run.clear_callbacks()
-        scope.trigger_source.clear_callbacks()
-        scope.trigger_mode.clear_callbacks()
-        scope.trigger_edge_slope.clear_callbacks()
-        scope.trigger_state.clear_callbacks()
-        scope.zoom.clear_callbacks()
-        scope.fast_acquire.clear_callbacks()
+        tokens_per_var = [
+            scope.connected,
+            scope.source_channel,
+            scope.run,
+            scope.trigger_source,
+            scope.trigger_mode,
+            scope.trigger_edge_slope,
+            scope.trigger_state,
+            scope.zoom,
+            scope.fast_acquire,
+            scope.connected,
+        ]
+        for var, token in zip(tokens_per_var, self._led_tokens, strict=True):
+            var.unregister(token)
         self._led_tokens = []
+        for ch, token in self._channel_led_tokens.items():
+            scope.channels[ch].unregister(token)
+        self._channel_led_tokens = {}
+
+    def _cb_channel(self, ch: Channel, state: ChannelState) -> None:
+        if ch.is_numbered:
+            self.bridge.queue_write(f"IV{ch.number}0:{int(state.enabled)}\n".encode())
+        elif ch == Channel.MATH:
+            self.bridge.queue_write(f"VM0:{int(state.enabled)}\n".encode())
+        elif ch == Channel.BUS:
+            self.bridge.queue_write(f"VB0:{int(state.enabled)}\n".encode())
+        else:
+            logger.error(f"Unknown channel: {ch.label}")
 
     def _cb_trigger_state(self, _: TriggerState, state: TriggerState) -> None:
         match state:
@@ -349,11 +435,6 @@ class TekAfp:
         a = mode == TriggerMode.AUTO
         self.bridge.queue_write(f"ITM0_A:{int(a)}\n".encode())
         self.bridge.queue_write(f"ITM0_N:{int(not a)}\n".encode())
-
-    def send_scope_connection_led(self, state: bool) -> None:
-        msg = f"ISP_CON:{int(state)}\n".encode("utf-8")
-        self.bridge.write_sync(msg)
-        logger.debug(f"[UART->PICO] {msg.decode().strip()}")
 
     def auto_connect(self) -> None:
         resources = self._rm.list_resources("(USB?*::INSTR|TCPIP?*::INSTR)")

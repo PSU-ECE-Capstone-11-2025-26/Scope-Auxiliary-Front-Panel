@@ -60,7 +60,7 @@ class Channel(Enum):
         raise ValueError(f"Invalid channel number: {n}")
 
     @classmethod
-    def from_label(cls, label: str) -> str:
+    def from_label(cls, label: str) -> "Channel":
         for member in cls:
             if member.label == label or label.startswith(member.label):
                 return member
