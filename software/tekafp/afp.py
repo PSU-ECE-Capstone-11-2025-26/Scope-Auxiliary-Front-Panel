@@ -109,13 +109,7 @@ class TekAfp:
                     except (ValueError, IndexError) as e:
                         logger.error(f"Bad UART message {raw!r}: {e}")
                         continue
-
-                    # iterating all scopes here would allow control of multiple at once
-                    ctrl = list(self.scopes.values())[0]
-                    if self.macro_manager.should_handle(inp):
-                        self.macro_manager.handle_uart_input(raw, inp, ctrl)
-                    else:
-                        self._handle_input(inp)
+                    self.macro_manager.handle_input(inp)
 
                 new_packet = get_raw_packet()
                 if new_packet:
@@ -209,6 +203,12 @@ class TekAfp:
         action = None
 
         match msg_id:
+            case "M10" | "M20" | "M30" | "M40":
+                if slot := int(msg_id[1]):
+                    # special case: macros are played back directly, this method's logic already
+                    # handles the rest
+                    self.macro_manager.playback(slot)
+                    return
             # Channel Selection: 'V10' -> ch 1, 'V80' -> ch 8
             case "V10" | "V20" | "V30" | "V40" | "V50" | "V60" | "V70" | "V80":
                 if ch := Channel.from_number(int(msg_id[1])):
