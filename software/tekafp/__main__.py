@@ -1,8 +1,10 @@
 import argparse
 import math
 import re
+import socket
 import threading
 import time
+from importlib.metadata import version
 from time import sleep
 from typing import Optional
 
@@ -15,7 +17,7 @@ from tekafp.api_server import (
     get_raw_packet,
     run_api_server,
     send_packet_data,
-    startup_event,
+    startup_event, HandshakePacketData,
 )
 from tekafp.api_server.error import APIError
 from tekafp.api_server.packets import (
@@ -30,6 +32,9 @@ from tekafp.api_server.packets import (
 from tekafp.input import Input
 from tekafp.uart import MockUARTBridge, UARTBridge
 from tekafp.util import clamp, parse_resp
+
+__version__ = version("tek-afp")
+_HOSTNAME = socket.gethostname()
 
 # UART config
 PORT = "/dev/serial0"
@@ -193,11 +198,11 @@ class Controller:
 
         r, g, b = self.CHANNEL_COLORS[channel]
 
-        if not state: 
+        if not state:
             r, g, b = 0, 0, 0
 
         msgs = [
-            f"IV{channel}0_R:{r}\n".encode("utf-8"), 
+            f"IV{channel}0_R:{r}\n".encode("utf-8"),
             f"IV{channel}0_G:{g}\n".encode("utf-8"),
             f"IV{channel}0_B:{b}\n".encode("utf-8"),
         ]
@@ -207,10 +212,10 @@ class Controller:
             print(f"[UART->PICO] {msg.decode().strip()}")
 
 
-    def send_selected_channel_leds(self) -> None: 
-        # Two RGB LEDs used to show the active selected channel: 
+    def send_selected_channel_leds(self) -> None:
+        # Two RGB LEDs used to show the active selected channel:
         # VP1_RGB and VS1_RGB should always match the selected channel color
-        
+
         r, g, b = self.CHANNEL_COLORS.get(self._source_channel, (0,0,0))
 
         msgs = [
@@ -283,7 +288,7 @@ class Controller:
             self.scope.write(
                 f"DISPLAY:GLOBAL:CH{channel}:STATE {int(self._channels[channel])}"
             )
-            self.send_channel_led(channel, self._channels[channel]) 
+            self.send_channel_led(channel, self._channels[channel])
 
         print(
             f"[SCOPE] CH{channel} display -> {self._channels[channel]} (source={self._source_channel})"  # noqa: E501
@@ -591,20 +596,20 @@ class Controller:
         # Encoder VS1 rotation: vertical scale of current source channel (1/2/5 steps)
         if msg_id == "VS1":
             detents = int(val)
-            if detents: 
+            if detents:
                 self.adjust_vertical_scale(-detents)
             return
 
         # Encoder HS1 rotation: horizontal timebase scale (1/2/4 steps)
         if msg_id == "HS1":
             detents = int(val)
-            if detents: 
+            if detents:
                 self.adjust_horizontal_scale(-detents)
             return
 
         # VS0: toggle fine mode for vertical scale encoder
         if msg_id == "VS0":
-            if int(val) == 1: 
+            if int(val) == 1:
                 self._vert_fine = not self._vert_fine
                 print(f"[SCOPE] Vertical scale fine mode -> {'ON' if self._vert_fine else 'OFF'}")
             return
@@ -900,6 +905,9 @@ def main() -> None:
         for pd in packet["data"]:
             data = PacketData.decode(pd)
             match data:
+                case HandshakePacketData(client_id, client_version):
+                    print(f"[WebSocket]: client {client_id} {client_version} connected")
+                    send_packet_data(HandshakePacketData(_HOSTNAME, __version__))
                 case ScopeActionPacketData(action=a):
                     print(f"Received packet action='{a}'")
                     match a:

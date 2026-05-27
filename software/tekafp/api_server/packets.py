@@ -43,6 +43,12 @@ class PacketData:
 
 
 @dataclass
+class HandshakePacketData(PacketData):
+    id: str
+    version: str
+
+
+@dataclass
 class LogMessagePacketData(PacketData):
     level: LogMessageLevel
     message: str

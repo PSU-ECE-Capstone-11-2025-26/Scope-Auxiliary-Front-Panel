@@ -12,7 +12,7 @@
 [ext_resource type="Texture2D" uid="uid://dsyxvaqs00mxj" path="res://icons/AutoKey.svg" id="6_ycdy4"]
 [ext_resource type="Texture2D" uid="uid://cebugcksdw586" path="res://icons/Gear.svg" id="7_ycdy4"]
 [ext_resource type="PackedScene" uid="uid://c3ee4oh0nfdpk" path="res://View/macros.tscn" id="10_dg77c"]
-[ext_resource type="PackedScene" uid="uid://bx465skthrxm1" path="res://View/settings.tscn" id="10_efxa6"]
+[ext_resource type="PackedScene" uid="uid://bx465skthrxm1" path="res://View/about.tscn" id="10_efxa6"]
 [ext_resource type="Script" uid="uid://bcjrj8kk3vonp" path="res://View/Log.cs" id="12_w48qg"]
 
 [sub_resource type="Resource" id="Resource_w48qg"]
@@ -87,7 +87,7 @@ scroll_following = true
 script = ExtResource("12_w48qg")
 metadata/_tab_index = 3
 
-[node name="Settings" parent="ViewManager" unique_id=1992328292 instance=ExtResource("10_efxa6")]
+[node name="About" parent="ViewManager" unique_id=1992328292 instance=ExtResource("10_efxa6")]
 visible = false
 layout_mode = 2
 metadata/_tab_index = 4

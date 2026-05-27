@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="SoftwareCredit" format=3 uid="uid://gqlpwh10dvo3"]
+
+[ext_resource type="Script" uid="uid://dkxfccc8c8d2j" path="res://Resources/SoftwareCredit.cs" id="1_alyon"]
+
+[resource]
+script = ExtResource("1_alyon")
+SoftwareName = "Uvicorn"
+LicenseFile = "res://licenses/raw/uvicorn.LICENSE.txt"
+metadata/_custom_type_script = "uid://dkxfccc8c8d2j"

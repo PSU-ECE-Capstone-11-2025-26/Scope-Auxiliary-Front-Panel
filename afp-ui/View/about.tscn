@@ -1,0 +1,171 @@
+[gd_scene format=3 uid="uid://bx465skthrxm1"]
+
+[ext_resource type="Script" uid="uid://c4ajdgjqac1ry" path="res://View/About.cs" id="1_tcgpt"]
+[ext_resource type="Resource" uid="uid://dik5riqt5vcv3" path="res://licenses/font_barlow.tres" id="2_51vh3"]
+[ext_resource type="Resource" uid="uid://bksukwcmgns35" path="res://licenses/font_inter.tres" id="3_sbryo"]
+[ext_resource type="Resource" uid="uid://b72dw6wrwe8hs" path="res://licenses/lib_fastapi.tres" id="4_uhwxa"]
+[ext_resource type="Resource" uid="uid://c7a6yrbyelbjk" path="res://licenses/lib_pyserial.tres" id="5_iqcnl"]
+[ext_resource type="Resource" uid="uid://c4okiamexhgeq" path="res://licenses/lib_pyusb.tres" id="6_3cj4b"]
+[ext_resource type="Resource" uid="uid://353b7kvwlyv6" path="res://licenses/lib_pyvisa-py.tres" id="7_kdf38"]
+[ext_resource type="Resource" uid="uid://b45laxfn3fb1c" path="res://licenses/lib_pyvisa.tres" id="8_6xwp8"]
+[ext_resource type="Resource" uid="uid://gqlpwh10dvo3" path="res://licenses/lib_uvicorn.tres" id="9_flu1m"]
+[ext_resource type="Resource" uid="uid://x1x7bs1p4qgf" path="res://licenses/lib_websockets.tres" id="10_dmbpl"]
+[ext_resource type="Resource" uid="uid://dpk4vhifs5wg0" path="res://licenses/lib_zeroconf.tres" id="11_p82u2"]
+[ext_resource type="Resource" uid="uid://docxj3aidjm5u" path="res://licenses/program_cage.tres" id="12_bp74u"]
+[ext_resource type="Resource" uid="uid://cqbs4tnb3j8jb" path="res://licenses/program_greetd.tres" id="13_wo8vt"]
+[ext_resource type="Resource" uid="uid://dmm1op3plg33t" path="res://licenses/resource_godot-icons.tres" id="14_c112u"]
+[ext_resource type="Texture2D" uid="uid://no8ydw57uqad" path="res://icons/qrcode_github.svg" id="15_sbryo"]
+[ext_resource type="Shader" uid="uid://4pn1aa2x7ois" path="res://Resources/invert.gdshader" id="15_uhwxa"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_7lsj5"]
+content_margin_bottom = 16.0
+bg_color = Color(0.105882354, 0.16078432, 0.20784314, 1)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_iqcnl"]
+shader = ExtResource("15_uhwxa")
+
+[node name="About" type="MarginContainer" unique_id=231371399 node_paths=PackedStringArray("_forceCloseButton", "_aboutTree", "_debugToggle", "_setDevWinSize", "_autoConnect")]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 50
+theme_override_constants/margin_right = 50
+script = ExtResource("1_tcgpt")
+_forceCloseButton = NodePath("TabContainer/Config/Configuration/AdvancedContainer/VBoxContainer/ForceCloseButton")
+_aboutTree = NodePath("TabContainer/General/GeneralInfo")
+_debugToggle = NodePath("TabContainer/Config/Configuration/AdvancedContainer/VBoxContainer/DebugMode")
+_setDevWinSize = NodePath("TabContainer/Config/Configuration/AdvancedContainer/VBoxContainer/SetDevWindowSize")
+_autoConnect = NodePath("TabContainer/Config/Configuration/AutoConnect/OptionButton")
+_softwareCredits = Array[Object]([ExtResource("2_51vh3"), ExtResource("3_sbryo"), ExtResource("4_uhwxa"), ExtResource("5_iqcnl"), ExtResource("6_3cj4b"), ExtResource("7_kdf38"), ExtResource("8_6xwp8"), ExtResource("9_flu1m"), ExtResource("10_dmbpl"), ExtResource("11_p82u2"), ExtResource("12_bp74u"), ExtResource("13_wo8vt"), ExtResource("14_c112u")])
+
+[node name="TabContainer" type="TabContainer" parent="." unique_id=575518546]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_styles/tabbar_background = SubResource("StyleBoxFlat_7lsj5")
+tab_alignment = 1
+current_tab = 0
+
+[node name="General" type="HBoxContainer" parent="TabContainer" unique_id=1453130729]
+layout_mode = 2
+alignment = 1
+metadata/_tab_index = 0
+
+[node name="GeneralInfo" type="Tree" parent="TabContainer/General" unique_id=1762340593]
+layout_mode = 2
+size_flags_horizontal = 3
+columns = 2
+hide_root = true
+
+[node name="VBoxContainer" type="VBoxContainer" parent="TabContainer/General" unique_id=1660436647]
+layout_mode = 2
+
+[node name="QRCode" type="TextureRect" parent="TabContainer/General/VBoxContainer" unique_id=1764828404]
+material = SubResource("ShaderMaterial_iqcnl")
+layout_mode = 2
+size_flags_vertical = 4
+texture = ExtResource("15_sbryo")
+stretch_mode = 4
+
+[node name="Link" type="Label" parent="TabContainer/General/VBoxContainer" unique_id=533139112]
+layout_mode = 2
+text = "GitHub Repo"
+horizontal_alignment = 1
+
+[node name="Config" type="ScrollContainer" parent="TabContainer" unique_id=1271981361]
+visible = false
+layout_mode = 2
+follow_focus = true
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 3
+metadata/_tab_index = 1
+
+[node name="Configuration" type="VBoxContainer" parent="TabContainer/Config" unique_id=1992328292]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="AutoConnect" type="HBoxContainer" parent="TabContainer/Config/Configuration" unique_id=448105964]
+layout_mode = 2
+alignment = 1
+
+[node name="Label" type="Label" parent="TabContainer/Config/Configuration/AutoConnect" unique_id=1657555133]
+layout_mode = 2
+text = "Auto connect"
+
+[node name="OptionButton" type="OptionButton" parent="TabContainer/Config/Configuration/AutoConnect" unique_id=848657673]
+layout_mode = 2
+selected = 0
+item_count = 3
+popup/item_0/text = "None"
+popup/item_0/id = 0
+popup/item_1/text = "Last used instrument"
+popup/item_1/id = 1
+popup/item_2/text = "First available instrument"
+popup/item_2/id = 2
+
+[node name="AdvancedContainer" type="FoldableContainer" parent="TabContainer/Config/Configuration" unique_id=847051202]
+layout_mode = 2
+folded = true
+title = "Advanced"
+
+[node name="VBoxContainer" type="VBoxContainer" parent="TabContainer/Config/Configuration/AdvancedContainer" unique_id=1659294761]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="DebugMode" type="CheckButton" parent="TabContainer/Config/Configuration/AdvancedContainer/VBoxContainer" unique_id=1767928455]
+layout_mode = 2
+text = "    DEBUG MODE"
+
+[node name="ForceCloseButton" type="Button" parent="TabContainer/Config/Configuration/AdvancedContainer/VBoxContainer" unique_id=362959123]
+layout_mode = 2
+text = "Force Close Touch UI"
+
+[node name="SetDevWindowSize" type="Button" parent="TabContainer/Config/Configuration/AdvancedContainer/VBoxContainer" unique_id=584627724]
+visible = false
+layout_mode = 2
+text = "SetDevWindowSize"
+
+[node name="Credits" type="RichTextLabel" parent="TabContainer" unique_id=1104232932]
+visible = false
+layout_mode = 2
+mouse_filter = 1
+bbcode_enabled = true
+text = "
+[center]
+[color=green]Portland State University[/color]
+ECE Capstone 2026
+Team 11
+
+Antonio Hernandez
+Andrew Stanton
+Rafael Cervantes
+Michael Ngo
+Nawaf Altalhi
+Aaron Carlson
+
+Sponsored by: [color=cyan]Tektronix, Inc.[/color]
+
+[color=gold]Special Thanks[/color]
+Anthony Bruno, Tektronix
+Roy Kravitz, PSU ECE Department
+Andrew Greenberg, PSU ECE Department
+
+
+This project is licensed under CERN-OHL-P-2.0
+[/center]
+
+"
+metadata/_tab_index = 2
+
+[node name="Licenses" type="ScrollContainer" parent="TabContainer" unique_id=1462527138]
+visible = false
+layout_mode = 2
+metadata/_tab_index = 3
+
+[node name="LicenseList" type="VBoxContainer" parent="TabContainer/Licenses" unique_id=1845692020]
+unique_name_in_owner = true
+layout_mode = 2

@@ -14,6 +14,7 @@ public partial class Main : Control
     private Home _homeView;
     private Scopes _scopesView;
     private Macros _macroView;
+    private About _aboutView;
     
     private readonly Dictionary<string, ScopeInstance> _scopes = new();
 
@@ -25,7 +26,8 @@ public partial class Main : Control
 	    _homeView = GetNode<Home>("ViewManager/Home");
 	    _scopesView = GetNode<Scopes>("ViewManager/Scopes");
 	    _macroView = GetNode<Macros>("ViewManager/Macros");
-	    GetNode<Settings>("ViewManager/Settings").SetFromConfig(Global.Instance.Config);
+	    _aboutView = GetNode<About>("ViewManager/About");
+	    _aboutView.SetFromConfig(Global.Instance.Config);
 	    _scopesView.ScopeToggled += ToggleScope;
 
 	    WebSocketClient.Instance.Connect(WebSocketClient.SignalName.Connected, Callable.From(OnSocketFirstConnect),
@@ -47,6 +49,10 @@ public partial class Main : Control
 	    {
 		    switch (pd)
 		    {
+			    case HandshakePacketData hs:
+				    Global.Logger.Log(LogLevel.Debug, $"Handshaked with {hs.Id} {hs.Version}");
+				    GetNode<About>("ViewManager/About").AddGeneralInfo("tekafp version", hs.Version);
+				    break;
 			    case ScopeListPacketData sl:
 			    {
 				    Global.Logger.Log(LogLevel.Debug, $"Received ScopeList count={sl.Scopes.Count}");
