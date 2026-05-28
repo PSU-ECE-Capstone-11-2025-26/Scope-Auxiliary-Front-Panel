@@ -517,6 +517,12 @@ class Controller:
         self._high_res = new
         self.send_high_res_led(new)
 
+    def navigate_prev(self) -> None:
+        self.scope.write("SEARCH:SEARCH1:NAVIGATE:PREV")
+
+    def navigate_next(self) -> None:
+        self.scope.write("SEARCH:SEARCH1:NAVIGATE:NEXT")
+
     def handle_input(self, inp: Input) -> None:
         """
         inp.id is expected to be strings like:
@@ -634,3 +640,9 @@ class Controller:
             case "AX0":
                 if int(val) == 1:
                     self.clear()
+            case "HL0":
+                if self._run_state:
+                    self.navigate_prev()
+            case "HR0":
+                if self._run_state:
+                    self.navigate_next()
