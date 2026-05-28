@@ -646,3 +646,9 @@ class Controller:
             case "HR0":
                 if self._run_state:
                     self.navigate_next()
+            case "KA1":
+                if detents := int(val):
+                    self.scope.write(f"FPANEL:TURN GPKNOB1, {detents}")
+            case "KB1":
+                if detents := int(val):
+                    self.scope.write(f"FPANEL:TURN GPKNOB2, {detents}")
