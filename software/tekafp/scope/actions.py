@@ -17,7 +17,7 @@ from .constants import (
     ZOOM_MIN_IDX,
 )
 from .scope import Scope
-from .state import Channel, ChannelState, TriggerEdgeSlope, TriggerMode, TriggerState
+from .state import Channel, ChannelState, RunState, TriggerEdgeSlope, TriggerMode, TriggerState
 
 
 logger = logging.getLogger(__name__)
@@ -57,9 +57,9 @@ class Action:
             scope.resource.write(f"DISPLAY:SELECT:SOURCE {highest.label}")
 
     @staticmethod
-    def get_run_state(scope: Scope) -> bool:
+    def get_run_state(scope: Scope) -> RunState:
         resp = parse_resp(scope.resource.query("ACQUIRE:STATE?"), str)
-        return resp in ("RUN", "ON", "1")
+        return RunState(resp)
 
     @staticmethod
     def get_fast_acquire_state(scope: Scope) -> bool:
@@ -204,7 +204,11 @@ class Action:
 
     @staticmethod
     def toggle_zoom(scope: Scope) -> None:
-        scope.resource.write(f"DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:STATE {int(not scope.zoom.value)}")
+        Action.set_zoom(scope, not scope.zoom.value)
+
+    @staticmethod
+    def set_zoom(scope: Scope, enabled: bool) -> None:
+        scope.resource.write(f"DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:STATE {int(enabled)}")
 
     @staticmethod
     def adjust_pan(scope: Scope, detents: int) -> None:
@@ -246,13 +250,21 @@ class Action:
                 new = TriggerEdgeSlope.RISE
             case _:
                 raise AssertionError("Invalid trigger slope. Something is wrong!")
-        scope.resource.write(f"TRIGGER:A:EDGE:SLOPE {new}")
+        Action.set_trigger_slope(scope, new)
+
+    @staticmethod
+    def set_trigger_slope(scope: Scope, slope: TriggerEdgeSlope) -> None:
+        scope.resource.write(f"TRIGGER:A:EDGE:SLOPE {slope.value}")
 
     @staticmethod
     def cycle_trigger_mode(scope: Scope) -> None:
         cur = scope.trigger_mode.value
         new = TriggerMode.AUTO if cur == TriggerMode.NORMAL else TriggerMode.NORMAL
-        scope.resource.write(f"TRIGGER:A:MODE {new.value}")
+        Action.set_trigger_mode(scope, new)
+
+    @staticmethod
+    def set_trigger_mode(scope: Scope, mode: TriggerMode) -> None:
+        scope.resource.write(f"TRIGGER:A:MODE {mode.value}")
 
     @staticmethod
     def force_trigger(scope: Scope) -> None:
@@ -264,15 +276,27 @@ class Action:
 
     @staticmethod
     def toggle_fast_acquire(scope: Scope) -> None:
-        scope.resource.write(f"ACQUIRE:FASTACQ:STATE {int(not scope.fast_acquire.value)}")
+        Action.set_fast_acquire(not scope.fast_acquire.value)
+
+    @staticmethod
+    def set_fast_acquire(scope: Scope, state: bool) -> None:
+        scope.resource.write(f"ACQUIRE:FASTACQ:STATE {int(state)}")
 
     @staticmethod
     def toggle_run_stop(scope: Scope) -> None:
-        scope.resource.write(f"ACQUIRE:STATE {'RUN' if not scope.run.value else 'STOP'}")
+        Action.set_run_stop(~scope.run.value)
+
+    @staticmethod
+    def set_run_stop(scope: Scope, state: RunState) -> None:
+        scope.resource.write(f"ACQUIRE:STATE {state.value}")
 
     @staticmethod
     def run_autoset(scope: Scope) -> None:
         scope.resource.write("AUTOSET EXECUTE")
+
+    @staticmethod
+    def set_channel(scope: Scope, channel: Channel, state: bool) -> None:
+        scope.resource.write(f"DISPLAY:GLOBAL:{channel.label}:STATE {int(state)}")
 
     @staticmethod
     def set_channel_display(scope: Scope, channel: Channel) -> None:

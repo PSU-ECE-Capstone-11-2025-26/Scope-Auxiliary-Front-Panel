@@ -29,7 +29,7 @@ from tekafp.api_server.packets import (
 )
 from tekafp.input import Input
 from tekafp.scope.actions import Action
-from tekafp.scope.macros import MacroManager
+from tekafp.scope.macros import MacroManager, MacroStep
 from tekafp.scope.scope import Scope
 from tekafp.scope.state import Channel, ChannelState, TriggerEdgeSlope, TriggerMode, TriggerState
 from tekafp.uart import MockUARTBridge, UARTBridge
@@ -103,13 +103,13 @@ class TekAfp:
         try:
             while True:
                 raw = self.bridge.get()
-                if not self._mock and self.scopes and raw:
+                if not self._mock and self.synched_scope and raw:
                     try:
                         inp = Input.from_bytes(raw)
                     except (ValueError, IndexError) as e:
                         logger.error(f"Bad UART message {raw!r}: {e}")
                         continue
-                    self.macro_manager.handle_input(inp)
+                    self._handle_input(inp)
 
                 new_packet = get_raw_packet()
                 if new_packet:
@@ -198,41 +198,58 @@ class TekAfp:
         inp.value for toggles is expected 0/1 (latched state).
         """
 
+        if self.synched_scope is None:
+            return
+
         msg_id = str(inp.id)
         val = inp.value
         action = None
+        step = None
 
         match msg_id:
             case "M10" | "M20" | "M30" | "M40":
-                if slot := int(msg_id[1]):
-                    # special case: macros are played back directly, this method's logic already
-                    # handles the rest
-                    self.macro_manager.playback(slot)
-                    return
+                slot = MacroManager.PHYSICAL_MACRO_IDS[msg_id]
+                # special case: macros are played back directly, this method's logic already
+                # handles the rest
+                self.macro_manager.playback(slot, self.scopes.values())
+                return
             # Channel Selection: 'V10' -> ch 1, 'V80' -> ch 8
             case "V10" | "V20" | "V30" | "V40" | "V50" | "V60" | "V70" | "V80":
                 if ch := Channel.from_number(int(msg_id[1])):
                     action = lambda scope, ch=ch: Action.set_channel_display(scope, ch)
+                    step = MacroStep(
+                        "set_channel",
+                        channel=ch.label,
+                        enabled=not self.scopes[self.synched_scope].source_channel.value == ch,
+                    )
             case "VP1":
                 if detents := int(val):
                     action = lambda scope, d=detents: Action.adjust_vertical_position(scope, d)
+                    step = MacroStep("adjust_vertical_position", detents=detents)
             case "VP0":
                 if int(val) == 1:
                     action = Action.center_vertical_position
+                    step = MacroStep("center_vertical_position")
             case "HP1":
                 if detents := int(val):
                     action = lambda scope, d=detents: Action.adjust_horizontal_position(scope, d)
+                    step = MacroStep("adjust_horizontal_position", detents=detents)
             case "HP0":
                 if int(val) == 1:
                     action = Action.center_horizontal_position
+                    step = MacroStep("center_horizontal_position")
             case "VS1":
                 if detents := int(val):
                     action = lambda scope, d=detents: Action.adjust_vertical_scale(
                         scope, -d, self._fine_mode
                     )
+                    step = MacroStep(
+                        "adjust_vertical_scale", detents=-detents, fine=self._fine_mode
+                    )
             case "HS1":
                 if detents := int(val):
                     action = lambda scope, d=detents: Action.adjust_horizontal_scale(scope, -d)
+                    step = MacroStep("adjust_horizontal_scale", detents=-detents)
             case "VS0":
                 # toggle fine mode for vertical scale encoder
                 if int(val) == 1:
@@ -243,32 +260,53 @@ class TekAfp:
             case "TL1":
                 if detents := int(val):
                     action = lambda scope, d=detents: Action.adjust_trigger_level(scope, d)
+                    step = MacroStep("adjust_trigger_level", detents=detents)
             case "TL0":
                 action = Action.center_trigger
+                step = MacroStep("center_trigger")
             case "TF0":
                 action = Action.force_trigger
+                step = MacroStep("force_trigger")
             case "TS0":
                 action = Action.cycle_trigger_slope
+                step = MacroStep(
+                    "set_trigger_slope",
+                    mode=~self.scopes[self.synched_scope].trigger_edge_slope.value,
+                )
             case "TM0":
                 action = Action.cycle_trigger_mode
+                step = MacroStep(
+                    "set_trigger_mode", mode=~self.scopes[self.synched_scope].trigger_mode.value
+                )
             case "AR0":
                 action = Action.toggle_run_stop
+                step = MacroStep("set_run_stop", mode=~self.scopes[self.synched_scope].run.value)
             case "AF0":
                 action = Action.toggle_fast_acquire
+                step = MacroStep(
+                    "set_fast_acquire",
+                    enabled=not self.scopes[self.synched_scope].fast_acquire.value,
+                )
             case "XA0":
                 action = Action.run_autoset
+                step = MacroStep("run_autoset")
             case "HZ0":
                 action = Action.toggle_zoom
+                step = MacroStep("set_zoom", enabled=not self.scopes[self.synched_scope].zoom.value)
             case "HZ1":
                 if detents := int(val):
                     action = lambda scope, d=detents: Action.adjust_zoom_scale(scope, d)
+                    step = MacroStep("adjust_zoom_scale", detents=detents)
             case "HX1":
                 if detents := int(val):
                     action = lambda scope, d=detents: Action.adjust_pan(scope, d)
+                    step = MacroStep("adjust_pan", detents=detents)
         if action:
             for scope in self.scopes.values():
                 if scope.connected.value:
                     action(scope)
+        if step:
+            self.macro_manager.handle_input(step)
 
     def _handle_packet(self, packet: RawPacket) -> None:
         for pd in packet["data"]:
@@ -353,7 +391,9 @@ class TekAfp:
             scope.source_channel.register(
                 lambda _, v: self.bridge.queue_write(f"IVP1:{int(v)}\n".encode())
             ),
-            scope.run.register(lambda _, v: self.bridge.queue_write(f"IAR0:{int(v)}\n".encode())),
+            scope.run.register(
+                lambda _, v: self.bridge.queue_write(f"IAR0:{v.int_value}\n".encode())
+            ),
             scope.trigger_source.register(
                 lambda _, v: self.bridge.queue_write(f"ITL1:{v.number}\n".encode())
             ),
@@ -363,9 +403,6 @@ class TekAfp:
             scope.zoom.register(lambda _, v: self.bridge.queue_write(f"IHZ0:{int(v)}\n".encode())),
             scope.fast_acquire.register(
                 lambda _, v: self.bridge.queue_write(f"IAF0:{int(v)}\n".encode())
-            ),
-            scope.connected.register(
-                lambda _, v: self.bridge.queue_write(f"ISP_CON:{int(v)}\n".encode())
             ),
         ]
         self._channel_led_tokens = {
@@ -384,7 +421,6 @@ class TekAfp:
             scope.trigger_state,
             scope.zoom,
             scope.fast_acquire,
-            scope.connected,
         ]
         for var, token in zip(tokens_per_var, self._led_tokens, strict=True):
             var.unregister(token)

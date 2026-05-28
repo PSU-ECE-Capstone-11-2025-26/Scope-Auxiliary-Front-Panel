@@ -3,7 +3,14 @@ from dataclasses import dataclass
 from pyvisa.resources import MessageBasedResource
 from util import parse_channel_count
 
-from tekafp.scope.state import Channel, ChannelState, TriggerEdgeSlope, TriggerMode, TriggerState
+from tekafp.scope.state import (
+    Channel,
+    ChannelState,
+    RunState,
+    TriggerEdgeSlope,
+    TriggerMode,
+    TriggerState,
+)
 from tekafp.util.observable import ObservableVariable
 
 
@@ -20,7 +27,7 @@ class Scope:
     trigger_mode: ObservableVariable[TriggerMode]
     trigger_edge_slope: ObservableVariable[TriggerEdgeSlope]
     trigger_state: ObservableVariable[TriggerState]
-    run: ObservableVariable[bool]
+    run: ObservableVariable[RunState]
     zoom: ObservableVariable[bool]
     fast_acquire: ObservableVariable[bool]
 
@@ -43,7 +50,7 @@ class Scope:
                 Channel.BUS: ObservableVariable(ChannelState()),
             },
             source_channel=ObservableVariable(Channel.NONE),
-            run=ObservableVariable(True),
+            run=ObservableVariable(RunState.RUN),
             fast_acquire=ObservableVariable(False),
             zoom=ObservableVariable(False),
             trigger_mode=ObservableVariable(TriggerMode.AUTO),

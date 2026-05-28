@@ -13,11 +13,43 @@ class TriggerMode(StrEnum):
     AUTO = "AUTO"
     NORMAL = "NORMAL"
 
+    def __invert__(self) -> "TriggerMode":
+        return TriggerMode.NORMAL if self == TriggerMode.AUTO else TriggerMode.AUTO
+
 
 class TriggerEdgeSlope(StrEnum):
     RISE = "RISE"
     FALL = "FALL"
     EITHER = "EITHER"
+
+    def __invert__(self) -> "TriggerEdgeSlope":
+        state_map = {
+            TriggerEdgeSlope.RISE: TriggerEdgeSlope.FALL,
+            TriggerEdgeSlope.FALL: TriggerEdgeSlope.EITHER,
+            TriggerEdgeSlope.EITHER: TriggerEdgeSlope.RISE,
+        }
+        return state_map[self]
+
+
+class RunState(StrEnum):
+    OFF = "OFF"
+    ON = "ON"
+    RUN = "RUN"
+    STOP = "STOP"
+
+    def __invert__(self) -> "RunState":
+        state_map = {
+            RunState.OFF: RunState.RUN,
+            RunState.ON: RunState.OFF,
+            RunState.RUN: RunState.STOP,
+            RunState.STOP: RunState.RUN,
+        }
+        return state_map[self]
+
+    @property
+    def int_value(self) -> int:
+        state_map = {RunState.OFF: 0, RunState.ON: 1, RunState.RUN: 1, RunState.STOP: 2}
+        return state_map[self]
 
 
 @dataclass(frozen=True)
