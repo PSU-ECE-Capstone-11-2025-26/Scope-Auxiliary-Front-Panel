@@ -17,7 +17,4 @@ dtoverlay=disable-bt
 dtoverlay=uart2
 EOF
 
-# Debug builds: route the kernel console to UART2 (ttyAMA1).
-if [[ "${IGconf_afp_debug:-n}" = "y" ]]; then
-    sed -i -E 's/(\s*)$/ console=ttyAMA1,115200\1/' "$cmdline"
-fi
+sed -i -E 's/(\s*)$/ console=ttyAMA2,115200\1/' "$cmdline"
