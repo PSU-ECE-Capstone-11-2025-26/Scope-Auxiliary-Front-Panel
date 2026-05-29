@@ -52,6 +52,7 @@ def _start_api() -> None:
 class TekAfp:
     MAX_RECONNECT_ATTEMPTS = 3
     RECONNECT_DELAY_S = 2.0
+    SYNC_DELAY_S = 0.1
 
     def __init__(self) -> None:
         self._uart_port: str = DEFAULT_PORT
@@ -146,7 +147,7 @@ class TekAfp:
             self.bridge.close()
 
     def _sync_worker(self) -> None:
-        while not self._stop_sync.wait(timeout=0.05):
+        while not self._stop_sync.wait(timeout=self.SYNC_DELAY_S):
             if self.synced_scope:
                 try:
                     Action.sync(self.scopes[self.synced_scope])
