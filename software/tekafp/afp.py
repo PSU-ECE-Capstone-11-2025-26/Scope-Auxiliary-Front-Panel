@@ -19,8 +19,8 @@ from tekafp.api_server.error import APIError
 from tekafp.api_server.packets import (
     ErrorPacketData,
     HandshakePacketData,
-    MacroAction,
-    MacroActionPacketData,
+    # MacroAction,
+    # MacroActionPacketData,
     PacketData,
     ScopeActionPacketData,
     ScopeInfoPacketData,
@@ -50,6 +50,9 @@ def _start_api() -> None:
 
 
 class TekAfp:
+    MAX_RECONNECT_ATTEMPTS = 3
+    RECONNECT_DELAY_S = 2.0
+
     def __init__(self) -> None:
         self._uart_port: str = DEFAULT_PORT
         self._mock: bool = False
@@ -149,6 +152,7 @@ class TekAfp:
                     Action.sync(self.scopes[self.synced_scope])
                 except VisaIOError as e:
                     logger.warning("Sync error: %s", e)
+                    self._handle_scope_disconnect(self.synced_scope)
 
     @staticmethod
     def connect_uart(port: str, mock: bool = False) -> UARTBridge:
@@ -160,23 +164,27 @@ class TekAfp:
         logger.info(f"Connected UART: {port} @ {DEFAULT_BAUDRATE}")
         return bridge
 
+    def _connect(self, resource_name: str) -> MessageBasedResource:
+        resource: MessageBasedResource = self._rm.open_resource(
+            resource_name,
+            resource_pyclass=MessageBasedResource,
+            timeout=DEFAULT_VISA_TIMEOUT,
+            write_termination="\n",
+            read_termination="\n",
+        )
+        # delay mode OFF => HORizontal:POSition works like HORIZONTAL POSITION knob
+        resource.write("HORIZONTAL:DELAY:MODE OFF")
+        return resource
+
     def connect_to_scope(self, resource_name: str) -> None:
         try:
-            resource: MessageBasedResource = self._rm.open_resource(
-                resource_name,
-                resource_pyclass=MessageBasedResource,
-                timeout=DEFAULT_VISA_TIMEOUT,
-                write_termination="\n",
-                read_termination="\n",
-            )
+            resource = self._connect(resource_name)
         except (VisaIOError, ValueError) as err:
             send_packet_data(
                 ErrorPacketData(resource_name, APIError.CONNECTION_ERROR, error_str=str(err))
             )
             return
 
-        # delay mode OFF => HORizontal:POSition works like HORIZONTAL POSITION knob
-        resource.write("HORIZONTAL:DELAY:MODE OFF")
         scope = Scope.connect(resource)
         self.scopes[resource_name] = scope
         logger.info("Connected ctrl: %s, channels=%d", scope.idn, scope.channel_count)
@@ -184,6 +192,52 @@ class TekAfp:
         send_packet_data(
             ScopeInfoPacketData(
                 resource_name=resource_name, idn=scope.idn, channel_count=scope.channel_count
+            )
+        )
+
+    def _handle_scope_disconnect(self, resource_name: str) -> None:
+        """Attempt to reconnect to a scope.
+
+        It is assumed this is only called from the sync worker thread, to avoid race conditions.
+        """
+        old = self.scopes.get(resource_name)
+        if old is None:
+            return
+
+        old.connected.value = False
+        if resource_name == self.synced_scope:
+            self._unregister_led_callbacks(old)
+        try:
+            old.resource.close()
+        except VisaIOError:
+            pass
+
+        for attempt in range(1, self.MAX_RECONNECT_ATTEMPTS + 1):
+            logger.info(
+                "Reconnect (attempt %d/%d) %s", attempt, self.MAX_RECONNECT_ATTEMPTS, resource_name
+            )
+            self._stop_sync.wait(timeout=self.RECONNECT_DELAY_S)
+            if self._stop_sync.is_set():
+                return  # exiting, so don't bother
+            try:
+                resource = self._connect(resource_name)
+                scope = Scope.connect(resource)
+                self.scopes[resource_name] = scope
+                scope.connected.value = True
+                if resource_name == self.synced_scope:
+                    self._register_led_callbacks(scope)
+                logger.info("Reconnected to %s", resource_name)
+                return
+            except (VisaIOError, ValueError) as e:
+                logger.warning("Attempt failed: %s", e)
+
+        logger.error("Reconnect attempts failed for %s", resource_name)
+        self.scopes.pop(resource_name, None)
+        if self.synced_scope == resource_name:
+            self.synced_scope = None
+        send_packet_data(
+            ErrorPacketData(
+                resource_name, APIError.CONNECTION_ERROR, error_str="Scope disconnected"
             )
         )
 
@@ -301,7 +355,10 @@ class TekAfp:
         if action:
             for scope in self.scopes.values():
                 if scope.connected.value:
-                    action(scope)
+                    try:
+                        action(scope)
+                    except VisaIOError as e:
+                        logger.warning("Action failed: on %s: %s", scope.resource_name, e)
         if step:
             self.macro_manager.handle_input(step)
 
@@ -360,15 +417,15 @@ class TekAfp:
                                 )
                         case _:
                             logger.error(f"Unknown action: {a}")
-                case MacroActionPacketData(action=a, slot=slot):
-                    if a == MacroAction.RECORD:
-                        self.macro_manager.start_recording(slot)
-                    elif a == MacroAction.SAVE:
-                        self.macro_manager.stop_recording(slot)
-                    elif a == MacroAction.DELETE:
-                        self.macro_manager.delete_macro(slot)
-                    else:
-                        logger.error("Unknown macro action: %s", a)
+                # case MacroActionPacketData(action=a, slot=slot):
+                #     if a == MacroAction.RECORD:
+                #         self.macro_manager.start_recording(slot)
+                #     elif a == MacroAction.SAVE:
+                #         self.macro_manager.stop_recording(slot)
+                #     elif a == MacroAction.DELETE:
+                #         self.macro_manager.delete_macro(slot)
+                #     else:
+                #         logger.error("Unknown macro action: %s", a)
                 case _:
                     logger.error(f"Unknown or incorrect packet type {data.type}")
 
