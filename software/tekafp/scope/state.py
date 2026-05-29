@@ -84,6 +84,18 @@ class Channel(Enum):
     def is_numbered(self) -> bool:
         return self.number is not None
 
+    @property
+    def display_label(self) -> str:
+        """The display label of the channel.
+
+        This can be used where the standard label is invalid. For example,
+        DISPLAY:SELECT:SOURCE needs BUS<x>, whereas DISPLAY:GLOBAL uses B<x>
+        """
+        if self == Channel.BUS:
+            return "B1"
+        else:
+            return self.label
+
     @classmethod
     def from_number(cls, n: int) -> "Channel":
         for member in cls:
@@ -93,6 +105,8 @@ class Channel(Enum):
 
     @classmethod
     def from_label(cls, label: str) -> "Channel":
+        if label.startswith("B") and not label.startswith("BU"):
+            return cls.BUS
         for member in cls:
             if member.label == label or label.startswith(member.label):
                 return member

@@ -74,11 +74,15 @@ class Action:
     @staticmethod
     def get_selected_source(scope: Scope) -> Channel:
         resp = parse_resp(scope.resource.query("DISPLAY:SELECT:SOURCE?"), str)
-        return Channel.from_label(resp)
+        try:
+            return Channel.from_label(resp)
+        except ValueError as e:
+            logger.error("Unknown SOURCE %s: %s", resp, e)
+            return Action._get_highest_enabled_channel(scope)
 
     @staticmethod
     def get_channel_state(scope: Scope, channel: Channel) -> bool:
-        resp = parse_resp(scope.resource.query(f"DISPLAY:GLOBAL:{channel.label}:STATE?"), str)
+        resp = parse_resp(scope.resource.query(f"DISPLAY:GLOBAL:{channel.display_label}:STATE?"), str)
         return resp not in ("OFF", "0")
 
     @staticmethod
@@ -91,7 +95,12 @@ class Action:
 
     @staticmethod
     def get_trigger_source(scope: Scope) -> Channel:
-        return Channel.from_label(parse_resp(scope.resource.query("TRIGGER:A:EDGE:SOURCE?"), str))
+        resp = parse_resp(scope.resource.query("TRIGGER:A:EDGE:SOURCE?"), str)
+        try:
+            return Channel.from_label(resp)
+        except ValueError as e:
+            logger.error("Unknown trigger source %s: %s", resp, e)
+            return scope.trigger_source.value
 
     @staticmethod
     def get_trigger_slope(scope: Scope) -> TriggerEdgeSlope:
@@ -296,7 +305,7 @@ class Action:
 
     @staticmethod
     def set_channel(scope: Scope, channel: Channel, state: bool) -> None:
-        scope.resource.write(f"DISPLAY:GLOBAL:{channel.label}:STATE {int(state)}")
+        scope.resource.write(f"DISPLAY:GLOBAL:{channel.display_label}:STATE {int(state)}")
 
     @staticmethod
     def set_channel_display(scope: Scope, channel: Channel) -> None:
@@ -304,7 +313,7 @@ class Action:
 
         if scope.source_channel.value == channel:
             # enabled and source => disable, select highest enabled as active
-            scope.resource.write(f"DISPLAY:GLOBAL:{channel.label}:STATE OFF")
+            scope.resource.write(f"DISPLAY:GLOBAL:{channel.display_label}:STATE OFF")
             highest: Channel = Action._get_highest_enabled_channel(scope)
             scope.resource.write(f"DISPLAY:SELECT:SOURCE {highest.label}")
         elif last_state:
@@ -312,13 +321,8 @@ class Action:
             scope.resource.write(f"DISPLAY:SELECT:SOURCE {channel.label}")
         else:
             # disabled => enable, set as source
-            scope.resource.write(f"DISPLAY:GLOBAL:{channel.label}:STATE ON")
+            scope.resource.write(f"DISPLAY:GLOBAL:{channel.display_label}:STATE ON")
             scope.resource.write(f"DISPLAY:SELECT:SOURCE {channel.label}")
-
-        if last_state != scope.channels[channel].value.enabled:
-            scope.resource.write(
-                f"DISPLAY:GLOBAL:CH{channel}:STATE {int(scope.channels[channel].value.enabled)}"
-            )
 
         new_value: bool = scope.channels[channel].value.enabled
         new_source: str = scope.source_channel.value.label
