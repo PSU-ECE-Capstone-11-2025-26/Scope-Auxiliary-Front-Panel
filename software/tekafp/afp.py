@@ -59,14 +59,14 @@ class TekAfp:
         self.bridge: UARTBridge = None
         self._rm = pyvisa.ResourceManager(DEFAULT_VISA_BACKEND)
         self.scopes: dict[str, Scope] = {}
-        self.synched_scope: str = None
+        self.synced_scope: str = None
         self.macro_manager: MacroManager = None
         self._fine_mode: bool = False
         self._hostname: str = socket.gethostname()
         self._led_tokens: list[int] = []
         self._channel_led_tokens: dict[Channel, int] = {}
-        self._synch_thread = threading.Thread(target=self._synch_worker)
-        self._stop_synch = threading.Event()
+        self._sync_thread = threading.Thread(target=self._sync_worker)
+        self._stop_sync = threading.Event()
 
     def _parse_args(self) -> None:
         parser = argparse.ArgumentParser()
@@ -97,13 +97,13 @@ class TekAfp:
 
         if self._auto_connect:
             self.auto_connect()
-        self._synch_thread.start()
+        self._sync_thread.start()
 
     def run(self) -> None:
         try:
             while True:
                 raw = self.bridge.get()
-                if not self._mock and self.synched_scope and raw:
+                if not self._mock and self.synced_scope and raw:
                     try:
                         inp = Input.from_bytes(raw)
                     except (ValueError, IndexError) as e:
@@ -136,21 +136,21 @@ class TekAfp:
             logger.info("\nTEK AFP stopping...\n")
         finally:
             logger.info("Closing connections...")
-            self._stop_synch.set()
-            self._synch_thread.join()
+            self._stop_sync.set()
+            self._sync_thread.join()
             for scope in self.scopes.values():
                 if scope:
                     scope.resource.close()
             self.bridge.close()
 
-    def _synch_worker(self) -> None:
+    def _sync_worker(self) -> None:
         last_sync = time.monotonic()
         sync_period_s = 0.05
 
-        while not self._stop_synch.is_set():
+        while not self._stop_sync.is_set():
             now = time.monotonic()
-            if self.synched_scope and now - last_sync > sync_period_s:
-                Action.synch(self.scopes[self.synched_scope])
+            if self.synced_scope and now - last_sync > sync_period_s:
+                Action.sync(self.scopes[self.synced_scope])
                 last_sync = now
 
     @staticmethod
@@ -198,7 +198,7 @@ class TekAfp:
         inp.value for toggles is expected 0/1 (latched state).
         """
 
-        if self.synched_scope is None:
+        if self.synced_scope is None:
             return
 
         msg_id = str(inp.id)
@@ -220,7 +220,7 @@ class TekAfp:
                     step = MacroStep(
                         "set_channel",
                         channel=ch.label,
-                        enabled=self.scopes[self.synched_scope].source_channel.value != ch,
+                        enabled=self.scopes[self.synced_scope].source_channel.value != ch,
                     )
             case "VP1":
                 if detents := int(val):
@@ -271,28 +271,28 @@ class TekAfp:
                 action = Action.cycle_trigger_slope
                 step = MacroStep(
                     "set_trigger_slope",
-                    mode=~self.scopes[self.synched_scope].trigger_edge_slope.value,
+                    mode=~self.scopes[self.synced_scope].trigger_edge_slope.value,
                 )
             case "TM0":
                 action = Action.cycle_trigger_mode
                 step = MacroStep(
-                    "set_trigger_mode", mode=~self.scopes[self.synched_scope].trigger_mode.value
+                    "set_trigger_mode", mode=~self.scopes[self.synced_scope].trigger_mode.value
                 )
             case "AR0":
                 action = Action.toggle_run_stop
-                step = MacroStep("set_run_stop", mode=~self.scopes[self.synched_scope].run.value)
+                step = MacroStep("set_run_stop", mode=~self.scopes[self.synced_scope].run.value)
             case "AF0":
                 action = Action.toggle_fast_acquire
                 step = MacroStep(
                     "set_fast_acquire",
-                    enabled=not self.scopes[self.synched_scope].fast_acquire.value,
+                    enabled=not self.scopes[self.synced_scope].fast_acquire.value,
                 )
             case "XA0":
                 action = Action.run_autoset
                 step = MacroStep("run_autoset")
             case "HZ0":
                 action = Action.toggle_zoom
-                step = MacroStep("set_zoom", enabled=not self.scopes[self.synched_scope].zoom.value)
+                step = MacroStep("set_zoom", enabled=not self.scopes[self.synced_scope].zoom.value)
             case "HZ1":
                 if detents := int(val):
                     action = lambda scope, d=detents: Action.adjust_zoom_scale(scope, d)
@@ -375,11 +375,11 @@ class TekAfp:
                 case _:
                     logger.error(f"Unknown or incorrect packet type {data.type}")
 
-    def set_synched_scope(self, resource_name: str) -> None:
-        if self.synched_scope is not None:
-            self._unregister_led_callbacks(self.scopes[self.synched_scope])
-        self.synched_scope = resource_name
-        self._register_led_callbacks(self.scopes[self.synched_scope])
+    def set_synced_scope(self, resource_name: str) -> None:
+        if self.synced_scope is not None:
+            self._unregister_led_callbacks(self.scopes[self.synced_scope])
+        self.synced_scope = resource_name
+        self._register_led_callbacks(self.scopes[self.synced_scope])
         # TODO: force sync
         #  read current .value of each and write LED state
 

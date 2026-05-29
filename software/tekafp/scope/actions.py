@@ -35,7 +35,7 @@ def _scale_val_to_idx(v: float) -> int:
 
 class Action:
     @staticmethod
-    def synch(scope: Scope) -> None:
+    def sync(scope: Scope) -> None:
         Action.sync_all_channels(scope)
         scope.source_channel.value = Action.get_selected_source(scope)
         scope.trigger_source.value = Action.get_trigger_source(scope)
