@@ -64,6 +64,18 @@ class Channel(Enum):
     def is_numbered(self) -> bool:
         return self.number is not None
 
+    @property
+    def display_label(self) -> str:
+        """The display label of the channel.
+
+        This can be used where the standard label is invalid. For example,
+        DISPLAY:SELECT:SOURCE needs BUS<x>, whereas DISPLAY:GLOBAL uses B<x>
+        """
+        if self == Channel.BUS:
+            return "B1"
+        else:
+            return self.label
+
     @classmethod
     def from_number(cls, n: int) -> "Channel":
         for member in cls:
@@ -123,7 +135,7 @@ class Controller:
         return int(m.group(1))
 
     def get_scope_channel_state(self, channel: Channel) -> bool:
-        resp = parse_resp(self.scope.query(f"DISPLAY:GLOBAL:{channel.label}:STATE?"), str)
+        resp = parse_resp(self.scope.query(f"DISPLAY:GLOBAL:{channel.display_label}:STATE?"), str)
         return resp not in ("OFF", "0")
 
     def sync_all_channels_from_scope(self) -> None:
@@ -263,7 +275,9 @@ class Controller:
         self.send_selected_channel_leds()
 
         if last_state != self._channels[channel]:
-            self.scope.write(f"DISPLAY:GLOBAL:{channel.label}:STATE {int(self._channels[channel])}")
+            self.scope.write(
+                f"DISPLAY:GLOBAL:{channel.display_label}:STATE {int(self._channels[channel])}"
+            )
             self.send_channel_led(channel, self._channels[channel])
 
         logger.debug(
@@ -279,7 +293,7 @@ class Controller:
         if self._source_channel == channel and not desired:
             self._source_channel = self.highest_enabled_channel
 
-        self.scope.write(f"DISPLAY:GLOBAL:{channel.label}:STATE {int(desired)}")
+        self.scope.write(f"DISPLAY:GLOBAL:{channel.display_label}:STATE {int(desired)}")
         self.send_channel_led(channel, desired)
 
         logger.debug(f"{channel.label} forced -> {self._channels[channel]}")
