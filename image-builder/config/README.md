@@ -1,52 +1,47 @@
-# TEK AFP Raspberry Pi Setup
+# TEK AFP Raspberry Pi OS Image
 
-This directory contains files for quick setup of a Raspberry Pi for a TEK AFP.
+This directory contains configuration for building custom images for the Raspberry Pi 4. The images
+include all necessary libraries, configuration, services, and the AFP software. A flashed image
+needs no extra setup: simply insert the microSD card into a Pi 4 and it will boot into the AFP interface.
 
-The script does the following:
-- Installs runtime dependencies (namely PyVISA)
-- Creates the group `afpusb`, adds the user to it, and creates udev rules for VISA usb access
-- Enables the main UART (side effect: by default, bluetooth is disabled!)
-- Changes the hostname to the format `tekafp-$SERIAL_NUMBER`
-- Optionally installs development tools (uv) with the `-d` option
+The basics are covered below, and the AFP Developer Manual contains more detailed information.
+
+## Building
+The Makefile in the root of the repo has targets for building each part of the AFP.
+
+* all: all
+* ui: build the interface
+* deb: package the built interface into a Debian package
+* wheel: build the tekafp Python daemon
+* image: build the full OS image. The UI's .deb and the wheel must be available in their default locations.
+
 
 ## Flashing
-System media should be flashed with **RASPBERRY PI OS LITE (64-BIT)**
-
 The easiest method is with the `rpi-imager` tool maintained by Raspberry Pi.
 
-`rpi-imager` may prompt to ask "Would you like to apply OS customization settings?"
-These will largely be overridden by the files `ssh`, `userconf.txt`, or after execution of `tek-afp-setup` script.
+Or if you're brave, dd:
 
-## Image Customizaton
-After the imaging is complete, mount the `bootfs` partition and copy the files in this directory (`rpi-setup`) to it.
-The media is now ready for the Pi to boot.
+```bash
+sudo dd if=image-builder/work/image-tek-afp-pi4/tek-afp-pi4
+.img of=/dev/sda bs=4M conv=fsync status=progress
+```
 
 ## After boot
 The Pi will be accessible over ssh at the default port 22. 
 The user is `tek`. Connect either to the ip (if known)
-or to the hostname `tekafp-$SERIAL_NUMBER`.
+or to the hostname `tek-afp-$SERIAL_NUMBER`.
 
-| Credential    | Dev Default |
-|---------------|-------------|
-| user          | tek         |
-| passwd        | team11      |
-| serial number | 0           |
+| Credential    | Default                    |
+|---------------|----------------------------|
+| user          | tek                        |
+| passwd        | Team11Capstone!            |
+| serial number | generated from MAC address |
+
+If a display is available, the full hostname is displayed in the interface's "About" tab.
 
 Use either ssh or a monitor and keyboard to log into the Pi
 ```bash
-$ ssh tek@tekafp-0
+$ ssh tek@tek-afp-deadbeef
 ```
 
-Run the setup script (production)
-
-```bash
-$ /boot/firmware/tek-afp-setup
-```
-
-or (development)
-```bash
-$ /boot/firmware/tek-afp-setup -d
-```
-
-The script will ask to reboot. UART will not be enabled without a reboot.
-The user must at least be logged out and back in for development tools and USB access.
+A handful of development tools are installed by default, such as vim and picocom.
