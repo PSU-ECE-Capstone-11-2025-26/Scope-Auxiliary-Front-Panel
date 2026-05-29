@@ -2,7 +2,6 @@ import argparse
 import logging
 import socket
 import threading
-import time
 
 import pyvisa
 from pyvisa import VisaIOError
@@ -144,14 +143,12 @@ class TekAfp:
             self.bridge.close()
 
     def _sync_worker(self) -> None:
-        last_sync = time.monotonic()
-        sync_period_s = 0.05
-
-        while not self._stop_sync.is_set():
-            now = time.monotonic()
-            if self.synced_scope and now - last_sync > sync_period_s:
-                Action.sync(self.scopes[self.synced_scope])
-                last_sync = now
+        while not self._stop_sync.wait(timeout=0.05):
+            if self.synced_scope:
+                try:
+                    Action.sync(self.scopes[self.synced_scope])
+                except VisaIOError as e:
+                    logger.warning("Sync error: %s", e)
 
     @staticmethod
     def connect_uart(port: str, mock: bool = False) -> UARTBridge:
@@ -388,6 +385,7 @@ class TekAfp:
             scope.connected.register(
                 lambda _, v: self.bridge.queue_write(f"ISP_CON:{int(v)}\n".encode())
             ),
+            # FIXME: needs state and number
             scope.source_channel.register(
                 lambda _, v: self.bridge.queue_write(f"IVP1:{int(v)}\n".encode())
             ),
