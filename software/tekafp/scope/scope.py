@@ -27,7 +27,7 @@ class Scope:
     trigger_mode: ObservableVariable[TriggerMode]
     trigger_edge_slope: ObservableVariable[TriggerEdgeSlope]
     trigger_state: ObservableVariable[TriggerState]
-    run: ObservableVariable[RunState]
+    run: ObservableVariable[bool]
     zoom: ObservableVariable[bool]
     fast_acquire: ObservableVariable[bool]
 

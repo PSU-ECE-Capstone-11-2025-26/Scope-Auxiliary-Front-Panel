@@ -117,7 +117,7 @@ class MacroManager:
                 ch = Channel.from_label(step.channel)
                 return lambda scope, c=ch, e=step.enabled: Action.set_channel(scope, c, e)
             case "set_run_stop":
-                return lambda scope, s=step.mode: Action.set_run_stop(scope, s)
+                return lambda scope, s=step.enabled: Action.set_run_stop(scope, s)
             case "set_fast_acquire":
                 return lambda scope, e=step.enabled: Action.set_fast_acquire(scope, e)
             case "set_zoom":

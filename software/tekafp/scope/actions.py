@@ -57,9 +57,9 @@ class Action:
             scope.resource.write(f"DISPLAY:SELECT:SOURCE {highest.label}")
 
     @staticmethod
-    def get_run_state(scope: Scope) -> RunState:
+    def get_run_state(scope: Scope) -> bool:
         resp = parse_resp(scope.resource.query("ACQUIRE:STATE?"), str)
-        return RunState(resp)
+        return resp in ("ON", "1", "RUN", "START")
 
     @staticmethod
     def get_fast_acquire_state(scope: Scope) -> bool:
@@ -294,11 +294,11 @@ class Action:
 
     @staticmethod
     def toggle_run_stop(scope: Scope) -> None:
-        Action.set_run_stop(scope, ~scope.run.value)
+        Action.set_run_stop(scope, not scope.run.value)
 
     @staticmethod
-    def set_run_stop(scope: Scope, state: RunState) -> None:
-        scope.resource.write(f"ACQUIRE:STATE {state.value}")
+    def set_run_stop(scope: Scope, state: bool) -> None:
+        scope.resource.write(f"ACQUIRE:STATE {'RUN' if state else 'STOP'}")
 
     @staticmethod
     def run_autoset(scope: Scope) -> None:

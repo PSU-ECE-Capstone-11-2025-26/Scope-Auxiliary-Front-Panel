@@ -332,7 +332,9 @@ class TekAfp:
                 )
             case "AR0":
                 action = Action.toggle_run_stop
-                step = MacroStep("set_run_stop", mode=~self.scopes[self.synced_scope].run.value)
+                step = MacroStep(
+                    "set_run_stop", enabled=not self.scopes[self.synced_scope].run.value
+                )
             case "AF0":
                 action = Action.toggle_fast_acquire
                 step = MacroStep(
@@ -447,9 +449,7 @@ class TekAfp:
             scope.source_channel.register(
                 lambda _, v: self.bridge.queue_write(f"IVP1:{int(v)}\n".encode())
             ),
-            scope.run.register(
-                lambda _, v: self.bridge.queue_write(f"IAR0:{v.int_value}\n".encode())
-            ),
+            scope.run.register(lambda _, v: self.bridge.queue_write(f"IAR0:{int(v)}\n".encode())),
             # note that for MATH or BUS number is None, so this would send ITL:None. However,
             # in practice the trigger should always be a numbered channel
             scope.trigger_source.register(
