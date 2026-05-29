@@ -220,7 +220,7 @@ class TekAfp:
                     step = MacroStep(
                         "set_channel",
                         channel=ch.label,
-                        enabled=not self.scopes[self.synched_scope].source_channel.value == ch,
+                        enabled=self.scopes[self.synched_scope].source_channel.value != ch,
                     )
             case "VP1":
                 if detents := int(val):
@@ -394,6 +394,8 @@ class TekAfp:
             scope.run.register(
                 lambda _, v: self.bridge.queue_write(f"IAR0:{v.int_value}\n".encode())
             ),
+            # note that for MATH or BUS number is None, so this would send ITL:None. However,
+            # in practice the trigger should always be a numbered channel
             scope.trigger_source.register(
                 lambda _, v: self.bridge.queue_write(f"ITL1:{v.number}\n".encode())
             ),
@@ -433,9 +435,9 @@ class TekAfp:
         if ch.is_numbered:
             self.bridge.queue_write(f"IV{ch.number}0:{int(state.enabled)}\n".encode())
         elif ch == Channel.MATH:
-            self.bridge.queue_write(f"VM0:{int(state.enabled)}\n".encode())
+            self.bridge.queue_write(f"IVM0:{int(state.enabled)}\n".encode())
         elif ch == Channel.BUS:
-            self.bridge.queue_write(f"VB0:{int(state.enabled)}\n".encode())
+            self.bridge.queue_write(f"IVB0:{int(state.enabled)}\n".encode())
         else:
             logger.error(f"Unknown channel: {ch.label}")
 

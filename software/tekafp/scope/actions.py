@@ -276,7 +276,7 @@ class Action:
 
     @staticmethod
     def toggle_fast_acquire(scope: Scope) -> None:
-        Action.set_fast_acquire(not scope.fast_acquire.value)
+        Action.set_fast_acquire(scope, not scope.fast_acquire.value)
 
     @staticmethod
     def set_fast_acquire(scope: Scope, state: bool) -> None:
@@ -284,7 +284,7 @@ class Action:
 
     @staticmethod
     def toggle_run_stop(scope: Scope) -> None:
-        Action.set_run_stop(~scope.run.value)
+        Action.set_run_stop(scope, ~scope.run.value)
 
     @staticmethod
     def set_run_stop(scope: Scope, state: RunState) -> None:
