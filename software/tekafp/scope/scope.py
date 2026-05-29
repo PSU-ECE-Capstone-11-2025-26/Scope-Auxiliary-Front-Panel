@@ -38,7 +38,7 @@ class Scope:
         return cls(
             resource=resource,
             resource_name=resource.resource_name,
-            connected=True,
+            connected=ObservableVariable(False),
             idn=idn,
             channel_count=channel_count,
             channels={
