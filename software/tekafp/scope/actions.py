@@ -165,9 +165,9 @@ class Action:
             new_idx = int(clamp(nearest + detents, VERT_MIN_IDX, VERT_MAX_IDX))
             new = _scale_idx_to_val(VERT_MANTISSAS, new_idx)
 
-        scope.resource.write(f"CH{ch}:SCALE {new}")
+        scope.resource.write(f"{ch.label}:SCALE {new}")
         mode = "fine" if fine else "coarse"
-        logger.debug(f"CH{ch} vertical ({mode}): {cur:.3e} -> {new:.3e} V/div")
+        logger.debug(f"{ch.label} vertical ({mode}): {cur:.3e} -> {new:.3e} V/div")
 
     @staticmethod
     def adjust_horizontal_position(scope: Scope, detents: int) -> None:

@@ -453,7 +453,7 @@ class TekAfp:
             scope.connected.register(
                 lambda _, v: self.bridge.queue_write(f"ISP_CON:{int(v)}\n".encode())
             ),
-            # FIXME: needs state and number
+            # FIXME: source LEDs need channel number, but not yet compatible with MATH + BUS
             scope.source_channel.register(
                 lambda _, v: self.bridge.queue_write(f"IVP1:{int(v)}\n".encode())
             ),
