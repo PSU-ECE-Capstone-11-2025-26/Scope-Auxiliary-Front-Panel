@@ -82,7 +82,9 @@ class Action:
 
     @staticmethod
     def get_channel_state(scope: Scope, channel: Channel) -> bool:
-        resp = parse_resp(scope.resource.query(f"DISPLAY:GLOBAL:{channel.display_label}:STATE?"), str)
+        resp = parse_resp(
+            scope.resource.query(f"DISPLAY:GLOBAL:{channel.display_label}:STATE?"), str
+        )
         return resp not in ("OFF", "0")
 
     @staticmethod
@@ -117,8 +119,7 @@ class Action:
     @staticmethod
     def adjust_vertical_position(scope: Scope, detents: int) -> None:
         ch = scope.source_channel.value
-        if ch == Channel.NONE:
-            logger.debug("No active channel selected, ignoring vertical position.")
+        if ch == Channel.NONE or ch not in scope.channels:
             return
         cur = float(scope.resource.query(f"{ch.label}:POSITION?").strip().split()[-1])
 
@@ -131,7 +132,7 @@ class Action:
     @staticmethod
     def center_vertical_position(scope: Scope) -> None:
         ch = scope.source_channel.value
-        if ch == Channel.NONE:
+        if ch == Channel.NONE or ch not in scope.channels:
             return
 
         cur = float(scope.resource.query(f"{ch.label}:POSITION?").strip().split()[-1])
@@ -141,7 +142,7 @@ class Action:
     @staticmethod
     def adjust_vertical_scale(scope: Scope, detents: int, fine: bool = False) -> None:
         ch = scope.source_channel.value
-        if ch == Channel.NONE:
+        if ch == Channel.NONE or ch not in scope.channels:
             return
         cur = float(scope.resource.query(f"{ch.label}:SCALE?").strip().split()[-1])
 
@@ -233,7 +234,7 @@ class Action:
         # FIXME: the MSO has both A (primary) and B (delay) triggers for sequencing.
         # for now, default to A
         source = scope.trigger_source.value
-        if source == Channel.NONE:
+        if source == Channel.NONE or source not in scope.channels:
             return
         query = f"TRIGGER:{trigger}:LEVEL:{source.label}"
         cur: float = parse_resp(scope.resource.query(query + "?"), float)
@@ -305,10 +306,14 @@ class Action:
 
     @staticmethod
     def set_channel(scope: Scope, channel: Channel, state: bool) -> None:
+        if channel not in scope.channels:
+            return
         scope.resource.write(f"DISPLAY:GLOBAL:{channel.display_label}:STATE {int(state)}")
 
     @staticmethod
     def set_channel_display(scope: Scope, channel: Channel) -> None:
+        if channel not in scope.channels:
+            return
         last_state: bool = scope.channels[channel].value.enabled
 
         if scope.source_channel.value == channel:
