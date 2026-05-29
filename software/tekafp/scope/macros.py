@@ -58,6 +58,7 @@ class MacroManager:
 
         if self.recording_slot is not None and self.recording_slot != slot:
             logger.debug(f"Stopping slot {self.recording_slot} before recording slot {slot}")
+            self.macros[self.recording_slot] = self._record_buf
 
         self.recording_slot = slot
         self._record_buf = []
