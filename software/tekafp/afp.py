@@ -144,6 +144,7 @@ class TekAfp:
             for scope in self.scopes.values():
                 if scope:
                     scope.resource.close()
+            self._reset_leds()
             self.bridge.close()
 
     def _sync_worker(self) -> None:
@@ -190,6 +191,8 @@ class TekAfp:
         self.scopes[resource_name] = scope
         logger.info("Connected ctrl: %s, channels=%d", scope.idn, scope.channel_count)
         scope.connected.value = True
+        if self.synced_scope is None:
+            self.set_synced_scope(resource_name)
         send_packet_data(
             ScopeInfoPacketData(
                 resource_name=resource_name, idn=scope.idn, channel_count=scope.channel_count
@@ -205,8 +208,9 @@ class TekAfp:
         if old is None:
             return
 
-        old.connected.value = False
-        if resource_name == self.synced_scope:
+        was_synced = resource_name == self.synced_scope
+        if was_synced:
+            self._reset_leds()
             self._unregister_led_callbacks(old)
         try:
             old.resource.close()
@@ -225,8 +229,8 @@ class TekAfp:
                 scope = Scope.connect(resource)
                 self.scopes[resource_name] = scope
                 scope.connected.value = True
-                if resource_name == self.synced_scope:
-                    self._register_led_callbacks(scope)
+                if was_synced:
+                    self.set_synced_scope(resource_name)
                 logger.info("Reconnected to %s", resource_name)
                 return
             except (VisaIOError, ValueError) as e:
@@ -234,7 +238,7 @@ class TekAfp:
 
         logger.error("Reconnect attempts failed for %s", resource_name)
         self.scopes.pop(resource_name, None)
-        if self.synced_scope == resource_name:
+        if was_synced:
             self.synced_scope = None
         send_packet_data(
             ErrorPacketData(
@@ -396,6 +400,10 @@ class TekAfp:
                                     del self.scopes[data.resource_name]
                                 else:
                                     c = self.scopes.pop(data.resource_name)
+                                    if data.resource_name == self.synced_scope:
+                                        self.synced_scope = None
+                                        self._unregister_led_callbacks(c)
+                                        self._reset_leds()
                                     c.resource.close()
                         case "list":
                             if self._mock:
@@ -434,11 +442,11 @@ class TekAfp:
 
     def set_synced_scope(self, resource_name: str) -> None:
         if self.synced_scope is not None:
+            self._reset_leds()
             self._unregister_led_callbacks(self.scopes[self.synced_scope])
         self.synced_scope = resource_name
         self._register_led_callbacks(self.scopes[self.synced_scope])
-        # TODO: force sync
-        #  read current .value of each and write LED state
+        self._force_leds()
 
     def _register_led_callbacks(self, scope: Scope) -> None:
         self._led_tokens = [
@@ -486,6 +494,44 @@ class TekAfp:
         for ch, token in self._channel_led_tokens.items():
             scope.channels[ch].unregister(token)
         self._channel_led_tokens = {}
+
+    @staticmethod
+    def _force_leds(scope: Scope) -> None:
+        scope.connected.fire_callbacks()
+        scope.source_channel.fire_callbacks()
+        scope.run.fire_callbacks()
+        scope.trigger_source.fire_callbacks()
+        scope.trigger_mode.fire_callbacks()
+        scope.trigger_edge_slope.fire_callbacks()
+        scope.trigger_state.fire_callbacks()
+        scope.zoom.fire_callbacks()
+        scope.fast_acquire.fire_callbacks()
+        for obs in scope.channels.values():
+            obs.fire_callbacks()
+
+    def _reset_leds(self) -> None:
+        # TODO: it would be nice to have a uart command that turns them all off for us
+        leds = [
+            "ISP_CON",
+            "IAR0",
+            "IVP1",
+            "ITL1",
+            "ITM0_A",
+            "ITM0_N",
+            "ITS0_UP",
+            "ITS0_DN",
+            "ITF0_R",
+            "ITF0_T",
+            "IHZ0",
+            "IAF0",
+            "IVM0",
+            "IVB0",
+        ] + [f"IV{n}0" for n in range(1, 9)]
+        for led in leds:
+            self._set_led(led, 0)
+
+    def _set_led(self, label: str, value: int) -> None:
+        self.bridge.queue_write(f"{label}:{value}\n".encode())
 
     def _cb_channel(self, ch: Channel, state: ChannelState) -> None:
         if ch.is_numbered:

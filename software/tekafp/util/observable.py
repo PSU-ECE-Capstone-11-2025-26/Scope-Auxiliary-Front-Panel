@@ -20,6 +20,11 @@ class ObservableVariable[T]:
         with self._lock:
             self._callbacks.pop(token, None)
 
+    def fire_callbacks(self) -> None:
+        with self._lock:
+            for cb in self._callbacks.values():
+                cb(self._value, self._value)
+
     def clear_callbacks(self) -> None:
         with self._lock:
             self._callbacks.clear()
