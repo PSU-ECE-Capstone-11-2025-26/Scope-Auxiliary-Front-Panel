@@ -52,7 +52,10 @@ class Action:
             actual = Action.get_channel_state(scope, ch)
             obs.value = ChannelState(enabled=actual)
 
-        if not scope.channels[scope.source_channel.value].value.enabled:
+        if (
+            scope.source_channel == Channel.NONE
+            or not scope.channels[scope.source_channel.value].value.enabled
+        ):
             highest = Action._get_highest_enabled_channel(scope)
             scope.resource.write(f"DISPLAY:SELECT:SOURCE {highest.label}")
 
