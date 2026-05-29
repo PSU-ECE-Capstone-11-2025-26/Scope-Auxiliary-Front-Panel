@@ -499,14 +499,12 @@ class TekAfp:
 
     def _cb_trigger_state(self, _: TriggerState, state: TriggerState) -> None:
         match state:
-            case "READY" | "AUTO":
+            case TriggerState.READY | TriggerState.AUTO | TriggerState.ARMED:
                 ready = 1
                 trig = 0
-            case "TRIGGER":
+            case TriggerState.TRIGGERED | TriggerState.SAVE:
                 ready = 0
                 trig = 1
-            case _:
-                ready = trig = 0
         self.bridge.write_sync(f"ITF0_R:{ready}\n".encode())
         self.bridge.write_sync(f"ITF0_T:{trig}\n".encode())
 

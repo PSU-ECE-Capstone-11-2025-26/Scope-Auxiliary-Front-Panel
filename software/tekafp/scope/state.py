@@ -4,8 +4,10 @@ from typing import Optional
 
 
 class TriggerState(StrEnum):
+    ARMED = "ARMED"
     READY = "READY"
     AUTO = "AUTO"
+    SAVE = "SAVE"
     TRIGGERED = "TRIGGER"
 
 
