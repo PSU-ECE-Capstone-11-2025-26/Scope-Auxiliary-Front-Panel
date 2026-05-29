@@ -106,15 +106,15 @@ class Action:
 
     @staticmethod
     def get_trigger_slope(scope: Scope) -> TriggerEdgeSlope:
-        return parse_resp(scope.resource.query("TRIGGER:A:EDGE:SLOPE?"), str)
+        return TriggerEdgeSlope(parse_resp(scope.resource.query("TRIGGER:A:EDGE:SLOPE?"), str))
 
     @staticmethod
     def get_trigger_mode(scope: Scope) -> TriggerMode:
-        return parse_resp(scope.resource.query("TRIGGER:A:MODE?"), str)
+        return TriggerMode(parse_resp(scope.resource.query("TRIGGER:A:MODE?"), str))
 
     @staticmethod
     def get_trigger_state(scope: Scope) -> TriggerState:
-        return parse_resp(scope.resource.query("TRIGGER:STATE?"), str)
+        return TriggerState(parse_resp(scope.resource.query("TRIGGER:STATE?"), str))
 
     @staticmethod
     def adjust_vertical_position(scope: Scope, detents: int) -> None:
