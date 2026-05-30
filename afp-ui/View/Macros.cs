@@ -31,7 +31,6 @@ public partial class Macros : MarginContainer
 			b.GetPopup().IdPressed += (menuId) => ShortcutOnPressed(id, menuId);
 			_shortcutContainer.AddChild(b);
 		}
-		UpdateMacros([true, false, false, false]);
 	}
 
 	private void TimerOnTimeout()
