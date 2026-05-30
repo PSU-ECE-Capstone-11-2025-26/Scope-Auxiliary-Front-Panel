@@ -158,5 +158,7 @@ class MacroManager:
                 return Action.run_autoset
             case "set_touch_enabled":
                 return Action.set_touch_enabled
+            case "set_acquire_state":
+                return lambda scope, s=step.mode: Action.set_acquire_mode(scope, s)
             case _:
                 return None

@@ -340,6 +340,13 @@ class TekAfp:
                 if detents := int(val):
                     action = lambda scope, d=detents: Action.adjust_pan(scope, d)
                     step = MacroStep("adjust_pan", detents=detents)
+            case "AH0":
+                if int(val) == 1:
+                    action = Action.toggle_high_res
+                    step = MacroStep(
+                        "set_acquire_state",
+                        mode="SAMPLE" if self.scopes[self.synced_scope].high_res.value else "HIRES",
+                    )
         if action:
             for scope in self.scopes.values():
                 if scope.connected.value:
@@ -454,6 +461,9 @@ class TekAfp:
             scope.touch_enabled.register(
                 lambda _, v: self.bridge.queue_write(f"IT_OFF:{int(not v)}\n".encode())
             ),
+            scope.high_res.register(
+                lambda _, v: self.bridge.queue_write(f"IAH0:{int(v)}\n".encode())
+            ),
         ]
         self._channel_led_tokens = {
             ch: obs.register(lambda _, v, ch=ch: self._cb_channel(ch, v))
@@ -472,6 +482,7 @@ class TekAfp:
             scope.zoom,
             scope.fast_acquire,
             scope.touch_enabled,
+            scope.high_res,
         ]
         for var, token in zip(tokens_per_var, self._led_tokens, strict=True):
             var.unregister(token)
@@ -492,6 +503,7 @@ class TekAfp:
         scope.zoom.fire_callbacks()
         scope.fast_acquire.fire_callbacks()
         scope.touch_enabled.fire_callbacks()
+        scope.high_res.fire_callbacks()
         for obs in scope.channels.values():
             obs.fire_callbacks()
 
@@ -513,6 +525,7 @@ class TekAfp:
             "IT_OFF",
             "IVM0",
             "IVB0",
+            "IAH0",
         ] + [f"IV{n}0" for n in range(1, 9)]
         for led in leds:
             self._set_led(led, 0)

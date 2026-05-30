@@ -46,6 +46,7 @@ class Action:
         scope.zoom.value = Action.get_zoom_state(scope)
         scope.fast_acquire.value = Action.get_fast_acquire_state(scope)
         scope.touch_enabled.value = Action.get_touch_state(scope)
+        scope.high_res.value = Action.get_high_res_state(scope)
 
     @staticmethod
     def sync_all_channels(scope: Scope) -> None:
@@ -316,6 +317,19 @@ class Action:
     @staticmethod
     def set_touch_enabled(scope: Scope, state: bool) -> None:
         scope.resource.write(f"TOUCHSCREEN:STATE {int(state)}")
+
+    @staticmethod
+    def get_high_res_state(scope: Scope) -> bool:
+        resp: str = parse_resp(scope.resource.query("ACQUIRE:MODE?"), str)
+        return resp.endswith("HIRES")
+
+    @staticmethod
+    def toggle_high_res(scope: Scope) -> None:
+        Action.set_acquire_mode(scope, "SAMPLE" if scope.high_res.value else "HIRES")
+
+    @staticmethod
+    def set_acquire_mode(scope: Scope, state: str) -> None:
+        scope.resource.write(f"ACQUIRE:MODE {state}")
 
     @staticmethod
     def run_autoset(scope: Scope) -> None:

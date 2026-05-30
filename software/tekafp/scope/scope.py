@@ -3,13 +3,7 @@ from dataclasses import dataclass
 from pyvisa.resources import MessageBasedResource
 from util import parse_channel_count
 
-from tekafp.scope.state import (
-    Channel,
-    ChannelState,
-    TriggerEdgeSlope,
-    TriggerMode,
-    TriggerState,
-)
+from tekafp.scope.state import Channel, ChannelState, TriggerEdgeSlope, TriggerMode, TriggerState
 from tekafp.util.observable import ObservableVariable
 
 
@@ -30,6 +24,7 @@ class Scope:
     zoom: ObservableVariable[bool]
     fast_acquire: ObservableVariable[bool]
     touch_enabled: ObservableVariable[bool]
+    high_res: ObservableVariable[bool]
 
     @classmethod
     def connect(cls, resource: MessageBasedResource) -> "Scope":
@@ -58,4 +53,5 @@ class Scope:
             trigger_state=ObservableVariable(TriggerState.TRIGGERED),
             trigger_source=ObservableVariable(Channel.NONE),
             touch_enabled=ObservableVariable(True),
+            high_res=ObservableVariable(False),
         )
