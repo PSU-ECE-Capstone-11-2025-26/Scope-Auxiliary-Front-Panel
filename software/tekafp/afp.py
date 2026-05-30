@@ -499,27 +499,7 @@ class TekAfp:
             obs.fire_callbacks()
 
     def _reset_leds(self) -> None:
-        # TODO: it would be nice to have a uart command that turns them all off for us
-        leds = [
-            "ISP_CON",
-            "IAR0",
-            "IVP1",
-            "ITL1",
-            "ITM0_A",
-            "ITM0_N",
-            "ITS0_UP",
-            "ITS0_DN",
-            "ITF0_R",
-            "ITF0_T",
-            "IHZ0",
-            "IAF0",
-            "IT_OFF",
-            "IVM0",
-            "IVB0",
-            "IAH0",
-        ] + [f"IV{n}0" for n in range(1, 9)]
-        for led in leds:
-            self._set_led(led, 0)
+        self.bridge.queue_write("ALL_OFF".encode())
 
     def _set_led(self, label: str, value: int) -> None:
         self.bridge.queue_write(f"{label}:{value}\n".encode())
