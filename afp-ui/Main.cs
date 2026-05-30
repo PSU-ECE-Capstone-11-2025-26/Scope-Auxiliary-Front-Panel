@@ -21,7 +21,6 @@ public partial class Main : Control
     public override void _Ready()
     {
 	    Global.Instance.Toast = GetNode<Control>("Toast");
-	    Global.Instance.LoadConfig();
 
 	    _homeView = GetNode<Home>("ViewManager/Home");
 	    _scopesView = GetNode<Scopes>("ViewManager/Scopes");
@@ -77,11 +76,7 @@ public partial class Main : Control
 				    Global.Logger.Log(LogLevel.Debug, $"scope specs: ChannelCount={si.ChannelCount}");
 				    break;
 			    case MacroStatePacketData ms:
-				    for (ushort i = 0; i < ms.Macros.Length; i++)
-				    {
-					    _macroView.GetMacro(i)
-						    .SetState(ms.Macros[i] ? MacroControl.State.Saved : MacroControl.State.Empty);
-				    }
+				    _macroView.UpdateMacros(ms.Macros);
 
 				    break;
 			    case LogMessagePacketData lm:

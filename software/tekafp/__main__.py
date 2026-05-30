@@ -23,12 +23,12 @@ from tekafp.api_server import (
 from tekafp.api_server.error import APIError
 from tekafp.api_server.packets import (
     ErrorPacketData,
-    MacroRecordPacketData,
     MacroStatePacketData,
+    MacroActionPacketData,
     PacketData,
     ScopeActionPacketData,
     ScopeInfoPacketData,
-    ScopeListPacketData,
+    ScopeListPacketData, MacroAction,
 )
 from tekafp.input import Input
 from tekafp.uart import MockUARTBridge, UARTBridge
@@ -744,6 +744,13 @@ class MacroManager:
         )
         self.send_macro_state()
 
+    def delete_macro(self, slot: int) -> None:
+        if not self._valid_slot(slot):
+            print(f"[MACRO] Invalid slot {slot}")
+            return
+        self.macros[slot] = []
+        self.send_macro_state()
+
     def handle_uart_input(self, raw: bytes, inp: Input, ctrl: Controller) -> None:
         msg_id = str(inp.id)
 
@@ -962,11 +969,15 @@ def main() -> None:
                                 )
                         case _:
                             logger.error(f"Unknown action: {a}")
-                case MacroRecordPacketData():
-                    if data.record:
-                        macro_manager.start_recording(data.slot)
+                case MacroActionPacketData(action=a, slot=slot):
+                    if a == MacroAction.RECORD:
+                        macro_manager.start_recording(slot)
+                    elif a == MacroAction.SAVE:
+                        macro_manager.stop_recording(slot)
+                    elif a == MacroAction.DELETE:
+                        macro_manager.delete_macro(slot)
                     else:
-                        macro_manager.stop_recording(data.slot)
+                        logger.error("Unknown MacroAction: %s", a)
                 case _:
                     logger.error(f"Unknown or incorrect packet type {data.type}")
 

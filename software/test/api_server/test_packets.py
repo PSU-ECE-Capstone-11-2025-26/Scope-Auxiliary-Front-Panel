@@ -1,7 +1,7 @@
 import pytest
 
 from tekafp.api_server.packets import (
-    MacroRecordPacketData,
+    MacroActionPacketData,
     MacroStatePacketData,
     PacketData,
     ScopeActionPacketData,
@@ -12,7 +12,7 @@ from tekafp.api_server.packets import (
 
 
 SAMPLE_DATA = [
-    (MacroRecordPacketData, {"type": "MacroRecord", "record": True, "slot": 2}),
+    (MacroActionPacketData, {"type": "MacroRecord", "record": True, "slot": 2}),
     (MacroStatePacketData, {"type": "MacroState", "macros": [True, False, True, False]}),
     (ScopeActionPacketData, {"type": "ScopeAction", "action": "enable", "scope": "USB0::::::::INSTR"}),
     (ScopeInfoPacketData, {"type": "ScopeInfo", "channel_count": 8}),
