@@ -355,6 +355,18 @@ class TekAfp:
                         "set_acquire_state",
                         mode="SAMPLE" if self.scopes[self.synced_scope].high_res.value else "HIRES",
                     )
+            case "HL0":
+                action = lambda scope, d="PREV": Action.navigate(scope, d)
+                step = MacroStep(
+                    "navigate",
+                    mode="PREV",
+                )
+            case "HR0":
+                action = lambda scope, d="NEXT": Action.navigate(scope, d)
+                step = MacroStep(
+                    "navigate",
+                    mode="NEXT",
+                )
         if action:
             for scope in self.scopes.values():
                 if scope.connected.value:

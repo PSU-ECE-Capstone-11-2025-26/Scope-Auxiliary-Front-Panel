@@ -160,5 +160,7 @@ class MacroManager:
                 return Action.set_touch_enabled
             case "set_acquire_state":
                 return lambda scope, s=step.mode: Action.set_acquire_mode(scope, s)
+            case "navigate":
+                return lambda scope, d=step.mode: Action.navigate(scope, d)
             case _:
                 return None

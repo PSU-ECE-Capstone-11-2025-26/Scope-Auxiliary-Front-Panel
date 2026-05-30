@@ -336,6 +336,12 @@ class Action:
         scope.resource.write("AUTOSET EXECUTE")
 
     @staticmethod
+    def navigate(scope: Scope, direction: str) -> None:
+        if not scope.run.value:
+            current_search: str = parse_resp(scope.resource.query("SEARCH:SELECTED?"), str)
+            scope.resource.write(f"SEARCH:{current_search}:NAVIGATE {direction}")
+
+    @staticmethod
     def set_channel(scope: Scope, channel: Channel, state: bool) -> None:
         if channel not in scope.channels:
             return
