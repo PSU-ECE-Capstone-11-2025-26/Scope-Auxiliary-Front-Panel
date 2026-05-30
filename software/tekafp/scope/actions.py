@@ -336,6 +336,10 @@ class Action:
         scope.resource.write("AUTOSET EXECUTE")
 
     @staticmethod
+    def run_default_setup(scope: Scope) -> None:
+        scope.resource.write("*RST")
+
+    @staticmethod
     def clear(scope: Scope) -> None:
         scope.resource.write("CLEAR")
 

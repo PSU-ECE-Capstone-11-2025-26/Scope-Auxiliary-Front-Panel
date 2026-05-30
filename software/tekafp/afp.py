@@ -348,6 +348,9 @@ class TekAfp:
             case "XA0":
                 action = Action.run_autoset
                 step = MacroStep("run_autoset")
+            case "XD0":
+                action = Action.run_default_setup
+                step = MacroStep("run_default_setup")
             case "XT0":
                 action = Action.toggle_touch_enabled
                 step = MacroStep(

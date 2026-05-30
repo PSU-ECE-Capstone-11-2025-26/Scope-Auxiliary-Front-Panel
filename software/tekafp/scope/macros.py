@@ -168,5 +168,7 @@ class MacroManager:
                 )
             case "clear":
                 return Action.clear
+            case "default_setup":
+                return Action.run_default_setup
             case _:
                 return None
