@@ -242,24 +242,24 @@ class Controller:
                 self.bridge.write_sync(msg)
                 logger.debug(f"[UART->PICO] {msg.decode().strip()}")
 
+    @staticmethod
+    def _sel_led_id(channel: Channel) -> str:
+        """Translate channel to selected source LED ID"""
+        if channel is Channel.MATH:
+            return "ISEL_M"
+        if channel is Channel.BUS:
+            return "ISEL_B"
+        return f"ISEL{channel.number}"
+
     def send_selected_channel_leds(self) -> None:
-        # Two RGB LEDs used to show the active selected channel:
-        # VP1_RGB and VS1_RGB should always match the selected channel color
-
-        r, g, b = self.CHANNEL_COLORS.get(self._source_channel, (0, 0, 0))
-
-        msgs = [
-            f"IVP1_R:{r}\n".encode("utf-8"),
-            f"IVP1_G:{g}\n".encode("utf-8"),
-            f"IVP1_B:{b}\n".encode("utf-8"),
-            f"IVS1_R:{r}\n".encode("utf-8"),
-            f"IVS1_G:{g}\n".encode("utf-8"),
-            f"IVS1_B:{b}\n".encode("utf-8"),
-        ]
-
-        for msg in msgs:
-            self.bridge.write_sync(msg)
-            logger.debug(f"[UART->PICO] {msg.decode().strip()}")
+        # ISEL indicators override each other, so one message suffices: the selected
+        # source on, or any id with value 0 to clear it when nothing is selected.
+        if self._source_channel is Channel.NONE:
+            msg = b"ISEL1:0\n"
+        else:
+            msg = f"{self._sel_led_id(self._source_channel)}:1\n".encode()
+        self.bridge.write_sync(msg)
+        logger.debug(f"[UART->PICO] {msg.decode().strip()}")
 
     def get_scope_selected_source(self) -> Channel:
         resp = parse_resp(self.scope.query("DISPLAY:SELECT:SOURCE?"), str)

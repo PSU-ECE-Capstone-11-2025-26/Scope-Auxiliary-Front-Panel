@@ -101,3 +101,31 @@ def test_present_instance_reads_global_state(
     )
 
     assert ctrl.get_scope_channel_state(channel) is True
+
+
+@pytest.mark.parametrize(
+    ("channel", "sel_id"),
+    [(Channel.CH2, "ISEL2"), (Channel.MATH, "ISEL_M"), (Channel.BUS, "ISEL_B")],
+)
+def test_selected_led_sends_only_selected(channel: Channel, sel_id: str) -> None:
+    ctrl = make_controller()
+    bridge = ctrl.bridge
+
+    bridge.writes.clear()
+    ctrl._source_channel = channel
+    ctrl.send_selected_channel_leds()
+
+    # ISEL indicators override each other, so only the selected source is emitted.
+    sent = [m.decode().strip() if isinstance(m, bytes) else m.strip() for m in bridge.writes]
+    assert sent == [f"{sel_id}:1"]
+
+
+def test_selected_led_clears_when_none() -> None:
+    ctrl = make_controller()
+    ctrl.bridge.writes.clear()
+    ctrl._source_channel = Channel.NONE
+    ctrl.send_selected_channel_leds()
+
+    # Any ISEL id with value 0 clears the shared indicator.
+    sent = [m.decode().strip() if isinstance(m, bytes) else m.strip() for m in ctrl.bridge.writes]
+    assert sent == ["ISEL1:0"]
