@@ -500,7 +500,7 @@ class Controller:
 
     # Run the scope's Default Setup feature
     def default_setup(self) -> None:
-        self.scope.write("FPANEL:PRESS DEFAULTSETUP")
+        self.scope.write("*RST")
         logger.debug("Default Setup executed")
 
     # Toggle the scope's Fast Acquire state
