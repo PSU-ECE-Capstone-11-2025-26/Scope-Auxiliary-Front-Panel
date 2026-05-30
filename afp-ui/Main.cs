@@ -66,9 +66,24 @@ public partial class Main : Control
 			    }
 			    case ScopeInfoPacketData si:
 				    _homeView.UpdateScope(si.ResourceName, si.Idn, si.ChannelCount);
-				    Global.Instance.Config.LastUsedScopes[0] = si.ResourceName;
+				    List<string> lastUsed = Global.Instance.Config.LastUsedScopes;
+				    if (lastUsed.Count > 0)
+				    {
+					    lastUsed[0] = si.ResourceName;
+				    }
+				    else
+				    {
+					    lastUsed.Add(si.ResourceName);
+				    }
 				    Global.Instance.SaveConfig(true);
-				    ScopeInstance scope = _scopes[si.ResourceName];
+				    if (!_scopes.TryGetValue(si.ResourceName, out ScopeInstance scope))
+				    {
+					    // ScopeInfo can arrive for a scope the UI didn't enable itself
+					    // (e.g. tekafp started with --auto), so create the instance here.
+					    scope = new ScopeInstance(si.ResourceName, null, ScopeConnectionState.Connecting, 0);
+					    _scopes[si.ResourceName] = scope;
+					    _homeView.AddScope(si.ResourceName);
+				    }
 				    scope.Idn = si.Idn;
 				    scope.ChannelCount = si.ChannelCount;
 				    scope.ConnectionState = ScopeConnectionState.Connected;
