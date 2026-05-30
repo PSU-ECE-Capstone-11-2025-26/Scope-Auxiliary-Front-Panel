@@ -1,15 +1,41 @@
 [gd_scene format=3 uid="uid://c3ee4oh0nfdpk"]
 
-[ext_resource type="PackedScene" uid="uid://dlmt3vjqlb5lq" path="res://Components/macro_control.tscn" id="1_f05bi"]
 [ext_resource type="Script" uid="uid://vyslp04kigm8" path="res://View/Macros.cs" id="1_q2jmu"]
+[ext_resource type="Texture2D" uid="uid://dsyxvaqs00mxj" path="res://icons/AutoKey.svg" id="2_q2jmu"]
 
-[node name="Macros" type="CenterContainer" unique_id=1685422252]
-offset_right = 550.0
-offset_bottom = 200.0
+[node name="Macros" type="MarginContainer" unique_id=849394296 node_paths=PackedStringArray("_shortcutContainer", "_recordButton")]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_right = 10
 script = ExtResource("1_q2jmu")
-_macroControlScene = ExtResource("1_f05bi")
+_macroIcon = ExtResource("2_q2jmu")
+_shortcutContainer = NodePath("VBoxContainer/ShortcutContainer")
+_recordButton = NodePath("VBoxContainer/Button")
 
-[node name="MacroContainer" type="HBoxContainer" parent="." unique_id=1876527727]
+[node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=911623594]
 layout_mode = 2
-theme_override_constants/separation = 8
+alignment = 1
+
+[node name="ShortcutContainer" type="HBoxContainer" parent="VBoxContainer" unique_id=811584537]
+layout_mode = 2
+theme_override_constants/separation = 20
+alignment = 1
+
+[node name="HSeparator" type="HSeparator" parent="VBoxContainer" unique_id=1039590229]
+layout_mode = 2
+theme_override_constants/separation = 50
+
+[node name="Button" type="Button" parent="VBoxContainer" unique_id=1752070289]
+visible = false
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "Stop Recording"
+
+[node name="RecordTimer" type="Timer" parent="." unique_id=1203776117]
+wait_time = 30.0

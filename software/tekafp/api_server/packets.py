@@ -12,6 +12,12 @@ class LogMessageLevel(IntEnum):
     DEBUG = 3
 
 
+class MacroAction(IntEnum):
+    RECORD = 0
+    SAVE = 1
+    DELETE = 2
+
+
 class RawPacket(TypedDict):
     origin: str
     data: list[dict]
@@ -56,8 +62,8 @@ class LogMessagePacketData(PacketData):
 
 
 @dataclass
-class MacroRecordPacketData(PacketData):
-    record: bool
+class MacroActionPacketData(PacketData):
+    action: MacroAction
     slot: int
 
 
