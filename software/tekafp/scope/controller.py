@@ -424,6 +424,9 @@ class Controller:
     def autoset(self) -> None:
         self.scope.write("AUTOSET EXECUTE")
 
+    def default_setup(self) -> None:
+        self.scope.write("*RST")
+
     # Toggle the scope's Fast Acquire state
     def toggle_fast_acquire(self) -> None:
         current = self.get_scope_fast_acquire_state()
@@ -575,3 +578,6 @@ class Controller:
                     )
                     new: float = clamp(cur + val * 2, 0.0, 100.0)
                     self.scope.write(f"DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:HORIZONTAL:POSITION {new}")
+            case "XD0":
+                if int(val) == 1:
+                    self.default_setup()
