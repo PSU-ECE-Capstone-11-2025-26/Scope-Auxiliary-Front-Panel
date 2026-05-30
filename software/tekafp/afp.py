@@ -33,6 +33,7 @@ from tekafp.scope.macros import MacroManager, MacroStep
 from tekafp.scope.scope import Scope
 from tekafp.scope.state import Channel, ChannelState, TriggerEdgeSlope, TriggerMode, TriggerState
 from tekafp.uart import MockUARTBridge, UARTBridge
+from tekafp.util.observable import ObservableVariable
 
 
 logger = logging.getLogger(__name__)
@@ -54,6 +55,8 @@ class TekAfp:
     MAX_RECONNECT_ATTEMPTS = 3
     RECONNECT_DELAY_S = 2.0
     SYNC_DELAY_S = 0.1
+    GP_FINE_SCALE = 20
+    GP_COARSE_SCALE = 100
 
     def __init__(self) -> None:
         self._uart_port: str = DEFAULT_PORT
@@ -66,6 +69,8 @@ class TekAfp:
         self.synced_scope: str = None
         self.macro_manager: MacroManager = None
         self._fine_mode: bool = False
+        self._gp_a_fine_mode: ObservableVariable[bool] = ObservableVariable(False)
+        self._gp_b_fine_mode: ObservableVariable[bool] = ObservableVariable(False)
         self._hostname: str = socket.gethostname()
         self._led_tokens: list[int] = []
         self._channel_led_tokens: dict[Channel, int] = {}
@@ -96,6 +101,12 @@ class TekAfp:
         self.bridge = self.connect_uart(self._uart_port, self._mock)
         _start_api()
         self.macro_manager = MacroManager()
+        self._gp_a_fine_mode.register(
+            lambda _, v: self._set_led("IKA0", int(self._gp_a_fine_mode.value))
+        )
+        self._gp_b_fine_mode.register(
+            lambda _, v: self._set_led("IKB0", int(self._gp_b_fine_mode.value))
+        )
 
         if self._auto_connect:
             self.auto_connect()
@@ -357,16 +368,25 @@ class TekAfp:
                     )
             case "HL0":
                 action = lambda scope, d="PREV": Action.navigate(scope, d)
-                step = MacroStep(
-                    "navigate",
-                    mode="PREV",
-                )
+                step = MacroStep("navigate", mode="PREV")
             case "HR0":
                 action = lambda scope, d="NEXT": Action.navigate(scope, d)
-                step = MacroStep(
-                    "navigate",
-                    mode="NEXT",
-                )
+                step = MacroStep("navigate", mode="NEXT")
+            case "KA0":
+                self._gp_a_fine_mode.value = not self._gp_a_fine_mode.value
+            case "KA1":
+                mult = self.GP_FINE_SCALE if self._gp_a_fine_mode.value else self.GP_COARSE_SCALE
+                detents = mult * int(val)
+                action = lambda scope, what="GPKNOB1", d=detents: Action.fpanel_turn(scope, what, d)
+                step = MacroStep("fpanel_turn", mode="GPKNOB1", detents=detents)
+            case "KB0":
+                self._gp_b_fine_mode.value = not self._gp_b_fine_mode.value
+            case "KB1":
+                mult = self.GP_FINE_SCALE if self._gp_b_fine_mode.value else self.GP_COARSE_SCALE
+                detents = mult * int(val)
+                action = lambda scope, what="GPKNOB2", d=detents: Action.fpanel_turn(scope, what, d)
+                step = MacroStep("fpanel_turn", mode="GPKNOB2", detents=detents)
+
         if action:
             for scope in self.scopes.values():
                 if scope.connected.value:

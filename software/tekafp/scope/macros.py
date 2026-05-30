@@ -162,5 +162,9 @@ class MacroManager:
                 return lambda scope, s=step.mode: Action.set_acquire_mode(scope, s)
             case "navigate":
                 return lambda scope, d=step.mode: Action.navigate(scope, d)
+            case "fpanel_turn":
+                return lambda scope, what=step.mode, d=step.detents: Action.fpanel_turn(
+                    scope, what, d
+                )
             case _:
                 return None

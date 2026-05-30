@@ -342,6 +342,10 @@ class Action:
             scope.resource.write(f"SEARCH:{current_search}:NAVIGATE {direction}")
 
     @staticmethod
+    def fpanel_turn(scope: Scope, what: str, value: int) -> None:
+        scope.resource.write(f"FPANEL:TURN {what}, {value}")
+
+    @staticmethod
     def set_channel(scope: Scope, channel: Channel, state: bool) -> None:
         if channel not in scope.channels:
             return
