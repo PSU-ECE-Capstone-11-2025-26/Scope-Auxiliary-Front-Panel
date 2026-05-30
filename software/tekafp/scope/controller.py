@@ -426,9 +426,6 @@ class Controller:
     def autoset(self) -> None:
         self.scope.write("AUTOSET EXECUTE")
 
-    def clear(self) -> None:
-        self.scope.write("CLEAR")
-
     def default_setup(self) -> None:
         self.scope.write("*RST")
 
@@ -631,6 +628,3 @@ class Controller:
             case "AH0":
                 if int(val) == 1:
                     self.toggle_high_res()
-            case "AX0":
-                if int(val) == 1:
-                    self.clear()
