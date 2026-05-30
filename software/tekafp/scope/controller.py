@@ -118,6 +118,21 @@ class Controller:
         self._touch_state: bool = False
         self._high_res: bool = False
 
+    def _math_bus_exists(self, channel: Channel) -> bool:
+        """Whether any MATH/BUS instance is defined on the scope.
+
+        MATH/BUS can only be enabled/selected once they exist.
+        """
+        kind = "MATH" if channel is Channel.MATH else "BUS"
+        resp = self.scope.query(f"{kind}:LIST?").strip().strip('"')
+        return bool(resp) and resp.upper() != "NONE"
+
+    def _create_math_bus(self, channel: Channel) -> None:
+        """Create instance 1 of a MATH/BUS that doesn't exist yet."""
+        kind = "MATH" if channel is Channel.MATH else "BUS"
+        self.scope.write(f'{kind}:ADDNew "{kind}1"')
+        logger.debug(f"Created {kind}1")
+
     @property
     def highest_enabled_channel(self) -> Channel:
         highest = Channel.NONE
@@ -139,6 +154,9 @@ class Controller:
         return int(m.group(1))
 
     def get_scope_channel_state(self, channel: Channel) -> bool:
+        # MATH/BUS report a state only once an instance exists; treat absent as off.
+        if channel in (Channel.MATH, Channel.BUS) and not self._math_bus_exists(channel):
+            return False
         resp = parse_resp(self.scope.query(f"DISPLAY:GLOBAL:{channel.display_label}:STATE?"), str)
         return resp not in ("OFF", "0")
 
@@ -261,6 +279,15 @@ class Controller:
     def set_channel_display(self, channel: Channel) -> None:
         if channel not in self._channels.keys():
             return
+
+        # MATH/BUS can only be enabled if an instance exists; create one on first use.
+        if (
+            channel in (Channel.MATH, Channel.BUS)
+            and not self._channels[channel]
+            and not self._math_bus_exists(channel)
+        ):
+            self._create_math_bus(channel)
+
         last_state: bool = self._channels[channel]
 
         if self._source_channel == channel:
