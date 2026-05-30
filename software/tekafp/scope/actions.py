@@ -53,7 +53,7 @@ class Action:
             obs.value = ChannelState(enabled=actual)
 
         if (
-            scope.source_channel == Channel.NONE
+            scope.source_channel.value == Channel.NONE
             or not scope.channels[scope.source_channel.value].value.enabled
         ):
             highest = Action._get_highest_enabled_channel(scope)
