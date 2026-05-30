@@ -68,7 +68,7 @@ class TekAfp:
         self.scopes: dict[str, Scope] = {}
         self.synced_scope: str = None
         self.macro_manager: MacroManager = None
-        self._fine_mode: bool = False
+        self._fine_mode: ObservableVariable[bool] = ObservableVariable(False)
         self._gp_a_fine_mode: ObservableVariable[bool] = ObservableVariable(False)
         self._gp_b_fine_mode: ObservableVariable[bool] = ObservableVariable(False)
         self._hostname: str = socket.gethostname()
@@ -101,6 +101,9 @@ class TekAfp:
         self.bridge = self.connect_uart(self._uart_port, self._mock)
         _start_api()
         self.macro_manager = MacroManager()
+        self._fine_mode.register(
+            lambda _, v: self._set_led("IVS0", int(self._fine_mode.value))
+        )
         self._gp_a_fine_mode.register(
             lambda _, v: self._set_led("IKA0", int(self._gp_a_fine_mode.value))
         )
@@ -291,10 +294,10 @@ class TekAfp:
             case "VS1":
                 if detents := int(val):
                     action = lambda scope, d=detents: Action.adjust_vertical_scale(
-                        scope, -d, self._fine_mode
+                        scope, -d, self._fine_mode.value
                     )
                     step = MacroStep(
-                        "adjust_vertical_scale", detents=-detents, fine=self._fine_mode
+                        "adjust_vertical_scale", detents=-detents, fine=self._fine_mode.value
                     )
             case "HS1":
                 if detents := int(val):
@@ -303,9 +306,9 @@ class TekAfp:
             case "VS0":
                 # toggle fine mode for vertical scale encoder
                 if int(val) == 1:
-                    self._fine_mode = not self._fine_mode
+                    self._fine_mode.value = not self._fine_mode.value
                     logger.debug(
-                        f"Vertical scale fine mode -> {'ON' if self._fine_mode else 'OFF'}"
+                        f"Vertical scale fine mode -> {'ON' if self._fine_mode.value else 'OFF'}"
                     )
             case "TL1":
                 if detents := int(val):
