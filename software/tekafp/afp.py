@@ -236,8 +236,7 @@ class TekAfp:
                                 )
                         case _:
                             logger.error(f"Unknown action: {a}")
-                case MacroRecordPacketData(action=a, slot=slot):
-                    pass
+                case MacroActionPacketData(action=a, slot=slot):
                     if a == MacroAction.RECORD:
                         self.macro_manager.start_recording(slot)
                     elif a == MacroAction.SAVE:
