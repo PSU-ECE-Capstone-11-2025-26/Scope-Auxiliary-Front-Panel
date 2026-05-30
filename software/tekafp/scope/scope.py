@@ -6,7 +6,6 @@ from util import parse_channel_count
 from tekafp.scope.state import (
     Channel,
     ChannelState,
-    RunState,
     TriggerEdgeSlope,
     TriggerMode,
     TriggerState,
@@ -50,7 +49,7 @@ class Scope:
                 Channel.BUS: ObservableVariable(ChannelState()),
             },
             source_channel=ObservableVariable(Channel.NONE),
-            run=ObservableVariable(RunState.RUN),
+            run=ObservableVariable(True),
             fast_acquire=ObservableVariable(False),
             zoom=ObservableVariable(False),
             trigger_mode=ObservableVariable(TriggerMode.AUTO),

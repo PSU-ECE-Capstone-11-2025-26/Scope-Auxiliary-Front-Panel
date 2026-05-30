@@ -17,7 +17,7 @@ from .constants import (
     ZOOM_MIN_IDX,
 )
 from .scope import Scope
-from .state import Channel, ChannelState, RunState, TriggerEdgeSlope, TriggerMode, TriggerState
+from .state import Channel, ChannelState, TriggerEdgeSlope, TriggerMode, TriggerState
 
 
 logger = logging.getLogger(__name__)
