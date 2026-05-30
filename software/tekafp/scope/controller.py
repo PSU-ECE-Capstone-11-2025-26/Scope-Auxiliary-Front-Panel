@@ -727,10 +727,10 @@ class Controller:
                 if int(val) == 1:
                     self.clear()
             case "HL0":
-                if self._run_state:
+                if not self._run_state:
                     self.navigate_prev()
             case "HR0":
-                if self._run_state:
+                if not self._run_state:
                     self.navigate_next()
             case "KA0":
                 if int(val) == 1:
