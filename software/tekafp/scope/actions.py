@@ -336,6 +336,10 @@ class Action:
         scope.resource.write("AUTOSET EXECUTE")
 
     @staticmethod
+    def clear(scope: Scope) -> None:
+        scope.resource.write("CLEAR")
+
+    @staticmethod
     def navigate(scope: Scope, direction: str) -> None:
         if not scope.run.value:
             current_search: str = parse_resp(scope.resource.query("SEARCH:SELECTED?"), str)

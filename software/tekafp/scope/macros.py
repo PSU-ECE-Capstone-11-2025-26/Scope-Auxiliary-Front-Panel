@@ -166,5 +166,7 @@ class MacroManager:
                 return lambda scope, what=step.mode, d=step.detents: Action.fpanel_turn(
                     scope, what, d
                 )
+            case "clear":
+                return Action.clear
             case _:
                 return None

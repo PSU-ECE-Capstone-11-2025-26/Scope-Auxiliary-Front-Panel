@@ -342,6 +342,9 @@ class TekAfp:
                     "set_fast_acquire",
                     enabled=not self.scopes[self.synced_scope].fast_acquire.value,
                 )
+            case "AX0":
+                action = Action.clear
+                step = MacroStep("clear")
             case "XA0":
                 action = Action.run_autoset
                 step = MacroStep("run_autoset")
