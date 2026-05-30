@@ -8,6 +8,8 @@ from pyvisa.resources import MessageBasedResource
 
 from tekafp.input import Input
 from tekafp.scope.constants import (
+    GP_KNOB_COARSE_SCALE,
+    GP_KNOB_FINE_SCALE,
     HORIZ_MANTISSAS,
     HORIZ_MAX_IDX,
     HORIZ_MIN_IDX,
@@ -108,6 +110,8 @@ class Controller:
         } | {Channel.MATH: False, Channel.BUS: False}
         self._source_channel: Channel = Channel.NONE
         self._vert_fine: bool = False  # fine mode toggle for vertical scale
+        self._gp_a_fine: bool = False
+        self._gp_b_fine: bool = False
         self._fast_acquire: bool = False
         self._run_state: bool = False
         self._zoom: bool = False
@@ -701,9 +705,19 @@ class Controller:
             case "HR0":
                 if self._run_state:
                     self.navigate_next()
+            case "KA0":
+                if int(val) == 1:
+                    self._gp_a_fine = not self._gp_a_fine
+                    self.bridge.queue_write(f"IKA0:{int(self._gp_a_fine)}\n".encode())
             case "KA1":
                 if detents := int(val):
-                    self.scope.write(f"FPANEL:TURN GPKNOB1, {detents}")
+                    mult = GP_KNOB_FINE_SCALE if self._gp_a_fine else GP_KNOB_COARSE_SCALE
+                    self.scope.write(f"FPANEL:TURN GPKNOB1, {mult * detents}")
+            case "KB0":
+                if int(val) == 1:
+                    self._gp_b_fine = not self._gp_b_fine
+                    self.bridge.queue_write(f"IKB0:{int(self._gp_b_fine)}\n".encode())
             case "KB1":
                 if detents := int(val):
-                    self.scope.write(f"FPANEL:TURN GPKNOB2, {detents}")
+                    mult = GP_KNOB_FINE_SCALE if self._gp_a_fine else GP_KNOB_COARSE_SCALE
+                    self.scope.write(f"FPANEL:TURN GPKNOB2, {mult * detents}")
