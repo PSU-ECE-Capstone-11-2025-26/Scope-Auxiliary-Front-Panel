@@ -54,6 +54,7 @@ class Controller:
         self._run_state: bool = False
         self._zoom: bool = False
         self._touch_state: bool = False
+        self._high_res: bool = False
 
     def sync_zoom(self) -> None:
         resp: str = parse_resp(self.scope.query("DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:STATE?"), str)
@@ -494,7 +495,25 @@ class Controller:
         self.scope.write(f"TOUCHSCREEN:STATE {int(not new)}")
         self._touch_state = not new
 
-    # UART event handler
+    def get_high_res(self) -> bool:
+        resp: str = parse_resp(self.scope.query("ACQUIRE:MODE?"), str)
+        return resp.endswith("HIRES")
+
+    def send_high_res_led(self, state: bool) -> None:
+        self.bridge.queue_write(f"IAH0:{int(state)}\n".encode())
+
+    def sync_high_res(self, force: bool = False) -> None:
+        actual = self.get_high_res()
+        if force or self._high_res != actual:
+            self._high_res = actual
+            self.send_high_res_led(actual)
+
+    def toggle_high_res(self) -> None:
+        new = not self.get_high_res()
+        self.scope.write(f"ACQUIRE:MODE {'HIRES' if new else 'SAMPLE'}")
+        self._high_res = new
+        self.send_high_res_led(new)
+
     def handle_input(self, inp: Input) -> None:
         """
         inp.id is expected to be strings like:
@@ -606,3 +625,6 @@ class Controller:
             case "XT0":
                 if int(val) == 1:
                     self.toggle_touch_off()
+            case "AH0":
+                if int(val) == 1:
+                    self.toggle_high_res()
