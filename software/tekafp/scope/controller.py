@@ -567,7 +567,9 @@ class Controller:
             case "VS0":
                 if int(val) == 1:
                     self._vert_fine = not self._vert_fine
-                    logger.debug(f"Vertical scale fine mode -> {'ON' if self._vert_fine else 'OFF'}")
+                    logger.debug(
+                        f"Vertical scale fine mode -> {'ON' if self._vert_fine else 'OFF'}"
+                    )
 
             # Trigger level encoder
             case "TL1":
