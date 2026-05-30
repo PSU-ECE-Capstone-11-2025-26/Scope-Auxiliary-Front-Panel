@@ -335,4 +335,3 @@ class Action:
         new_value: bool = scope.channels[channel].value.enabled
         new_source: str = scope.source_channel.value.label
         logger.debug(f"{channel.label} display -> {new_value} (source={new_source})")
-        Action.sync_all_channels(scope)
