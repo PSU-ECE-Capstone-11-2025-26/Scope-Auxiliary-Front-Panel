@@ -127,6 +127,7 @@ public partial class WebSocketClient : Node
 				case WebSocketPeer.State.Open:
 					Global.Logger.Log(LogLevel.Debug, "WebSocket: connected");
 					_connectionAttemptTime = 0;
+					_connectionAttempts = 0;
 					EmitSignal(SignalName.Connected);
 					QueuePacketData(new HandshakePacketData
 					{
