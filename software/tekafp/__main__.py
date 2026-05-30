@@ -691,7 +691,6 @@ class Controller:
                 self.default_setup()
             return
 
-
 class MacroManager:
     NUM_SLOTS = 4
 
