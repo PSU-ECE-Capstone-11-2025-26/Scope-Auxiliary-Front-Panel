@@ -600,10 +600,12 @@ class Controller:
         self.send_high_res_led(new)
 
     def navigate_prev(self) -> None:
-        self.scope.write("SEARCH:SEARCH1:NAVIGATE:PREV")
+        current_search: str = parse_resp(self.scope.query("SEARCH:SELECTED?"), str)
+        self.scope.write(f"SEARCH:{current_search}:NAVIGATE PREV")
 
     def navigate_next(self) -> None:
-        self.scope.write("SEARCH:SEARCH1:NAVIGATE:NEXT")
+        current_search: str = parse_resp(self.scope.query("SEARCH:SELECTED?"), str)
+        self.scope.write(f"SEARCH:{current_search}:NAVIGATE NEXT")
 
     def handle_input(self, inp: Input) -> None:
         """
