@@ -88,7 +88,7 @@ public partial class WebSocketClient : Node
 		_sendQueue.Enqueue(data);
 	}
 
-	public void SendPacket(PacketContainer packet)
+	private void SendPacket(PacketContainer packet)
 	{
 		if (_socket.GetReadyState() != WebSocketPeer.State.Open)
 		{
