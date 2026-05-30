@@ -53,6 +53,7 @@ class Controller:
         self._fast_acquire: bool = False
         self._run_state: bool = False
         self._zoom: bool = False
+        self._touch_state: bool = False
 
     def sync_zoom(self) -> None:
         resp: str = parse_resp(self.scope.query("DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:STATE?"), str)
@@ -473,6 +474,26 @@ class Controller:
             self.send_run_stop_led(actual)
             logger.debug(f"Run/Stop -> {actual}")
 
+    def get_touch_off_state(self) -> bool:
+        resp = parse_resp(self.scope.query("TOUCHSCREEN:STATE?"), str)
+        touch_enabled = resp in ("OFF", "0")
+        return touch_enabled
+
+    def send_touch_off_led(self, state: bool) -> None:
+        # Touch Off LED should be ON when touchscreen is disabled
+        self.bridge.queue_write(f"IT_OFF:{int(not state)}\n".encode())
+
+    def sync_touch_off(self, force: bool = False) -> None:
+        actual = self.get_touch_off_state()
+        if force or self._touch_state != actual:
+            self._touch_state = actual
+            self.send_touch_off_led(actual)
+
+    def toggle_touch_off(self) -> None:
+        new = self.get_touch_off_state()
+        self.scope.write(f"TOUCHSCREEN:STATE {int(not new)}")
+        self._touch_state = not new
+
     # UART event handler
     def handle_input(self, inp: Input) -> None:
         """
@@ -524,7 +545,9 @@ class Controller:
             case "VS0":
                 if int(val) == 1:
                     self._vert_fine = not self._vert_fine
-                    logger.debug(f"Vertical scale fine mode -> {'ON' if self._vert_fine else 'OFF'}")
+                    logger.debug(
+                        f"Vertical scale fine mode -> {'ON' if self._vert_fine else 'OFF'}"
+                    )
 
             # Trigger level encoder
             case "TL1":
@@ -573,11 +596,13 @@ class Controller:
             case "HX1":
                 if self._zoom:
                     cur: float = parse_resp(
-                        self.scope.query("DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:HORIZONTAL:POSITION?"),
-                        float,
+                        self.scope.query("DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:HORIZONTAL:POSITION?"), float
                     )
                     new: float = clamp(cur + val * 2, 0.0, 100.0)
                     self.scope.write(f"DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:HORIZONTAL:POSITION {new}")
             case "XD0":
                 if int(val) == 1:
                     self.default_setup()
+            case "XT0":
+                if int(val) == 1:
+                    self.toggle_touch_off()

@@ -131,6 +131,8 @@ class TekAfp:
                     ctrl.sync_run_stop_from_scope()
                     ctrl.sync_trigger_state()
                     ctrl.sync_zoom()
+                    ctrl.sync_touch_off()
+                    ctrl.sync_high_res()
                     last_sync = now
 
         except KeyboardInterrupt:
