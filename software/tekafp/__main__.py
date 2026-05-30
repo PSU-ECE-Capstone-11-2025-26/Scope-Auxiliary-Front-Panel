@@ -112,6 +112,8 @@ class Controller:
         self._fast_acquire: bool = False
         self._run_state: bool = False
         self._zoom: bool = False
+        self._high_res: bool = False
+        self._touch_off: bool = False
 
     def sync_zoom(self) -> None:
         resp: str = parse_resp(
@@ -550,6 +552,66 @@ class Controller:
             self.send_run_stop_led(actual)
             logger.debug(f"Run/Stop -> {actual}")
 
+    def get_scope_high_res_state(self) -> bool:
+        resp = self.scope.query("ACQUIRE:MODE?").strip().upper()
+        return resp.endswith("HIRES")
+
+    def send_high_res_led(self, state: bool) -> None:
+        msg = f"IAH0:{int(state)}\n".encode("utf-8")
+        self.bridge.write_sync(msg)
+        logger.debug(f"[UART->PICO] {msg.decode().strip()}")
+
+    def sync_high_res_from_scope(self, force: bool = False) -> None:
+        actual = self.get_scope_high_res_state()
+
+        if force or self._high_res != actual:
+            self._high_res = actual
+            self.send_high_res_led(actual)
+            logger.debug(f"High Res -> {actual}")
+
+    def toggle_high_res(self) -> None:
+        current = self.get_scope_high_res_state()
+        new_state = not current
+
+        self.scope.write(f"ACQUIRE:MODE {'HIRES' if new_state else 'SAMPLE'}")
+
+        self._high_res = new_state
+        self.send_high_res_led(new_state)
+
+        logger.debug(f"High Res -> {'ON' if new_state else 'OFF'}")
+        
+    def get_scope_touch_off_state(self) -> bool:
+        # TOUCHSCREEN:STATE 1/ON means touch is enabled,
+        # so Touch Off LED should be ON when touchscreen is disabled.
+        resp = self.scope.query("TOUCHSCREEN:STATE?").strip().upper()
+        touch_enabled = resp.endswith("1") or resp.endswith("ON")
+        return not touch_enabled
+
+    def send_touch_off_led(self, state: bool) -> None:
+        msg = f"IT_OFF:{int(state)}\n".encode("utf-8")
+        self.bridge.write_sync(msg)
+        logger.debug(f"[UART->PICO] {msg.decode().strip()}")
+
+    def sync_touch_off_from_scope(self, force: bool = False) -> None:
+        actual = self.get_scope_touch_off_state()
+
+        if force or self._touch_off != actual:
+            self._touch_off = actual
+            self.send_touch_off_led(actual)
+            logger.debug(f"Touch Off -> {actual}")
+
+    def toggle_touch_off(self) -> None:
+        current = self.get_scope_touch_off_state()
+        new_touch_off = not current
+
+        # Touch Off ON means touchscreen disabled
+        self.scope.write(f"TOUCHSCREEN:STATE {int(not new_touch_off)}")
+
+        self._touch_off = new_touch_off
+        self.send_touch_off_led(new_touch_off)
+
+        logger.debug(f"Touch Off -> {'ON' if new_touch_off else 'OFF'}")
+
     # UART event handler
     def handle_input(self, inp: Input) -> None:
         """
@@ -688,6 +750,16 @@ class Controller:
         if msg_id == "AX0":
             if int(val) == 1:
                 self.clear()
+                
+        # High Res button
+        if msg_id == "AH0":
+            if int(val) == 1:
+                self.toggle_high_res()
+                
+        # Touch Off button
+        if msg_id == "XT0":
+            if int(val) == 1:
+                self.toggle_touch_off()
             return
 
 class MacroManager:
@@ -1028,6 +1100,8 @@ def main() -> None:
                 ctrl.sync_run_stop_from_scope()
                 ctrl.sync_trigger_state()
                 ctrl.sync_zoom()
+                ctrl.sync_high_res_from_scope()
+                ctrl.sync_touch_off_from_scope()
                 last_sync = now
 
     except KeyboardInterrupt:
