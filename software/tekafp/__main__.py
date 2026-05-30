@@ -112,6 +112,7 @@ class Controller:
         self._fast_acquire: bool = False
         self._run_state: bool = False
         self._zoom: bool = False
+        self._high_res: bool = False
 
     def sync_zoom(self) -> None:
         resp: str = parse_resp(
@@ -546,6 +547,34 @@ class Controller:
             self.send_run_stop_led(actual)
             logger.debug(f"Run/Stop -> {actual}")
 
+    def get_scope_high_res_state(self) -> bool:
+        resp = self.scope.query("ACQUIRE:MODE?").strip().upper()
+        return resp.endswith("HIRES")
+
+    def send_high_res_led(self, state: bool) -> None:
+        msg = f"IAH0:{int(state)}\n".encode("utf-8")
+        self.bridge.write_sync(msg)
+        logger.debug(f"[UART->PICO] {msg.decode().strip()}")
+
+    def sync_high_res_from_scope(self, force: bool = False) -> None:
+        actual = self.get_scope_high_res_state()
+
+        if force or self._high_res != actual:
+            self._high_res = actual
+            self.send_high_res_led(actual)
+            logger.debug(f"High Res -> {actual}")
+
+    def toggle_high_res(self) -> None:
+        current = self.get_scope_high_res_state()
+        new_state = not current
+
+        self.scope.write(f"ACQUIRE:MODE {'HIRES' if new_state else 'SAMPLE'}")
+
+        self._high_res = new_state
+        self.send_high_res_led(new_state)
+
+        logger.debug(f"High Res -> {'ON' if new_state else 'OFF'}")
+
     # UART event handler
     def handle_input(self, inp: Input) -> None:
         """
@@ -680,6 +709,11 @@ class Controller:
             self.scope.write(f"DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:HORIZONTAL:POSITION {new}")
             return
 
+        # High Res button
+        if msg_id == "AH0":
+            if int(val) == 1:
+                self.toggle_high_res()
+            return
 
 class MacroManager:
     NUM_SLOTS = 4
@@ -1019,6 +1053,7 @@ def main() -> None:
                 ctrl.sync_run_stop_from_scope()
                 ctrl.sync_trigger_state()
                 ctrl.sync_zoom()
+                ctrl.sync_high_res_from_scope()
                 last_sync = now
 
     except KeyboardInterrupt:
