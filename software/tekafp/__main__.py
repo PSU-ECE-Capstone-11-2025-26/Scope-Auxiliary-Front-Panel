@@ -499,7 +499,7 @@ class Controller:
         self.scope.write("AUTOSET EXECUTE")
 
     def clear(self) -> None:
-        self.scope.write("FPANEL:PRESS CLEAR")
+        self.scope.write("CLEAR")
         logger.debug("Clear executed")
 
     # Toggle the scope's Fast Acquire state
