@@ -498,6 +498,10 @@ class Controller:
     def autoset(self) -> None:
         self.scope.write("AUTOSET EXECUTE")
 
+    def clear(self) -> None:
+        self.scope.write("FPANEL:PRESS CLEAR")
+        logger.debug("Clear executed")
+
     # Toggle the scope's Fast Acquire state
     def toggle_fast_acquire(self) -> None:
         current = self.get_scope_fast_acquire_state()
@@ -680,6 +684,11 @@ class Controller:
             self.scope.write(f"DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:HORIZONTAL:POSITION {new}")
             return
 
+        # Clear button
+        if msg_id == "AX0":
+            if int(val) == 1:
+                self.clear()
+            return
 
 class MacroManager:
     NUM_SLOTS = 4
