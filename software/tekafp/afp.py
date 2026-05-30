@@ -2,6 +2,7 @@ import argparse
 import logging
 import socket
 import threading
+import time
 
 import pyvisa
 from pyvisa import VisaIOError
@@ -68,8 +69,6 @@ class TekAfp:
         self._hostname: str = socket.gethostname()
         self._led_tokens: list[int] = []
         self._channel_led_tokens: dict[Channel, int] = {}
-        self._sync_thread = threading.Thread(target=self._sync_worker)
-        self._stop_sync = threading.Event()
 
     def _parse_args(self) -> None:
         parser = argparse.ArgumentParser()
@@ -100,61 +99,42 @@ class TekAfp:
 
         if self._auto_connect:
             self.auto_connect()
-        self._sync_thread.start()
 
     def run(self) -> None:
+        last_sync = 0.0
         try:
             while True:
-                raw = self.bridge.get()
+                raw = self.bridge.get(timeout=0.01)
                 if not self._mock and self.synced_scope and raw:
                     try:
                         inp = Input.from_bytes(raw)
                     except (ValueError, IndexError) as e:
                         logger.error(f"Bad UART message {raw!r}: {e}")
-                        continue
-                    self._handle_input(inp)
+                    else:
+                        self._handle_input(inp)
 
                 new_packet = get_raw_packet()
                 if new_packet:
                     self._handle_packet(new_packet)
 
                 now = time.monotonic()
-                if (
-                    not self._mock
-                    and self.scopes
-                    and now - last_sync > sync_period_s
-                    and now - last_input > 0.05
-                ):
-                    ctrl = list(self.scopes.values())[0]
-                    ctrl.sync_selected_source_from_scope()
-                    ctrl.sync_fast_acquire_from_scope()
-                    ctrl.sync_run_stop_from_scope()
-                    ctrl.sync_trigger_state()
-                    ctrl.sync_zoom()
-                    ctrl.sync_touch_off()
-                    ctrl.sync_high_res()
+                if self.synced_scope and now - last_sync >= self.SYNC_DELAY_S:
                     last_sync = now
+                    try:
+                        Action.sync(self.scopes[self.synced_scope])
+                    except VisaIOError as e:
+                        logger.warning("Sync error: %s", e)
+                        self._handle_scope_disconnect(self.synced_scope)
 
         except KeyboardInterrupt:
             logger.info("\nTEK AFP stopping...\n")
         finally:
             logger.info("Closing connections...")
-            self._stop_sync.set()
-            self._sync_thread.join()
             for scope in self.scopes.values():
                 if scope:
                     scope.resource.close()
             self._reset_leds()
             self.bridge.close()
-
-    def _sync_worker(self) -> None:
-        while not self._stop_sync.wait(timeout=self.SYNC_DELAY_S):
-            if self.synced_scope:
-                try:
-                    Action.sync(self.scopes[self.synced_scope])
-                except VisaIOError as e:
-                    logger.warning("Sync error: %s", e)
-                    self._handle_scope_disconnect(self.synced_scope)
 
     @staticmethod
     def connect_uart(port: str, mock: bool = False) -> UARTBridge:
@@ -200,10 +180,7 @@ class TekAfp:
         )
 
     def _handle_scope_disconnect(self, resource_name: str) -> None:
-        """Attempt to reconnect to a scope.
-
-        It is assumed this is only called from the sync worker thread, to avoid race conditions.
-        """
+        """Attempt to reconnect to a scope."""
         old = self.scopes.get(resource_name)
         if old is None:
             return
@@ -221,9 +198,7 @@ class TekAfp:
             logger.info(
                 "Reconnect (attempt %d/%d) %s", attempt, self.MAX_RECONNECT_ATTEMPTS, resource_name
             )
-            self._stop_sync.wait(timeout=self.RECONNECT_DELAY_S)
-            if self._stop_sync.is_set():
-                return  # exiting, so don't bother
+            time.sleep(self.RECONNECT_DELAY_S)
             try:
                 resource = self._connect(resource_name)
                 scope = Scope.connect(resource)
