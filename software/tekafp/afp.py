@@ -438,32 +438,23 @@ class TekAfp:
 
     def _register_led_callbacks(self, scope: Scope) -> None:
         self._led_tokens = [
-            scope.connected.register(
-                lambda _, v: self.bridge.queue_write(f"ISP_CON:{int(v)}\n".encode())
-            ),
-            # FIXME: source LEDs need channel number, but not yet compatible with MATH + BUS
-            scope.source_channel.register(
-                lambda _, v: self.bridge.queue_write(f"IVP1:{int(v)}\n".encode())
-            ),
-            scope.run.register(lambda _, v: self.bridge.queue_write(f"IAR0:{int(v)}\n".encode())),
+            scope.connected.register(lambda _, v: self._set_led("ISP_CON", int(v))),
+            scope.source_channel.register(self._cb_source_channel),
+            scope.run.register(lambda _, v: self._set_led("IAR0", int(v))),
             # note that for MATH or BUS number is None, so this would send ITL:None. However,
             # in practice the trigger should always be a numbered channel
             scope.trigger_source.register(
-                lambda _, v: self.bridge.queue_write(f"ITL1:{v.number}\n".encode())
+                lambda _, v: self._set_led(
+                    f"ITL1_C{1 if v == Channel.NONE else v.number}", 0 if v == Channel.NONE else 1
+                )
             ),
             scope.trigger_mode.register(self._cb_trigger_mode),
             scope.trigger_edge_slope.register(self._cb_trigger_slope),
             scope.trigger_state.register(self._cb_trigger_state),
-            scope.zoom.register(lambda _, v: self.bridge.queue_write(f"IHZ0:{int(v)}\n".encode())),
-            scope.fast_acquire.register(
-                lambda _, v: self.bridge.queue_write(f"IAF0:{int(v)}\n".encode())
-            ),
-            scope.touch_enabled.register(
-                lambda _, v: self.bridge.queue_write(f"IT_OFF:{int(not v)}\n".encode())
-            ),
-            scope.high_res.register(
-                lambda _, v: self.bridge.queue_write(f"IAH0:{int(v)}\n".encode())
-            ),
+            scope.zoom.register(lambda _, v: self._set_led("IHZ0", int(v))),
+            scope.fast_acquire.register(lambda _, v: self._set_led("IAF0", int(v))),
+            scope.touch_enabled.register(lambda _, v: self._set_led("IT_OFF", int(not v))),
+            scope.high_res.register(lambda _, v: self._set_led("IAH0", int(v))),
         ]
         self._channel_led_tokens = {
             ch: obs.register(lambda _, v, ch=ch: self._cb_channel(ch, v))
@@ -533,13 +524,27 @@ class TekAfp:
     def _set_led(self, label: str, value: int) -> None:
         self.bridge.queue_write(f"{label}:{value}\n".encode())
 
+    def _cb_source_channel(self, _: Channel, channel: Channel) -> None:
+        if channel == Channel.NONE:
+            self._set_led("ISEL1", 0)
+        else:
+            self._set_led(self._sel_led_id(channel), 1)
+
+    @staticmethod
+    def _sel_led_id(channel: Channel) -> str:
+        if channel is Channel.MATH:
+            return "ISEL_M"
+        if channel is Channel.BUS:
+            return "ISEL_B"
+        return f"ISEL{channel.number}"
+
     def _cb_channel(self, ch: Channel, state: ChannelState) -> None:
         if ch.is_numbered:
-            self.bridge.queue_write(f"IV{ch.number}0:{int(state.enabled)}\n".encode())
+            self._set_led(f"IV{ch.number}0", int(state.enabled))
         elif ch == Channel.MATH:
-            self.bridge.queue_write(f"IVM0:{int(state.enabled)}\n".encode())
+            self._set_led("IVM0", int(state.enabled))
         elif ch == Channel.BUS:
-            self.bridge.queue_write(f"IVB0:{int(state.enabled)}\n".encode())
+            self._set_led("IVB0", int(state.enabled))
         else:
             logger.error(f"Unknown channel: {ch.label}")
 
@@ -551,8 +556,8 @@ class TekAfp:
             case TriggerState.TRIGGERED | TriggerState.SAVE:
                 ready = 0
                 trig = 1
-        self.bridge.write_sync(f"ITF0_R:{ready}\n".encode())
-        self.bridge.write_sync(f"ITF0_T:{trig}\n".encode())
+        self._set_led("ITF0_R", ready)
+        self._set_led("ITF0_T", trig)
 
     def _cb_trigger_slope(self, _: TriggerEdgeSlope, slope: TriggerEdgeSlope) -> None:
         match slope:
@@ -566,13 +571,13 @@ class TekAfp:
                 rise = fall = 1
             case _:
                 raise AssertionError("Invalid trigger slope. Something is wrong!")
-        self.bridge.queue_write(f"ITS0_UP:{rise}\n".encode())
-        self.bridge.queue_write(f"ITS0_DN:{fall}\n".encode())
+        self._set_led("ITS0_UP", rise)
+        self._set_led("ITS0_DN", fall)
 
     def _cb_trigger_mode(self, _: TriggerMode, mode: TriggerMode) -> None:
         a = mode == TriggerMode.AUTO
-        self.bridge.queue_write(f"ITM0_A:{int(a)}\n".encode())
-        self.bridge.queue_write(f"ITM0_N:{int(not a)}\n".encode())
+        self._set_led("ITM0_A", int(a))
+        self._set_led("ITM0_N", int(not a))
 
     def auto_connect(self) -> None:
         resources = self._rm.list_resources("(USB?*::INSTR|TCPIP?*::INSTR)")
