@@ -498,6 +498,11 @@ class Controller:
     def autoset(self) -> None:
         self.scope.write("AUTOSET EXECUTE")
 
+    # Run the scope's Default Setup feature
+    def default_setup(self) -> None:
+        self.scope.write("FPANEL:PRESS DEFAULTSETUP")
+        logger.debug("Default Setup executed")
+
     # Toggle the scope's Fast Acquire state
     def toggle_fast_acquire(self) -> None:
         current = self.get_scope_fast_acquire_state()
@@ -678,6 +683,12 @@ class Controller:
             # TODO: how many percent to change for each detent?
             new: float = clamp(cur + val * 2, 0.0, 100.0)
             self.scope.write(f"DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:HORIZONTAL:POSITION {new}")
+            return
+
+        # Default Setup button
+        if msg_id == "XD0":
+            if int(val) == 1:
+                self.default_setup()
             return
 
 
