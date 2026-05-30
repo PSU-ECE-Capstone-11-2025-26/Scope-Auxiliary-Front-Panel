@@ -246,13 +246,21 @@ class TekAfp:
                 return
             # Channel Selection: 'V10' -> ch 1, 'V80' -> ch 8
             case "V10" | "V20" | "V30" | "V40" | "V50" | "V60" | "V70" | "V80":
-                if ch := Channel.from_number(int(msg_id[1])):
-                    action = lambda scope, ch=ch: Action.set_channel_display(scope, ch)
-                    step = MacroStep(
-                        "set_channel",
-                        channel=ch.label,
-                        enabled=self.scopes[self.synced_scope].source_channel.value != ch,
-                    )
+                ch = Channel.from_number(int(msg_id[1]))
+                action = lambda scope, ch=ch: Action.set_channel_display(scope, ch)
+                step = MacroStep(
+                    "set_channel",
+                    channel=ch.label,
+                    enabled=self.scopes[self.synced_scope].source_channel.value != ch,
+                )
+            case "VM0" | "VB0":
+                ch = Channel.MATH if msg_id == "VM0" else Channel.BUS
+                action = lambda scope, ch=ch: Action.set_channel_display(scope, ch)
+                step = MacroStep(
+                    "set_channel",
+                    channel=ch.label,
+                    enabled=self.scopes[self.synced_scope].source_channel.value != ch,
+                )
             case "VP1":
                 if detents := int(val):
                     action = lambda scope, d=detents: Action.adjust_vertical_position(scope, d)
