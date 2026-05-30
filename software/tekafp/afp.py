@@ -323,6 +323,12 @@ class TekAfp:
             case "XA0":
                 action = Action.run_autoset
                 step = MacroStep("run_autoset")
+            case "XT0":
+                action = Action.toggle_touch_enabled
+                step = MacroStep(
+                    "set_touch_enabled",
+                    enabled=not self.scopes[self.synced_scope].touch_enabled.value,
+                )
             case "HZ0":
                 action = Action.toggle_zoom
                 step = MacroStep("set_zoom", enabled=not self.scopes[self.synced_scope].zoom.value)
@@ -445,6 +451,9 @@ class TekAfp:
             scope.fast_acquire.register(
                 lambda _, v: self.bridge.queue_write(f"IAF0:{int(v)}\n".encode())
             ),
+            scope.touch_enabled.register(
+                lambda _, v: self.bridge.queue_write(f"IT_OFF:{int(not v)}\n".encode())
+            ),
         ]
         self._channel_led_tokens = {
             ch: obs.register(lambda _, v, ch=ch: self._cb_channel(ch, v))
@@ -462,6 +471,7 @@ class TekAfp:
             scope.trigger_state,
             scope.zoom,
             scope.fast_acquire,
+            scope.touch_enabled,
         ]
         for var, token in zip(tokens_per_var, self._led_tokens, strict=True):
             var.unregister(token)
@@ -481,6 +491,7 @@ class TekAfp:
         scope.trigger_state.fire_callbacks()
         scope.zoom.fire_callbacks()
         scope.fast_acquire.fire_callbacks()
+        scope.touch_enabled.fire_callbacks()
         for obs in scope.channels.values():
             obs.fire_callbacks()
 
@@ -499,6 +510,7 @@ class TekAfp:
             "ITF0_T",
             "IHZ0",
             "IAF0",
+            "IT_OFF",
             "IVM0",
             "IVB0",
         ] + [f"IV{n}0" for n in range(1, 9)]

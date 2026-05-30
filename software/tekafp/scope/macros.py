@@ -156,5 +156,7 @@ class MacroManager:
                 return Action.force_trigger
             case "run_autoset":
                 return Action.run_autoset
+            case "set_touch_enabled":
+                return Action.set_touch_enabled
             case _:
                 return None

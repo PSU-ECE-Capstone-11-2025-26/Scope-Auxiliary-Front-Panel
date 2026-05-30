@@ -29,6 +29,7 @@ class Scope:
     run: ObservableVariable[bool]
     zoom: ObservableVariable[bool]
     fast_acquire: ObservableVariable[bool]
+    touch_enabled: ObservableVariable[bool]
 
     @classmethod
     def connect(cls, resource: MessageBasedResource) -> "Scope":
@@ -56,4 +57,5 @@ class Scope:
             trigger_edge_slope=ObservableVariable(TriggerEdgeSlope.FALL),
             trigger_state=ObservableVariable(TriggerState.TRIGGERED),
             trigger_source=ObservableVariable(Channel.NONE),
+            touch_enabled=ObservableVariable(True),
         )

@@ -45,6 +45,7 @@ class Action:
         scope.run.value = Action.get_run_state(scope)
         scope.zoom.value = Action.get_zoom_state(scope)
         scope.fast_acquire.value = Action.get_fast_acquire_state(scope)
+        scope.touch_enabled.value = Action.get_touch_state(scope)
 
     @staticmethod
     def sync_all_channels(scope: Scope) -> None:
@@ -302,6 +303,19 @@ class Action:
     @staticmethod
     def set_run_stop(scope: Scope, state: bool) -> None:
         scope.resource.write(f"ACQUIRE:STATE {'RUN' if state else 'STOP'}")
+
+    @staticmethod
+    def get_touch_state(scope: Scope) -> bool:
+        resp = parse_resp(scope.resource.query("TOUCHSCREEN:STATE?"), str)
+        return resp not in ("OFF", "0")
+
+    @staticmethod
+    def toggle_touch_enabled(scope: Scope) -> None:
+        Action.set_touch_enabled(scope, not scope.touch_enabled.value)
+
+    @staticmethod
+    def set_touch_enabled(scope: Scope, state: bool) -> None:
+        scope.resource.write(f"TOUCHSCREEN:STATE {int(state)}")
 
     @staticmethod
     def run_autoset(scope: Scope) -> None:
