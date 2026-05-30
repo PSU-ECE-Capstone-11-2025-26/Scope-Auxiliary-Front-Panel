@@ -17,7 +17,7 @@ public partial class ScopeOption : HBoxContainer
 		_callback = on => EmitSignal(SignalName.ScopeToggled, on, resourceName);
 		c.Toggled += _callback;
 		c.ButtonGroup = group;
-		c.ButtonPressed = enabled;
+		c.SetPressedNoSignal(enabled);
 	}
 
 	public override void _ExitTree()
