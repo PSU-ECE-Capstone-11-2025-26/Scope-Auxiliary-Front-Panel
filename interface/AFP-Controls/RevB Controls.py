@@ -371,13 +371,24 @@ def process_command(line):
             base_id = msg_id[1:]
             
             if base_id == "AR0":
-                r_val = 0 if value == 1 else 50
-                g_val = 12 if value == 1 else 0
+                if value == 1:
+                    # State 1: RUN (Green)
+                    r_val, g_val = 0, 12
+                    state_name = "GREEN"
+                elif value == 0:
+                    # State 0: STOP (Red)
+                    r_val, g_val = 50, 0
+                    state_name = "RED"
+                elif value == -1: 
+                    # State -1 (or anything else): OFF
+                    r_val, g_val = 0, 0
+                    state_name = "OFF"
+
                 tlc.set_pin(LED_MAP["AR0_R"], r_val)
                 tlc.set_pin(LED_MAP["AR0_G"], g_val)
                 tlc.set_pin(LED_MAP["AR0_B"], 0)
-                if DEBUG_ECHO: print(f"[COMMAND] Run/Stop -> {'GREEN' if value == 1 else 'RED'}")
-                return 
+                if DEBUG_ECHO: print(f"[COMMAND] Run/Stop -> {state_name}")
+                return
 
             elif base_id in COLOR_MACROS:
                 for sub_pin, intensity in COLOR_MACROS[base_id].items():
