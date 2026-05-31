@@ -7,6 +7,16 @@ from tekafp.scope.state import Channel, ChannelState, TriggerEdgeSlope, TriggerM
 from tekafp.util.observable import ObservableVariable
 
 
+_ALL_FEATURES: frozenset[str] = frozenset({"fast_acquire", "touch", "high_res", "gp_knobs"})
+
+
+def _parse_features(idn: str) -> frozenset[str]:
+    model = idn.split(",")[1].upper() if "," in idn else ""
+    if model.startswith("MSO2"):
+        return _ALL_FEATURES - {"fast_acquire", "high_res"}
+    return _ALL_FEATURES
+
+
 @dataclass
 class Scope:
     resource: MessageBasedResource
@@ -25,6 +35,7 @@ class Scope:
     fast_acquire: ObservableVariable[bool]
     touch_enabled: ObservableVariable[bool]
     high_res: ObservableVariable[bool]
+    features: frozenset[str]
 
     @classmethod
     def connect(cls, resource: MessageBasedResource) -> "Scope":
@@ -54,4 +65,5 @@ class Scope:
             trigger_source=ObservableVariable(Channel.NONE),
             touch_enabled=ObservableVariable(True),
             high_res=ObservableVariable(False),
+            features=_parse_features(idn),
         )

@@ -44,9 +44,12 @@ class Action:
         scope.trigger_state.value = Action.get_trigger_state(scope)
         scope.run.value = Action.get_run_state(scope)
         scope.zoom.value = Action.get_zoom_state(scope)
-        scope.fast_acquire.value = Action.get_fast_acquire_state(scope)
-        scope.touch_enabled.value = Action.get_touch_state(scope)
-        scope.high_res.value = Action.get_high_res_state(scope)
+        if "fast_acquire" in scope.features:
+            scope.fast_acquire.value = Action.get_fast_acquire_state(scope)
+        if "touch" in scope.features:
+            scope.touch_enabled.value = Action.get_touch_state(scope)
+        if "high_res" in scope.features:
+            scope.high_res.value = Action.get_high_res_state(scope)
 
     @staticmethod
     def sync_all_channels(scope: Scope) -> None:
@@ -306,10 +309,13 @@ class Action:
 
     @staticmethod
     def toggle_fast_acquire(scope: Scope) -> None:
-        Action.set_fast_acquire(scope, not scope.fast_acquire.value)
+        if "fast_acquire" in scope.features:
+            Action.set_fast_acquire(scope, not scope.fast_acquire.value)
 
     @staticmethod
     def set_fast_acquire(scope: Scope, state: bool) -> None:
+        if "fast_acquire" not in scope.features:
+            return
         scope.resource.write(f"ACQUIRE:FASTACQ:STATE {int(state)}")
 
     @staticmethod
@@ -327,10 +333,13 @@ class Action:
 
     @staticmethod
     def toggle_touch_enabled(scope: Scope) -> None:
-        Action.set_touch_enabled(scope, not scope.touch_enabled.value)
+        if "touch" in scope.features:
+            Action.set_touch_enabled(scope, not scope.touch_enabled.value)
 
     @staticmethod
     def set_touch_enabled(scope: Scope, state: bool) -> None:
+        if "touch" not in scope.features:
+            return
         scope.resource.write(f"TOUCHSCREEN:STATE {int(state)}")
 
     @staticmethod
@@ -340,10 +349,13 @@ class Action:
 
     @staticmethod
     def toggle_high_res(scope: Scope) -> None:
-        Action.set_acquire_mode(scope, "SAMPLE" if scope.high_res.value else "HIRES")
+        if "high_res" in scope.features:
+            Action.set_acquire_mode(scope, "SAMPLE" if scope.high_res.value else "HIRES")
 
     @staticmethod
     def set_acquire_mode(scope: Scope, state: str) -> None:
+        if "high_res" not in scope.features:
+            return
         scope.resource.write(f"ACQUIRE:MODE {state}")
 
     @staticmethod
