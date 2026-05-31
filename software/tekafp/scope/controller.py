@@ -228,9 +228,9 @@ class Controller:
             r, g, b = 0, 0, 0
 
         if channel is Channel.MATH:
-            self.bridge.queue_write(f"IVM0:{int(state)}")
+            self.bridge.queue_write(f"IVM0:{int(state)}\n".encode())
         elif channel is Channel.BUS:
-            self.bridge.queue_write(f"IVB0:{int(state)}")
+            self.bridge.queue_write(f"IVB0:{int(state)}\n".encode())
         else:
             msgs = [
                 f"IV{channel.number}0_R:{r}\n".encode("utf-8"),
