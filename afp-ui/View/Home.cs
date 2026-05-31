@@ -60,12 +60,15 @@ public partial class Home : VBoxContainer
 		if (_scopes.Contains(resourceName))
 		{
 			Global.Logger.Log(LogLevel.Warning, $"Ignoring {resourceName} (already exists)");
+			return;
 		}
-		else if (!_tree.Visible)
+
+		if (!_tree.Visible)
 		{
 			_noScopeParent.Hide();
 			_tree.Show();
 		}
+
 		_scopes.Add(resourceName);
 		_resourceItem.SetText(1, resourceName);
 		Status = "CONNECTING";
@@ -77,6 +80,7 @@ public partial class Home : VBoxContainer
 		{
 			AddScope(resourceName);
 		}
+
 		_root.SetText(0, idn);
 		_channelItem.SetText(1, channelCount.ToString());
 		Status = "CONNECTED";

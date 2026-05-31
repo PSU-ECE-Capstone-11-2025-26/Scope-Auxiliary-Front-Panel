@@ -41,19 +41,12 @@ public partial class Scopes : VBoxContainer
 		}
 		_refresh = true;
 		GetNode<Button>("HBoxContainer/RefreshButton").Text = "Searching...";
-	    WebSocketClient.Instance.SendPacket(new PacketContainer
-	    {
-		    Origin = "client",
-		    Data =
-		    [
-			    new ScopeActionPacketData
-			    {
-				    Action = "list",
-				    ResourceName = null
-			    }
-		    ]
-	    });
-    }
+		WebSocketClient.Instance.QueuePacketData(new ScopeActionPacketData
+		{
+			Action = "list",
+			ResourceName = null
+		});
+	}
 
 	public void SetSearchComplete()
 	{

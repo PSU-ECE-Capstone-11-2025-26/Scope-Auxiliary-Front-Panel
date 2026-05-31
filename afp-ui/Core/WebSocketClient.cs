@@ -88,7 +88,7 @@ public partial class WebSocketClient : Node
 		_sendQueue.Enqueue(data);
 	}
 
-	public void SendPacket(PacketContainer packet)
+	private void SendPacket(PacketContainer packet)
 	{
 		if (_socket.GetReadyState() != WebSocketPeer.State.Open)
 		{
@@ -127,6 +127,7 @@ public partial class WebSocketClient : Node
 				case WebSocketPeer.State.Open:
 					Global.Logger.Log(LogLevel.Debug, "WebSocket: connected");
 					_connectionAttemptTime = 0;
+					_connectionAttempts = 0;
 					EmitSignal(SignalName.Connected);
 					QueuePacketData(new HandshakePacketData
 					{
