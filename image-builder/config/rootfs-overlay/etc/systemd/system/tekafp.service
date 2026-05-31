@@ -1,6 +1,7 @@
 [Unit]
 Description=Tektronix Auxiliary Front Panel (daemon)
-After=dev-serial0.device
+Requires=dev-ttyAMA0.device
+After=dev-ttyAMA0.device
 
 [Service]
 Type=simple
