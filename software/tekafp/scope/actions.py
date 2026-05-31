@@ -108,10 +108,10 @@ class Action:
         return resp not in ("OFF", "0")
 
     @staticmethod
-    def _get_highest_enabled_channel(scope: Scope) -> Channel:
+    def _get_highest_enabled_channel(scope: Scope, exclude: Channel = Channel.NONE) -> Channel:
         highest: Channel = Channel.NONE
         for ch, obs in scope.channels.items():
-            if obs.value.enabled:
+            if ch != exclude and obs.value.enabled:
                 highest = ch
         return highest
 
@@ -362,7 +362,8 @@ class Action:
     def navigate(scope: Scope, direction: str) -> None:
         if not scope.run.value:
             current_search: str = parse_resp(scope.resource.query("SEARCH:SELECTED?"), str)
-            scope.resource.write(f"SEARCH:{current_search}:NAVIGATE {direction}")
+            if current_search != "NONE":
+                scope.resource.write(f"SEARCH:{current_search}:NAVIGATE {direction}")
 
     @staticmethod
     def fpanel_turn(scope: Scope, what: str, value: int) -> None:
@@ -384,7 +385,7 @@ class Action:
         if enabled:
             scope.resource.write(f"DISPLAY:SELECT:SOURCE {channel.label}")
         elif scope.source_channel.value == channel:
-            highest = Action._get_highest_enabled_channel(scope)
+            highest = Action._get_highest_enabled_channel(scope, exclude=channel)
             scope.resource.write(f"DISPLAY:SELECT:SOURCE {highest.label}")
 
     @staticmethod
@@ -396,7 +397,7 @@ class Action:
         if scope.source_channel.value == channel:
             # enabled and source => disable, select highest enabled as active
             scope.resource.write(f"DISPLAY:GLOBAL:{channel.display_label}:STATE OFF")
-            highest: Channel = Action._get_highest_enabled_channel(scope)
+            highest: Channel = Action._get_highest_enabled_channel(scope, exclude=channel)
             scope.resource.write(f"DISPLAY:SELECT:SOURCE {highest.label}")
         elif last_state:
             # enabled => set as source
