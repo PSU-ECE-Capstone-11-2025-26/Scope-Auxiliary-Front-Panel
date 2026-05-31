@@ -202,45 +202,17 @@ class Controller:
         if any_changed:
             logger.debug("Full channel sync pass complete")
 
-    # Per-channel RGB color (R,G,B)
-    CHANNEL_COLORS: dict[Channel, tuple[int, int, int]] = {
-        Channel.NONE: (0, 0, 0),
-        Channel.CH1: (1, 1, 0),  # Yellow
-        Channel.CH2: (0, 1, 1),  # Cyan
-        Channel.CH3: (1, 0, 0),  # Red
-        Channel.CH4: (0, 1, 0),  # Lime Green
-        Channel.CH5: (1, 1, 0),  # Orange approximation
-        Channel.CH6: (0, 0, 1),  # Blue
-        Channel.CH7: (1, 0, 1),  # Purple
-        Channel.CH8: (0, 1, 0),  # Forest Green approximation
-        Channel.MATH: (1, 1, 0),  # Orange approx
-        Channel.BUS: (1, 0, 1),  # Purple
-    }
-
     def send_channel_led(self, channel: Channel, state: bool) -> None:
         # Send indicator update back to Pico
         if channel not in self._channels.keys():
             return
-
-        if state:
-            r, g, b = self.CHANNEL_COLORS[channel]
-        else:
-            r, g, b = 0, 0, 0
 
         if channel is Channel.MATH:
             self.bridge.queue_write(f"IVM0:{int(state)}\n".encode())
         elif channel is Channel.BUS:
             self.bridge.queue_write(f"IVB0:{int(state)}\n".encode())
         else:
-            msgs = [
-                f"IV{channel.number}0_R:{r}\n".encode("utf-8"),
-                f"IV{channel.number}0_G:{g}\n".encode("utf-8"),
-                f"IV{channel.number}0_B:{b}\n".encode("utf-8"),
-            ]
-
-            for msg in msgs:
-                self.bridge.write_sync(msg)
-                logger.debug(f"[UART->PICO] {msg.decode().strip()}")
+            self.bridge.queue_write(f"IV{channel.number}0\n".encode())
 
     @staticmethod
     def _sel_led_id(channel: Channel) -> str:
@@ -437,11 +409,8 @@ class Controller:
 
     def sync_trigger_state(self) -> None:
         source: str = parse_resp(self.scope.query("TRIGGER:A:EDGE:SOURCE?"), str)
-        source = Channel.from_label(source)
-        r, g, b = self.CHANNEL_COLORS[source]
-        self.bridge.write_sync(f"ITL1_R:{r}\n".encode())
-        self.bridge.write_sync(f"ITL1_G:{g}\n".encode())
-        self.bridge.write_sync(f"ITL1_B:{b}\n".encode())
+        channel = Channel.from_label(source)
+        self.bridge.queue_write(f"TL1_C{channel.number}\n".encode())
         cur: str = parse_resp(self.scope.query("TRIGGER:A:EDGE:SLOPE?"), str).upper()
         match cur:
             case "RISE":
