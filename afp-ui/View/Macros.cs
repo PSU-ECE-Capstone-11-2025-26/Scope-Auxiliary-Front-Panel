@@ -31,7 +31,6 @@ public partial class Macros : MarginContainer
 			b.GetPopup().IdPressed += (menuId) => ShortcutOnPressed(id, menuId);
 			_shortcutContainer.AddChild(b);
 		}
-		UpdateMacros([true, false, false, false]);
 	}
 
 	private void TimerOnTimeout()
@@ -46,7 +45,7 @@ public partial class Macros : MarginContainer
 	/// <param name="macros">An array of true/false indicating whether a slot is occupied.</param>
 	public void UpdateMacros(bool[] macros)
 	{
-		for (ushort i = 0; i < macros.Length; i++)
+		for (ushort i = 0; i < Mathf.Min(macros.Length, ShortCutCount); i++)
 		{
 			var btn = _shortcutContainer.GetChild<MenuButton>(i);
 			btn.GetPopup().SetItemDisabled(btn.GetPopup().GetItemIndex(1), !macros[i]);

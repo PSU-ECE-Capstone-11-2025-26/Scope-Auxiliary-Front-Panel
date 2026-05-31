@@ -2,6 +2,10 @@
 
 [ext_resource type="Script" uid="uid://w7j81qlqdvql" path="res://Components/ScopeOption.cs" id="1_nr3hc"]
 
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_nr3hc"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_cyxof"]
+
 [node name="ScopeOption" type="HBoxContainer" unique_id=973258444]
 anchors_preset = 15
 anchor_right = 1.0
@@ -10,8 +14,18 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_nr3hc")
 
+[node name="VSeparator" type="VSeparator" parent="." unique_id=1383593974]
+layout_mode = 2
+theme_override_constants/separation = 20
+theme_override_styles/separator = SubResource("StyleBoxEmpty_nr3hc")
+
 [node name="CheckBox" type="CheckBox" parent="." unique_id=685476852]
 layout_mode = 2
+
+[node name="VSeparator2" type="VSeparator" parent="." unique_id=894841544]
+layout_mode = 2
+theme_override_constants/separation = 20
+theme_override_styles/separator = SubResource("StyleBoxEmpty_cyxof")
 
 [node name="Label" type="Label" parent="." unique_id=656117553]
 layout_mode = 2
