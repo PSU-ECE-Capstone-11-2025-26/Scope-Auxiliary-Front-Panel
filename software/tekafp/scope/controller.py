@@ -562,7 +562,7 @@ class Controller:
 
     def get_touch_off_state(self) -> bool:
         resp = parse_resp(self.scope.query("TOUCHSCREEN:STATE?"), str)
-        touch_enabled = resp in ("OFF", "0")
+        touch_enabled = resp not in ("OFF", "0")
         return touch_enabled
 
     def send_touch_off_led(self, state: bool) -> None:
@@ -578,6 +578,7 @@ class Controller:
     def toggle_touch_off(self) -> None:
         new = self.get_touch_off_state()
         self.scope.write(f"TOUCHSCREEN:STATE {int(not new)}")
+        self.send_touch_off_led(new)
         self._touch_state = not new
 
     def get_high_res(self) -> bool:
