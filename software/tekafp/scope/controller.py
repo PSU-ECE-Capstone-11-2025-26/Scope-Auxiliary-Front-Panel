@@ -129,7 +129,7 @@ class Controller:
 
     def _create_math_bus(self, channel: Channel) -> None:
         """Create instance 1 of a MATH/BUS that doesn't exist yet."""
-        kind = "MATH" if channel is Channel.MATH else "BUS"
+        kind = "MATH" if channel is Channel.MATH else "B"
         self.scope.write(f'{kind}:ADDNew "{kind}1"')
         logger.debug(f"Created {kind}1")
 
@@ -571,11 +571,13 @@ class Controller:
 
     def navigate_prev(self) -> None:
         current_search: str = parse_resp(self.scope.query("SEARCH:SELECTED?"), str)
-        self.scope.write(f"SEARCH:{current_search}:NAVIGATE PREV")
+        if current_search != "NONE":
+            self.scope.write(f"SEARCH:{current_search}:NAVIGATE PREV")
 
     def navigate_next(self) -> None:
         current_search: str = parse_resp(self.scope.query("SEARCH:SELECTED?"), str)
-        self.scope.write(f"SEARCH:{current_search}:NAVIGATE NEXT")
+        if current_search != "NONE":
+            self.scope.write(f"SEARCH:{current_search}:NAVIGATE NEXT")
 
     def handle_input(self, inp: Input) -> None:
         """
