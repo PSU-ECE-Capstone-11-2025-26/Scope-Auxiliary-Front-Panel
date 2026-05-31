@@ -8,20 +8,24 @@ public partial class ScopeOption : HBoxContainer
 	public delegate void ScopeToggledEventHandler(bool enabled, string resourceName);
 
 	public string ResourceName;
+	private CheckButton _button;
 	private BaseButton.ToggledEventHandler _callback;
-	public void Init(string resourceName, bool enabled, ButtonGroup group)
+
+	public override void _Ready()
+	{
+		_button = GetNode<CheckButton>("%SelectButton");
+	}
+	public void Init(string resourceName, bool enabled)
 	{
 		ResourceName = resourceName;
-		GetNode<Label>("Label").Text = resourceName;
-		var c = GetNode<CheckBox>("CheckBox");
+		_button.Text = resourceName;
 		_callback = on => EmitSignal(SignalName.ScopeToggled, on, resourceName);
-		c.Toggled += _callback;
-		c.ButtonGroup = group;
-		c.SetPressedNoSignal(enabled);
+		_button.Toggled += _callback;
+		_button.SetPressedNoSignal(enabled);
 	}
 
 	public override void _ExitTree()
 	{
-		GetNode<CheckBox>("CheckBox").Toggled -= _callback;
+		_button.Toggled -= _callback;
 	}
 }
