@@ -354,10 +354,15 @@ class Action:
         scope.resource.write(f"FPANEL:TURN {what}, {value}")
 
     @staticmethod
-    def set_channel(scope: Scope, channel: Channel, state: bool) -> None:
+    def set_channel(scope: Scope, channel: Channel, enabled: bool) -> None:
         if channel not in scope.channels:
             return
-        scope.resource.write(f"DISPLAY:GLOBAL:{channel.display_label}:STATE {int(state)}")
+        scope.resource.write(f"DISPLAY:GLOBAL:{channel.display_label}:STATE {int(enabled)}")
+        if enabled:
+            scope.resource.write(f"DISPLAY:SELECT:SOURCE {channel.label}")
+        elif scope.source_channel.value == channel:
+            highest = Action._get_highest_enabled_channel(scope)
+            scope.resource.write(f"DISPLAY:SELECT:SOURCE {highest.label}")
 
     @staticmethod
     def set_channel_display(scope: Scope, channel: Channel) -> None:

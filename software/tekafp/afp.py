@@ -1,5 +1,7 @@
 import argparse
 import logging
+import os
+from pathlib import Path
 import socket
 import threading
 import time
@@ -29,7 +31,34 @@ from tekafp.api_server.packets import (
 )
 from tekafp.input import Input
 from tekafp.scope.actions import Action
-from tekafp.scope.macros import MacroManager, MacroStep
+from tekafp.scope.commands import (
+    AdjustHorizontalPosition,
+    AdjustHorizontalScale,
+    AdjustPan,
+    AdjustTriggerLevel,
+    AdjustVerticalPosition,
+    AdjustVerticalScale,
+    AdjustZoomScale,
+    CenterHorizontalPosition,
+    CenterTrigger,
+    CenterVerticalPosition,
+    Clear,
+    Command,
+    ForceTrigger,
+    FpanelTurn,
+    Navigate,
+    RunAutoset,
+    RunDefaultSetup,
+    SetAcquireMode,
+    SetChannel,
+    SetFastAcquire,
+    SetRunStop,
+    SetTouchEnabled,
+    SetTriggerMode,
+    SetTriggerSlope,
+    SetZoom,
+)
+from tekafp.scope.macros import MacroManager
 from tekafp.scope.scope import Scope
 from tekafp.scope.state import Channel, ChannelState, TriggerEdgeSlope, TriggerMode, TriggerState
 from tekafp.uart import MockUARTBridge, UARTBridge
@@ -42,6 +71,9 @@ DEFAULT_PORT = "/dev/ttyAMA0"
 DEFAULT_VISA_BACKEND = "@py"
 DEFAULT_VISA_TIMEOUT = 5000
 DEFAULT_BAUDRATE = 115200
+DATA_PATH = (
+    Path("/var/lib/tek-afp/") if os.getuid() == 0 else Path.home() / ".local" / "share" / "tek-afp"
+)
 
 
 def _start_api() -> None:
@@ -100,10 +132,8 @@ class TekAfp:
         logging.getLogger("tekafp").setLevel(log_level)
         self.bridge = self.connect_uart(self._uart_port, self._mock)
         _start_api()
-        self.macro_manager = MacroManager()
-        self._fine_mode.register(
-            lambda _, v: self._set_led("IVS0", int(self._fine_mode.value))
-        )
+        self.macro_manager = MacroManager(DATA_PATH)
+        self._fine_mode.register(lambda _, v: self._set_led("IVS0", int(self._fine_mode.value)))
         self._gp_a_fine_mode.register(
             lambda _, v: self._set_led("IKA0", int(self._gp_a_fine_mode.value))
         )
@@ -248,63 +278,40 @@ class TekAfp:
 
         msg_id = str(inp.id)
         val = inp.value
-        action = None
-        step = None
+        synced = self.scopes[self.synced_scope]
+        cmd: Command | None = None
 
         match msg_id:
             case "M10" | "M20" | "M30" | "M40":
-                slot = MacroManager.PHYSICAL_MACRO_IDS[msg_id]
-                # special case: macros are played back directly, this method's logic already
-                # handles the rest
-                self.macro_manager.playback(slot, self.scopes.values())
+                self.macro_manager.playback(
+                    MacroManager.PHYSICAL_MACRO_IDS[msg_id], self.scopes.values()
+                )
                 return
-            # Channel Selection: 'V10' -> ch 1, 'V80' -> ch 8
             case "V10" | "V20" | "V30" | "V40" | "V50" | "V60" | "V70" | "V80":
                 ch = Channel.from_number(int(msg_id[1]))
-                action = lambda scope, ch=ch: Action.set_channel_display(scope, ch)
-                step = MacroStep(
-                    "set_channel",
-                    channel=ch.label,
-                    enabled=self.scopes[self.synced_scope].source_channel.value != ch,
-                )
+                cmd = SetChannel(channel=ch.label, enabled=synced.source_channel.value != ch)
             case "VM0" | "VB0":
                 ch = Channel.MATH if msg_id == "VM0" else Channel.BUS
-                action = lambda scope, ch=ch: Action.set_channel_display(scope, ch)
-                step = MacroStep(
-                    "set_channel",
-                    channel=ch.label,
-                    enabled=self.scopes[self.synced_scope].source_channel.value != ch,
-                )
+                cmd = SetChannel(channel=ch.label, enabled=synced.source_channel.value != ch)
             case "VP1":
                 if detents := int(val):
-                    action = lambda scope, d=detents: Action.adjust_vertical_position(scope, d)
-                    step = MacroStep("adjust_vertical_position", detents=detents)
+                    cmd = AdjustVerticalPosition(detents=detents)
             case "VP0":
                 if int(val) == 1:
-                    action = Action.center_vertical_position
-                    step = MacroStep("center_vertical_position")
+                    cmd = CenterVerticalPosition()
             case "HP1":
                 if detents := int(val):
-                    action = lambda scope, d=detents: Action.adjust_horizontal_position(scope, d)
-                    step = MacroStep("adjust_horizontal_position", detents=detents)
+                    cmd = AdjustHorizontalPosition(detents=detents)
             case "HP0":
                 if int(val) == 1:
-                    action = Action.center_horizontal_position
-                    step = MacroStep("center_horizontal_position")
+                    cmd = CenterHorizontalPosition()
             case "VS1":
                 if detents := int(val):
-                    action = lambda scope, d=detents: Action.adjust_vertical_scale(
-                        scope, -d, self._fine_mode.value
-                    )
-                    step = MacroStep(
-                        "adjust_vertical_scale", detents=-detents, fine=self._fine_mode.value
-                    )
+                    cmd = AdjustVerticalScale(detents=-detents, fine=self._fine_mode.value)
             case "HS1":
                 if detents := int(val):
-                    action = lambda scope, d=detents: Action.adjust_horizontal_scale(scope, -d)
-                    step = MacroStep("adjust_horizontal_scale", detents=-detents)
+                    cmd = AdjustHorizontalScale(detents=-detents)
             case "VS0":
-                # toggle fine mode for vertical scale encoder
                 if int(val) == 1:
                     self._fine_mode.value = not self._fine_mode.value
                     logger.debug(
@@ -312,99 +319,61 @@ class TekAfp:
                     )
             case "TL1":
                 if detents := int(val):
-                    action = lambda scope, d=detents: Action.adjust_trigger_level(scope, d)
-                    step = MacroStep("adjust_trigger_level", detents=detents)
+                    cmd = AdjustTriggerLevel(detents=detents)
             case "TL0":
-                action = Action.center_trigger
-                step = MacroStep("center_trigger")
+                cmd = CenterTrigger()
             case "TF0":
-                action = Action.force_trigger
-                step = MacroStep("force_trigger")
+                cmd = ForceTrigger()
             case "TS0":
-                action = Action.cycle_trigger_slope
-                step = MacroStep(
-                    "set_trigger_slope",
-                    mode=~self.scopes[self.synced_scope].trigger_edge_slope.value,
-                )
+                cmd = SetTriggerSlope(slope=str(~synced.trigger_edge_slope.value))
             case "TM0":
-                action = Action.cycle_trigger_mode
-                step = MacroStep(
-                    "set_trigger_mode", mode=~self.scopes[self.synced_scope].trigger_mode.value
-                )
+                cmd = SetTriggerMode(mode=str(~synced.trigger_mode.value))
             case "AR0":
-                action = Action.toggle_run_stop
-                step = MacroStep(
-                    "set_run_stop", enabled=not self.scopes[self.synced_scope].run.value
-                )
+                cmd = SetRunStop(enabled=not synced.run.value)
             case "AF0":
-                action = Action.toggle_fast_acquire
-                step = MacroStep(
-                    "set_fast_acquire",
-                    enabled=not self.scopes[self.synced_scope].fast_acquire.value,
-                )
+                cmd = SetFastAcquire(enabled=not synced.fast_acquire.value)
             case "AX0":
-                action = Action.clear
-                step = MacroStep("clear")
+                cmd = Clear()
             case "XA0":
-                action = Action.run_autoset
-                step = MacroStep("run_autoset")
+                cmd = RunAutoset()
             case "XD0":
-                action = Action.run_default_setup
-                step = MacroStep("run_default_setup")
+                cmd = RunDefaultSetup()
             case "XT0":
-                action = Action.toggle_touch_enabled
-                step = MacroStep(
-                    "set_touch_enabled",
-                    enabled=not self.scopes[self.synced_scope].touch_enabled.value,
-                )
+                cmd = SetTouchEnabled(enabled=not synced.touch_enabled.value)
             case "HZ0":
-                action = Action.toggle_zoom
-                step = MacroStep("set_zoom", enabled=not self.scopes[self.synced_scope].zoom.value)
+                cmd = SetZoom(enabled=not synced.zoom.value)
             case "HZ1":
                 if detents := int(val):
-                    action = lambda scope, d=detents: Action.adjust_zoom_scale(scope, d)
-                    step = MacroStep("adjust_zoom_scale", detents=detents)
+                    cmd = AdjustZoomScale(detents=detents)
             case "HX1":
                 if detents := int(val):
-                    action = lambda scope, d=detents: Action.adjust_pan(scope, d)
-                    step = MacroStep("adjust_pan", detents=detents)
+                    cmd = AdjustPan(detents=detents)
             case "AH0":
                 if int(val) == 1:
-                    action = Action.toggle_high_res
-                    step = MacroStep(
-                        "set_acquire_state",
-                        mode="SAMPLE" if self.scopes[self.synced_scope].high_res.value else "HIRES",
-                    )
+                    cmd = SetAcquireMode(mode="SAMPLE" if synced.high_res.value else "HIRES")
             case "HL0":
-                action = lambda scope, d="PREV": Action.navigate(scope, d)
-                step = MacroStep("navigate", mode="PREV")
+                cmd = Navigate(direction="PREV")
             case "HR0":
-                action = lambda scope, d="NEXT": Action.navigate(scope, d)
-                step = MacroStep("navigate", mode="NEXT")
+                cmd = Navigate(direction="NEXT")
             case "KA0":
                 self._gp_a_fine_mode.value = not self._gp_a_fine_mode.value
             case "KA1":
                 mult = self.GP_FINE_SCALE if self._gp_a_fine_mode.value else self.GP_COARSE_SCALE
-                detents = mult * int(val)
-                action = lambda scope, what="GPKNOB1", d=detents: Action.fpanel_turn(scope, what, d)
-                step = MacroStep("fpanel_turn", mode="GPKNOB1", detents=detents)
+                cmd = FpanelTurn(knob="GPKNOB1", detents=mult * int(val))
             case "KB0":
                 self._gp_b_fine_mode.value = not self._gp_b_fine_mode.value
             case "KB1":
                 mult = self.GP_FINE_SCALE if self._gp_b_fine_mode.value else self.GP_COARSE_SCALE
-                detents = mult * int(val)
-                action = lambda scope, what="GPKNOB2", d=detents: Action.fpanel_turn(scope, what, d)
-                step = MacroStep("fpanel_turn", mode="GPKNOB2", detents=detents)
+                cmd = FpanelTurn(knob="GPKNOB2", detents=mult * int(val))
 
-        if action:
+        if cmd:
             for scope in self.scopes.values():
                 if scope.connected.value:
                     try:
-                        action(scope)
+                        cmd.execute(scope)
                     except VisaIOError as e:
-                        logger.warning("Action failed: on %s: %s", scope.resource_name, e)
-        if step:
-            self.macro_manager.handle_input(step)
+                        logger.warning("Action failed on %s: %s", scope.resource_name, e)
+            self.macro_manager.handle_input(cmd)
 
     def _handle_packet(self, packet: RawPacket) -> None:
         for pd in packet["data"]:
