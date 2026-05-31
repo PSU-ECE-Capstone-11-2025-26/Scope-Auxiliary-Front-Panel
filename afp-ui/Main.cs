@@ -65,7 +65,11 @@ public partial class Main : Control
 				    break;
 			    }
 			    case ScopeInfoPacketData si:
-				    _homeView.UpdateScope(si.ResourceName, si.Idn, si.ChannelCount);
+				    if (!si.Connected)
+				    {
+					    RemoveScope(si.ResourceName);
+				    }
+				    _homeView.UpdateScope(si.ResourceName, si.Idn, si.ChannelCount, si.Synced);
 				    List<string> lastUsed = Global.Instance.Config.LastUsedScopes;
 				    if (lastUsed.Count > 0)
 				    {
@@ -100,8 +104,7 @@ public partial class Main : Control
 			    case ErrorPacketData ep:
 				    if (ep.ErrorCode == 0)
 				    {
-					    _scopes.Remove(ep.ResourceName);
-					    _homeView.RemoveScope(ep.ResourceName);
+					    RemoveScope(ep.ResourceName);
 				    }
 				    Global.Logger.Log(LogLevel.Error, ep.ErrorStr, true);
 				    break;
@@ -154,14 +157,19 @@ public partial class Main : Control
 	    }
 	    else
 	    {
-		    if (_scopes.Remove(resourceName))
-		    {
-			    _homeView.RemoveScope(resourceName);
-		    }
-		    else
-		    {
-			    Global.Logger.Log(LogLevel.Warning, $"Attempted to remove nonexistent scope {resourceName}");
-		    }
+		    RemoveScope(resourceName);
+	    }
+    }
+
+    private void RemoveScope(string resourceName)
+    {
+	    if (_scopes.Remove(resourceName))
+	    {
+		    _homeView.RemoveScope(resourceName);
+	    }
+	    else
+	    {
+		    Global.Logger.Log(LogLevel.Warning, $"Attempted to remove nonexistent scope {resourceName}");
 	    }
     }
 }

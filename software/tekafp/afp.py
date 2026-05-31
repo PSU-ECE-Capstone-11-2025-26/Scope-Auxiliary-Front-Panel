@@ -217,7 +217,10 @@ class TekAfp:
             self.set_synced_scope(resource_name)
         send_packet_data(
             ScopeInfoPacketData(
-                resource_name=resource_name, idn=scope.idn, channel_count=scope.channel_count
+                resource_name=resource_name,
+                connected=True,
+                idn=scope.idn,
+                channel_count=scope.channel_count,
             )
         )
 
@@ -380,6 +383,16 @@ class TekAfp:
                 case HandshakePacketData(client_id, client_version):
                     logger.info(f"client {client_id} {client_version} connected")
                     send_packet_data(HandshakePacketData(self._hostname, __version__))
+                    for s in self.scopes.values():
+                        send_packet_data(
+                            ScopeInfoPacketData(
+                                resource_name=s.resource_name,
+                                connected=s.connected.value,
+                                synced=s.resource_name == self.synced_scope,
+                                idn=s.idn,
+                                channel_count=s.channel_count,
+                            )
+                        )
                 case ScopeActionPacketData(action=a):
                     logger.debug(f"Received packet action='{a}'")
                     match a:
@@ -387,12 +400,15 @@ class TekAfp:
                             if data.resource_name not in self.scopes:
                                 logger.info(f"enabling scope {data.resource_name}")
                                 if self._mock:
-                                    self.scopes[data.resource_name] = None
+                                    s = Scope.mock()
+                                    self.scopes[data.resource_name] = s
                                     send_packet_data(
                                         ScopeInfoPacketData(
                                             data.resource_name,
-                                            "TEKTRONIX,MSO58,C012345,CF:91.1CT FV:1.0.1.8",
-                                            8,
+                                            True,
+                                            True,
+                                            s.idn,
+                                            s.channel_count,
                                         )
                                     )
                                 else:
@@ -404,18 +420,28 @@ class TekAfp:
                                     del self.scopes[data.resource_name]
                                 else:
                                     c = self.scopes.pop(data.resource_name)
-                                    if data.resource_name == self.synced_scope:
+                                    was_synced = data.resource_name == self.synced_scope
+                                    if was_synced:
                                         self.synced_scope = None
                                         self._unregister_led_callbacks(c)
                                         self._reset_leds()
                                     c.resource.close()
+                                    send_packet_data(
+                                        ScopeInfoPacketData(
+                                            resource_name=data.resource_name,
+                                            connected=False,
+                                            synced=was_synced,
+                                            idn="",
+                                            channel_count=0,
+                                        )
+                                    )
                         case "list":
                             if self._mock:
                                 send_packet_data(
                                     ScopeListPacketData(
                                         {
-                                            "USB0::0x0699::0x0363::C102912::INSTR": False,
-                                            "USB0::0x0699::0x0408::B011823::INSTR": False,
+                                            "MOCK::0x0699::0x0363::C102912::INSTR": False,
+                                            "MOCK::0x0699::0x0408::B011823::INSTR": False,
                                         }
                                     )
                                 )
@@ -430,6 +456,8 @@ class TekAfp:
                                         }
                                     )
                                 )
+                        case "sync":
+                            self.set_synced_scope(data.resource_name)
                         case _:
                             logger.error(f"Unknown action: {a}")
                 case MacroActionPacketData(action=a, slot=slot):

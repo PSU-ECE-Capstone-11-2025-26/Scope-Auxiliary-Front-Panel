@@ -88,6 +88,8 @@ class ScopeActionPacketData(PacketData):
 @dataclass
 class ScopeInfoPacketData(PacketData):
     resource_name: str
+    connected: bool
+    synced: bool
     idn: str
     channel_count: int
 

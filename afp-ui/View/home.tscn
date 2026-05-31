@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://bbjkiji0sl7mt"]
 
 [ext_resource type="Script" uid="uid://be1ui7587gf0t" path="res://View/Home.cs" id="1_tt30a"]
+[ext_resource type="Texture2D" uid="uid://drx380o048fm3" path="res://icons/Favorites.svg" id="2_acw8y"]
 [ext_resource type="Texture2D" uid="uid://2fcqtmgrkiay" path="res://icons/tek_full.svg" id="2_elaby"]
 [ext_resource type="FontFile" uid="uid://c6srbc2cw1n3n" path="res://theme/Barlow-SemiBold.ttf" id="3_5tmwg"]
 
@@ -17,6 +18,7 @@ grow_vertical = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 script = ExtResource("1_tt30a")
+_syncIcon = ExtResource("2_acw8y")
 metadata/_tab_index = 0
 
 [node name="RichTextLabel" type="RichTextLabel" parent="." unique_id=1371944250]

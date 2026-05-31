@@ -17,6 +17,11 @@ def _parse_features(idn: str) -> frozenset[str]:
     return _ALL_FEATURES
 
 
+class MockResource:
+    def close(self) -> None:
+        pass
+
+
 @dataclass
 class Scope:
     resource: MessageBasedResource
@@ -50,6 +55,35 @@ class Scope:
             channels={
                 Channel.from_number(ch): ObservableVariable(ChannelState())
                 for ch in range(1, channel_count + 1)
+            }
+            | {
+                Channel.MATH: ObservableVariable(ChannelState()),
+                Channel.BUS: ObservableVariable(ChannelState()),
+            },
+            source_channel=ObservableVariable(Channel.NONE),
+            run=ObservableVariable(True),
+            fast_acquire=ObservableVariable(False),
+            zoom=ObservableVariable(False),
+            trigger_mode=ObservableVariable(TriggerMode.AUTO),
+            trigger_edge_slope=ObservableVariable(TriggerEdgeSlope.FALL),
+            trigger_state=ObservableVariable(TriggerState.TRIGGERED),
+            trigger_source=ObservableVariable(Channel.NONE),
+            touch_enabled=ObservableVariable(True),
+            high_res=ObservableVariable(False),
+            features=_parse_features(idn),
+        )
+
+    @classmethod
+    def mock(cls) -> "Scope":
+        idn = "TEKTRONIX,MSO58,C012345,CF:91.1CT FV:1.0.1.8"
+        return cls(
+            resource=MockResource(),
+            resource_name="USB0::0x0699::0x0363::C102912::INSTR",
+            connected=ObservableVariable(False),
+            idn=idn,
+            channel_count=8,
+            channels={
+                Channel.from_number(ch): ObservableVariable(ChannelState()) for ch in range(1, 9)
             }
             | {
                 Channel.MATH: ObservableVariable(ChannelState()),

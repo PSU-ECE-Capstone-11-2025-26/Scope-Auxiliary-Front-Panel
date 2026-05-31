@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using AFP.Core;
+using AFP.Packet.Data;
 using Godot;
 using Logger = AFP.Core.Logger;
 
@@ -7,11 +8,13 @@ namespace AFP.View;
 
 public partial class Home : VBoxContainer
 {
+	[Export] private Texture2D _syncIcon;
 	private enum InfoId
 	{
 		ResourceName = 0,
 		Status = 1,
 		Channels = 2,
+		Synced = 3,
 	}
 
 	private Control _noScopeParent;
@@ -29,8 +32,17 @@ public partial class Home : VBoxContainer
 		_tree.SetColumnExpand(1, true);
 		_tree.SetColumnExpandRatio(1, 3);
 		_tree.HideRoot = true;
+		_tree.ButtonClicked += TreeOnButtonClicked;
 		_root = _tree.CreateItem();
-		_root.SetExpandRight(0, true);
+	}
+
+	private void TreeOnButtonClicked(TreeItem item, long column, long id, long mouseButtonIndex)
+	{
+		WebSocketClient.Instance.QueuePacketData(new ScopeActionPacketData
+		{
+			ResourceName = item.GetTooltipText(0),
+			Action = "sync"
+		});
 	}
 
 	public void RemoveScope(string resourceName)
@@ -53,6 +65,10 @@ public partial class Home : VBoxContainer
 		TreeItem statusItem = item.CreateChild((int)InfoId.Status);
 		statusItem.SetText(0, "Status");
 		statusItem.SetText(1, "CONNECTING");
+		TreeItem syncedItem = item.CreateChild((int)InfoId.Synced);
+		syncedItem.SetText(0, "Synced");
+		syncedItem.SetTooltipText(0, resourceName);
+		syncedItem.AddButton(1, _syncIcon);
 		TreeItem channelItem = item.CreateChild((int)InfoId.Channels);
 		channelItem.SetText(0, "Channels");
 		return item;
@@ -76,7 +92,7 @@ public partial class Home : VBoxContainer
 		}
 	}
 
-	public void UpdateScope(string resourceName, string idn, ushort channelCount)
+	public void UpdateScope(string resourceName, string idn, ushort channelCount, bool synced)
 	{
 		if (!_scopes.ContainsKey(resourceName))
 		{
@@ -87,6 +103,7 @@ public partial class Home : VBoxContainer
 		item.SetText(0, idn);
 		item.GetChild((int)InfoId.ResourceName).SetText(1, resourceName);
 		item.GetChild((int)InfoId.Status).SetText(1, "CONNECTED");
+		item.GetChild((int)InfoId.Synced).SetText(1, synced.ToString());
 		item.GetChild((int)InfoId.Channels).SetText(1, channelCount.ToString());
 	}
 }
