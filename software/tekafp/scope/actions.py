@@ -86,7 +86,22 @@ class Action:
             return Action._get_highest_enabled_channel(scope)
 
     @staticmethod
+    def _is_virtual_channel_defined(scope: Scope, channel: Channel) -> bool:
+        """Return True if MATH1 or B1 has been created on the scope.
+
+        Numbered channels are always considered defined if they appear in scope.channels.
+        """
+        if channel == Channel.MATH:
+            return "MATH1" in parse_resp(scope.resource.query("MATH:LIST?"), str)
+        if channel == Channel.BUS:
+            return "B1" in parse_resp(scope.resource.query("BUS:LIST?"), str)
+        return True
+
+    @staticmethod
     def get_channel_state(scope: Scope, channel: Channel) -> bool:
+        if channel in (Channel.MATH, Channel.BUS):
+            if not Action._is_virtual_channel_defined(scope, channel):
+                return False
         resp = parse_resp(
             scope.resource.query(f"DISPLAY:GLOBAL:{channel.display_label}:STATE?"), str
         )
@@ -357,6 +372,14 @@ class Action:
     def set_channel(scope: Scope, channel: Channel, enabled: bool) -> None:
         if channel not in scope.channels:
             return
+        if channel in (Channel.MATH, Channel.BUS):
+            if not Action._is_virtual_channel_defined(scope, channel):
+                if not enabled:
+                    return
+                if channel == Channel.MATH:
+                    scope.resource.write('MATH:ADDNew "MATH1"')
+                else:
+                    scope.resource.write('BUS:ADDNew "B1"')
         scope.resource.write(f"DISPLAY:GLOBAL:{channel.display_label}:STATE {int(enabled)}")
         if enabled:
             scope.resource.write(f"DISPLAY:SELECT:SOURCE {channel.label}")

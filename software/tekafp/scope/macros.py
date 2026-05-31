@@ -107,5 +107,3 @@ class MacroManager:
                     cmd.execute(scope)
                 except Exception as e:
                     logger.error("Playback failed, cmd=%s: %s", cmd.kind, e)
-        for scope in connected:
-            Action.sync_all_channels(scope)
