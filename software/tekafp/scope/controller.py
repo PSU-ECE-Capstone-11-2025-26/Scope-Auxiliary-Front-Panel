@@ -240,9 +240,15 @@ class Controller:
 
     def get_scope_selected_source(self) -> Channel:
         resp = parse_resp(self.scope.query("DISPLAY:SELECT:SOURCE?"), str)
-        return Channel.from_label(resp)
+        actual = Channel.from_label(resp)
+        if actual != self._source_channel:
+            logger.debug(
+                f"[source] scope readback {resp!r} ({actual.label}) != local {self._source_channel.label}"  # noqa: E501
+            )
+        return actual
 
     def set_scope_selected_source(self) -> None:
+        logger.debug(f"[source] write DISPLAY:SELECT:SOURCE {self._source_channel.label}")
         self.scope.write(f"DISPLAY:SELECT:SOURCE {self._source_channel.label}")
 
     def sync_selected_source_from_scope(self) -> None:
@@ -267,10 +273,6 @@ class Controller:
 
         last_state: bool = self._channels[channel]
 
-        # Key off the channel's actual display state first. The selected source
-        # can lag (e.g. the scope keeps MATH selected after we hide it, and the
-        # sync re-adopts it), so testing source == channel first would treat an
-        # off channel as "on+source" and swallow the press.
         if not last_state:
             # disabled => enable, set as source
             self._channels[channel] = True
