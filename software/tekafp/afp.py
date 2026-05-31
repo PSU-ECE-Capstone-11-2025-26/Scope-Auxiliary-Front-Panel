@@ -164,7 +164,7 @@ class TekAfp:
                     last_sync = now
                     try:
                         Action.sync(self.scopes[self.synced_scope])
-                    except VisaIOError as e:
+                    except (VisaIOError, OSError) as e:
                         logger.warning("Sync error: %s", e)
                         self._handle_scope_disconnect(self.synced_scope)
 
@@ -233,7 +233,7 @@ class TekAfp:
             self._unregister_led_callbacks(old)
         try:
             old.resource.close()
-        except VisaIOError:
+        except (VisaIOError, OSError):
             pass
 
         for attempt in range(1, self.MAX_RECONNECT_ATTEMPTS + 1):
@@ -250,7 +250,7 @@ class TekAfp:
                     self.set_synced_scope(resource_name)
                 logger.info("Reconnected to %s", resource_name)
                 return
-            except (VisaIOError, ValueError) as e:
+            except (VisaIOError, OSError, ValueError) as e:
                 logger.warning("Attempt failed: %s", e)
 
         logger.error("Reconnect attempts failed for %s", resource_name)
@@ -369,7 +369,7 @@ class TekAfp:
                 if scope.connected.value:
                     try:
                         cmd.execute(scope)
-                    except VisaIOError as e:
+                    except (VisaIOError, OSError) as e:
                         logger.warning("Action failed on %s: %s", scope.resource_name, e)
             self.macro_manager.handle_input(cmd)
 
