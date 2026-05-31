@@ -128,10 +128,15 @@ class Controller:
         return bool(resp) and resp.upper() != "NONE"
 
     def _create_math_bus(self, channel: Channel) -> None:
-        """Create instance 1 of a MATH/BUS that doesn't exist yet."""
-        kind = "MATH" if channel is Channel.MATH else "B"
-        self.scope.write(f'{kind}:ADDNew "{kind}1"')
-        logger.debug(f"Created {kind}1")
+        """Create instance 1 of a MATH/BUS that doesn't exist yet.
+
+        Subsystem is MATH/BUS but the instance name uses the display label:
+        MATH:ADDNew "MATH1" / BUS:ADDNew "B1".
+        """
+        kind = "MATH" if channel is Channel.MATH else "BUS"
+        name = channel.display_label
+        self.scope.write(f'{kind}:ADDNew "{name}"')
+        logger.debug(f"Created {name}")
 
     @property
     def highest_enabled_channel(self) -> Channel:
@@ -262,16 +267,20 @@ class Controller:
 
         last_state: bool = self._channels[channel]
 
-        if self._source_channel == channel:
+        # Key off the channel's actual display state first. The selected source
+        # can lag (e.g. the scope keeps MATH selected after we hide it, and the
+        # sync re-adopts it), so testing source == channel first would treat an
+        # off channel as "on+source" and swallow the press.
+        if not last_state:
+            # disabled => enable, set as source
+            self._channels[channel] = True
+            self._source_channel = channel
+        elif self._source_channel == channel:
             # enabled and source => disable, select highest enabled as active
             self._channels[channel] = False
             self._source_channel = self.highest_enabled_channel
-        elif last_state:
-            # enabled => set as source
-            self._source_channel = channel
         else:
-            # disabled => enable, set as source
-            self._channels[channel] = True
+            # enabled but not source => set as source
             self._source_channel = channel
 
         self.set_scope_selected_source()

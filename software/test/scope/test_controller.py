@@ -64,7 +64,7 @@ def test_button_creates_instance_when_absent(
 
     writes = writes_after(ctrl, lambda: ctrl.set_channel_display(channel))
 
-    assert f'{kind}:ADDNew "{kind}1"' in writes
+    assert f'{kind}:ADDNew "{global_label}"' in writes
     assert f"DISPLAY:GLOBAL:{global_label}:STATE 1" in writes
     # Newly enabled MATH/BUS becomes the vertical-control source
     assert ctrl._source_channel is channel
