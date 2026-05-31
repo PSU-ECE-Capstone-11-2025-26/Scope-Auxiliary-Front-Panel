@@ -500,9 +500,15 @@ class Controller:
     def autoset(self) -> None:
         self.scope.write("AUTOSET EXECUTE")
 
+    # Run the scope's Clear feature
     def clear(self) -> None:
         self.scope.write("CLEAR")
         logger.debug("Clear executed")
+        
+    # Run the scope's Default Setup feature
+    def default_setup(self) -> None:
+        self.scope.write("*RST")
+        logger.debug("Default Setup executed")
 
     # Toggle the scope's Fast Acquire state
     def toggle_fast_acquire(self) -> None:
@@ -750,6 +756,11 @@ class Controller:
         if msg_id == "AX0":
             if int(val) == 1:
                 self.clear()
+                
+        # Default Setup button
+        if msg_id == "XD0":
+            if int(val) == 1:
+                self.default_setup()
                 
         # High Res button
         if msg_id == "AH0":
