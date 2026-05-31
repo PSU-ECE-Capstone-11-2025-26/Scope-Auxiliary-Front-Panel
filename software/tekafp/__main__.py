@@ -500,6 +500,11 @@ class Controller:
     def autoset(self) -> None:
         self.scope.write("AUTOSET EXECUTE")
 
+    # Run the scope's Clear feature
+    def clear(self) -> None:
+        self.scope.write("CLEAR")
+        logger.debug("Clear executed")
+        
     # Run the scope's Default Setup feature
     def default_setup(self) -> None:
         self.scope.write("*RST")
@@ -747,6 +752,11 @@ class Controller:
             self.scope.write(f"DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:HORIZONTAL:POSITION {new}")
             return
 
+        # Clear button
+        if msg_id == "AX0":
+            if int(val) == 1:
+                self.clear()
+                
         # Default Setup button
         if msg_id == "XD0":
             if int(val) == 1:
