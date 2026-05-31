@@ -71,9 +71,7 @@ DEFAULT_PORT = "/dev/ttyAMA0"
 DEFAULT_VISA_BACKEND = "@py"
 DEFAULT_VISA_TIMEOUT = 5000
 DEFAULT_BAUDRATE = 115200
-DATA_PATH = (
-    Path("/var/lib/tek-afp/") if os.getuid() == 0 else Path.home() / ".local" / "share" / "tek-afp"
-)
+DATA_PATH = Path.home() / ".local" / "share" / "tek-afp"
 
 
 def _start_api() -> None:
