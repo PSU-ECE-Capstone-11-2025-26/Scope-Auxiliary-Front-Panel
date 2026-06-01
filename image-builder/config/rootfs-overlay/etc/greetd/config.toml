@@ -1,0 +1,10 @@
+[terminal]
+vt = 1
+
+[default_session]
+command = "agreety --cmd /bin/bash"
+user = "_greetd"
+
+[initial_session]
+command = "cage -s -- /opt/tek/afp/ui/afp-ui.arm64"
+user = "tek"

@@ -1,0 +1,6 @@
+#!/bin/bash
+set -eu
+
+echo "uninitialized" > "$1/etc/machine-id"
+# to regenerate host keys
+rm -f "$1/etc/ssh/ssh_host_"*

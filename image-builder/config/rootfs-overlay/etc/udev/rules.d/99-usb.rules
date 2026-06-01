@@ -1,0 +1,1 @@
+SUBSYSTEM=="usb", GROUP="afpusb", MODE="0666"

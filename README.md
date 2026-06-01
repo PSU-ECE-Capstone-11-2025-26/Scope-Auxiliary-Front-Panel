@@ -12,6 +12,7 @@ afp/
 ├── hardware    # design files for the PCB, enclosure, etc.
 ├── interface   # code and design files for the interface
 ├── software    # code for the main control board, except for the touchscreen
+├── image-builder    # configuration and scripts for building custom OS images for the AFP
 ├── README.md
 └── LICENSE
 ```

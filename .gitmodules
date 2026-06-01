@@ -1,0 +1,3 @@
+[submodule "image-builder/rpi-image-gen"]
+	path = image-builder/rpi-image-gen
+	url = https://github.com/raspberrypi/rpi-image-gen.git

@@ -1,0 +1,7 @@
+Package: afp-ui
+Version: 0.0.1
+Architecture: arm64
+Maintainer: Andrew Stanton <stan35@pdx.edu>
+Depends:
+Description: Tektronix AFP UI
+ Godot Engine-based front UI for PSU ECE Capstone 2026

@@ -1,0 +1,25 @@
+# METABEGIN
+# X-Env-Layer-Name: afpprod
+# X-Env-Layer-Desc: Packages for the Tektronix AFP app
+# X-Env-Layer-Version: 1.0.0
+# METAEND
+---
+mmdebstrap:
+  packages:
+    - cage
+    - greetd
+    - picocom
+    - python3-full
+    - python3-pip
+    - cloud-guest-utils
+    - dbus-user-session
+    - seatd
+    - libpam-systemd
+    - libwayland-cursor0
+    - libwayland-egl1
+    - libgles2
+    - libgl1-mesa-dri
+    - libicu76
+    - libxcursor1
+    - libxi6
+    - libxfixes3

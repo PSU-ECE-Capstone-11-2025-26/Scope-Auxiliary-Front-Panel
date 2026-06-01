@@ -1,0 +1,14 @@
+[Unit]
+Description=Tektronix Auxiliary Front Panel (daemon)
+Requires=dev-ttyAMA0.device
+After=dev-ttyAMA0.device
+
+[Service]
+Type=simple
+User=tek
+ExecStart=/usr/bin/python3 -m tekafp
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
