@@ -87,6 +87,7 @@ class TekAfp:
     SYNC_DELAY_S = 0.1
     GP_FINE_SCALE = 20
     GP_COARSE_SCALE = 100
+    MACRO_COUNT = 4
 
     def __init__(self) -> None:
         self._uart_port: str = DEFAULT_PORT
@@ -104,6 +105,9 @@ class TekAfp:
         self._hostname: str = socket.gethostname()
         self._led_tokens: list[int] = []
         self._channel_led_tokens: dict[Channel, int] = {}
+        self._macro_leds: list[ObservableVariable[bool]] = [
+            ObservableVariable(False) for _ in range(self.MACRO_COUNT)
+        ]
 
     def _parse_args(self) -> None:
         parser = argparse.ArgumentParser()
@@ -138,6 +142,8 @@ class TekAfp:
         self._gp_b_fine_mode.register(
             lambda _, v: self._set_led("IKB0", int(self._gp_b_fine_mode.value))
         )
+        for i in range(self.MACRO_COUNT):
+            self._macro_leds[i].register(lambda _, v, m=i: self._set_led(f"IM{m}0", int(v)))
 
         if self._auto_connect:
             self.auto_connect()
@@ -404,11 +410,7 @@ class TekAfp:
                                     self.scopes[data.resource_name] = s
                                     send_packet_data(
                                         ScopeInfoPacketData(
-                                            data.resource_name,
-                                            True,
-                                            True,
-                                            s.idn,
-                                            s.channel_count,
+                                            data.resource_name, True, True, s.idn, s.channel_count
                                         )
                                     )
                                 else:
