@@ -164,7 +164,7 @@ class TekAfp:
                     last_sync = now
                     try:
                         Action.sync(self.scopes[self.synced_scope])
-                    except (VisaIOError, OSError) as e:
+                    except (VisaIOError, OSError, ValueError) as e:
                         logger.warning("Sync error: %s", e)
                         self._handle_scope_disconnect(self.synced_scope)
 
