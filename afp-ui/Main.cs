@@ -20,6 +20,7 @@ public partial class Main : Control
 
     public override void _Ready()
     {
+	    Input.MouseMode = Input.MouseModeEnum.Hidden;
 	    Global.Instance.Toast = GetNode<Control>("Toast");
 
 	    _homeView = GetNode<Home>("ViewManager/Home");
@@ -32,6 +33,17 @@ public partial class Main : Control
 	    WebSocketClient.Instance.Connect(WebSocketClient.SignalName.Connected, Callable.From(OnSocketFirstConnect),
 		    (uint)ConnectFlags.OneShot);
 	    WebSocketClient.Instance.Connect(Global.Instance.Config.WebSocketUrl);
+    }
+
+    public override void _Input(InputEvent @event)
+    {
+	    if (@event is InputEventMouseMotion)
+	    {
+		    Input.MouseMode = Input.MouseModeEnum.Visible;
+	    } else if (@event is InputEventScreenDrag or InputEventScreenTouch)
+	    {
+		    Input.MouseMode = Input.MouseModeEnum.Hidden;
+	    }
     }
 
     public override void _Process(double delta)
