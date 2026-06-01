@@ -36,6 +36,7 @@ class Scope:
     trigger_edge_slope: ObservableVariable[TriggerEdgeSlope]
     trigger_state: ObservableVariable[TriggerState]
     run: ObservableVariable[bool]
+    cursors: ObservableVariable[bool]
     zoom: ObservableVariable[bool]
     fast_acquire: ObservableVariable[bool]
     touch_enabled: ObservableVariable[bool]
@@ -62,6 +63,7 @@ class Scope:
             },
             source_channel=ObservableVariable(Channel.NONE),
             run=ObservableVariable(True),
+            cursors=ObservableVariable(False),
             fast_acquire=ObservableVariable(False),
             zoom=ObservableVariable(False),
             trigger_mode=ObservableVariable(TriggerMode.AUTO),
@@ -91,6 +93,7 @@ class Scope:
             },
             source_channel=ObservableVariable(Channel.NONE),
             run=ObservableVariable(True),
+            cursors=ObservableVariable(False),
             fast_acquire=ObservableVariable(False),
             zoom=ObservableVariable(False),
             trigger_mode=ObservableVariable(TriggerMode.AUTO),

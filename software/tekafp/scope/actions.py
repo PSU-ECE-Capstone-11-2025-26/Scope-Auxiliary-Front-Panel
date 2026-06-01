@@ -43,6 +43,7 @@ class Action:
         scope.trigger_edge_slope.value = Action.get_trigger_slope(scope)
         scope.trigger_state.value = Action.get_trigger_state(scope)
         scope.run.value = Action.get_run_state(scope)
+        scope.cursors.value = Action.get_cursor_state(scope)
         scope.zoom.value = Action.get_zoom_state(scope)
         if "fast_acquire" in scope.features:
             scope.fast_acquire.value = Action.get_fast_acquire_state(scope)
@@ -339,6 +340,15 @@ class Action:
     @staticmethod
     def toggle_run_stop(scope: Scope) -> None:
         Action.set_run_stop(scope, not scope.run.value)
+
+    @staticmethod
+    def get_cursor_state(scope: Scope) -> bool:
+        resp = parse_resp(scope.resource.query("DISPLAY:WAVEVIEW1:CURSOR:CURSOR1:STATE?"), str)
+        return resp not in ("OFF", "0")
+
+    @staticmethod
+    def set_cursor_state(scope: Scope, state: bool) -> None:
+        scope.resource.write(f"DISPLAY:WAVEVIEW1:CURSOR:CURSOR1:STATE {int(state)}")
 
     @staticmethod
     def set_run_stop(scope: Scope, state: bool) -> None:

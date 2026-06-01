@@ -9,6 +9,7 @@ import time
 import pyvisa
 from pyvisa import VisaIOError
 from pyvisa.resources import MessageBasedResource
+from scope.commands import SetCursorMode
 
 from tekafp import __version__
 from tekafp.api_server import (
@@ -338,6 +339,8 @@ class TekAfp:
                 cmd = SetTriggerMode(mode=str(~synced.trigger_mode.value))
             case "AR0":
                 cmd = SetRunStop(enabled=not synced.run.value)
+            case "AC0":
+                cmd = SetCursorMode(enabled=not synced.cursors.value)
             case "AF0":
                 cmd = SetFastAcquire(enabled=not synced.fast_acquire.value)
             case "AX0":
@@ -488,6 +491,7 @@ class TekAfp:
             scope.connected.register(lambda _, v: self._set_led("ISP_CON", int(v))),
             scope.source_channel.register(self._cb_source_channel),
             scope.run.register(lambda _, v: self._set_led("IAR0", int(v))),
+            scope.cursors.register(lambda _, v: self._set_led("IAC0", int(v))),
             # note that for MATH or BUS number is None, so this would send ITL:None. However,
             # in practice the trigger should always be a numbered channel
             scope.trigger_source.register(
@@ -513,6 +517,7 @@ class TekAfp:
             scope.connected,
             scope.source_channel,
             scope.run,
+            scope.cursors,
             scope.trigger_source,
             scope.trigger_mode,
             scope.trigger_edge_slope,
@@ -534,6 +539,7 @@ class TekAfp:
         scope.connected.fire_callbacks()
         scope.source_channel.fire_callbacks()
         scope.run.fire_callbacks()
+        scope.cursors.fire_callbacks()
         scope.trigger_source.fire_callbacks()
         scope.trigger_mode.fire_callbacks()
         scope.trigger_edge_slope.fire_callbacks()

@@ -149,6 +149,14 @@ class SetRunStop(Command, kind="set_run_stop"):
 
 
 @dataclass
+class SetCursorMode(Command, kind="set_cursor_state"):
+    enabled: bool
+
+    def execute(self, scope: Scope) -> None:
+        Action.set_cursor_state(scope, self.enabled)
+
+
+@dataclass
 class SetFastAcquire(Command, kind="set_fast_acquire"):
     enabled: bool
 
