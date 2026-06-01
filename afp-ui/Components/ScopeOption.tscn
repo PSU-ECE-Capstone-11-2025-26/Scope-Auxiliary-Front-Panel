@@ -20,4 +20,5 @@ theme_override_styles/separator = SubResource("StyleBoxEmpty_nr3hc")
 [node name="SelectButton" type="CheckButton" parent="." unique_id=1912510351]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 text = "SCOPE RESOURCE NAME"
