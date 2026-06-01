@@ -264,7 +264,7 @@ class Action:
 
         vert_scale: float = parse_resp(scope.resource.query(f"{source.label}:SCALE?"), float)
         # index _LEVEL_MANTISSAS as (idx - 5) for feel (MSO matching would be -6)
-        step = _scale_idx_to_val(LEVEL_MANTISSAS, _scale_val_to_idx(vert_scale) - 5)
+        step = _scale_idx_to_val(LEVEL_MANTISSAS, _scale_val_to_idx(vert_scale) - 4)
         new = clamp(cur + detents * step, -100.0, 100.0)
 
         scope.resource.write(query + f" {new}")
