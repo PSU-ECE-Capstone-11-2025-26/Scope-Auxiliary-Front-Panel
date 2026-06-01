@@ -144,12 +144,20 @@ class Action:
         ch = scope.source_channel.value
         if ch == Channel.NONE or ch not in scope.channels:
             return
-        cur = float(scope.resource.query(f"{ch.label}:POSITION?").strip().split()[-1])
+        if ch == Channel.MATH:
+            query = f"MATH:{ch.display_label}"
+        elif ch == Channel.BUS:
+            query = f"BUS:{ch.display_label}"
+        else:
+            query = f"{ch.display_label}"
+        cur: float = parse_resp(
+            scope.resource.query(f"DISPLAY:WAVEVIEW1:{query}:VERTICAL:POSITION?"), float
+        )
 
         new = cur + detents * VERT_STEP_DIVS
         new = clamp(new, -10.0, 10.0)
 
-        scope.resource.write(f"{ch.label}:POSITION {new}")
+        scope.resource.write(f"DISPLAY:WAVEVIEW1:{query}:VERTICAL:POSITION {new}")
         logger.debug(f"{ch.label} vertical position: {cur:.3f} -> {new:.3f}")
 
     @staticmethod
@@ -157,17 +165,28 @@ class Action:
         ch = scope.source_channel.value
         if ch == Channel.NONE or ch not in scope.channels:
             return
+        if ch == Channel.MATH:
+            query = f"MATH:{ch.display_label}"
+        elif ch == Channel.BUS:
+            query = f"BUS:{ch.display_label}"
+        else:
+            query = f"{ch.display_label}"
 
-        cur = float(scope.resource.query(f"{ch.label}:POSITION?").strip().split()[-1])
-        scope.resource.write(f"{ch.label}:POSITION 0")
-        logger.debug(f"{ch.label} vertical position centered: {cur:.3f} -> 0.000")
+        scope.resource.write(f"DISPLAY:WAVEVIEW1:{query}:VERTICAL:POSITION 0")
+        logger.debug(f"{ch.label} vertical position centered -> 0.000")
 
     @staticmethod
     def adjust_vertical_scale(scope: Scope, detents: int, fine: bool = False) -> None:
         ch = scope.source_channel.value
-        if ch == Channel.NONE or ch not in scope.channels:
+        if ch == Channel.NONE or ch == Channel.BUS or ch not in scope.channels:
             return
-        cur = float(scope.resource.query(f"{ch.label}:SCALE?").strip().split()[-1])
+        if ch == Channel.MATH:
+            query = f"MATH:{ch.display_label}"
+        else:
+            query = f"{ch.display_label}"
+        cur: float = parse_resp(
+            scope.resource.query(f"DISPLAY:WAVEVIEW1:{query}:VERTICAL:SCALE?"), float
+        )
 
         if fine:
             # Fine mode: find the coarse step that owns the current value,
@@ -185,7 +204,7 @@ class Action:
             new_idx = int(clamp(nearest + detents, VERT_MIN_IDX, VERT_MAX_IDX))
             new = _scale_idx_to_val(VERT_MANTISSAS, new_idx)
 
-        scope.resource.write(f"{ch.label}:SCALE {new}")
+        scope.resource.write(f"DISPLAY:WAVEVIEW1:{query}:VERTICAL:SCALE {new}")
         mode = "fine" if fine else "coarse"
         logger.debug(f"{ch.label} vertical ({mode}): {cur:.3e} -> {new:.3e} V/div")
 
@@ -202,9 +221,8 @@ class Action:
 
     @staticmethod
     def center_horizontal_position(scope: Scope) -> None:
-        cur = float(scope.resource.query("HORIZONTAL:POSITION?").strip().split()[-1])
         scope.resource.write("HORIZONTAL:POSITION 50")
-        logger.debug(f"horizontal position centered (%): {cur:.2f} -> 50.00")
+        logger.debug(f"horizontal position centered (%) -> 50.00")
 
     @staticmethod
     def adjust_horizontal_scale(scope: Scope, detents: int) -> None:
