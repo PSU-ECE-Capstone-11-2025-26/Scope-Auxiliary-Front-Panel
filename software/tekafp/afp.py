@@ -225,6 +225,7 @@ class TekAfp:
             ScopeInfoPacketData(
                 resource_name=resource_name,
                 connected=True,
+                synced=self.synced_scope == resource_name,
                 idn=scope.idn,
                 channel_count=scope.channel_count,
             )
