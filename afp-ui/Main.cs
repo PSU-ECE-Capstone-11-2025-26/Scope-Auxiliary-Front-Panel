@@ -51,6 +51,7 @@ public partial class Main : Control
 			    case HandshakePacketData hs:
 				    Global.Logger.Log(LogLevel.Debug, $"Handshaked with {hs.Id} {hs.Version}");
 				    GetNode<About>("ViewManager/About").AddGeneralInfo("tekafp version", hs.Version);
+				    _homeView.ClearScopes();
 				    break;
 			    case ScopeListPacketData sl:
 			    {
@@ -82,8 +83,6 @@ public partial class Main : Control
 				    Global.Instance.SaveConfig(true);
 				    if (!_scopes.TryGetValue(si.ResourceName, out ScopeInstance scope))
 				    {
-					    // ScopeInfo can arrive for a scope the UI didn't enable itself
-					    // (e.g. tekafp started with --auto), so create the instance here.
 					    scope = new ScopeInstance(si.ResourceName, null, ScopeConnectionState.Connecting, 0);
 					    _scopes[si.ResourceName] = scope;
 					    _homeView.AddScope(si.ResourceName);

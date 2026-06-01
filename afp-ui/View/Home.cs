@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using AFP.Core;
 using AFP.Packet.Data;
 using Godot;
-using Logger = AFP.Core.Logger;
 
 namespace AFP.View;
 
@@ -47,12 +46,15 @@ public partial class Home : VBoxContainer
 
 	public void RemoveScope(string resourceName)
 	{
+		if (!_scopes.TryGetValue(resourceName, out TreeItem value)) return;
+		_root.RemoveChild(value);
 		_scopes.Remove(resourceName);
 		if (_scopes.Count == 0)
 		{
 			_tree.Hide();
 			_noScopeParent.Show();
 		}
+
 	}
 
 	private TreeItem CreateScopeTreeItem(string resourceName)
@@ -105,5 +107,14 @@ public partial class Home : VBoxContainer
 		item.GetChild((int)InfoId.Status).SetText(1, "CONNECTED");
 		item.GetChild((int)InfoId.Synced).SetText(1, synced.ToString());
 		item.GetChild((int)InfoId.Channels).SetText(1, channelCount.ToString());
+	}
+
+	public void ClearScopes()
+	{
+		foreach (TreeItem item in _scopes.Values)
+		{
+			_root.RemoveChild(item);
+		}
+		_scopes.Clear();
 	}
 }
