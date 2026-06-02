@@ -462,7 +462,27 @@ class TekAfp:
                                     )
                                 )
                         case "sync":
-                            self.set_synced_scope(data.resource_name)
+                            logger.info("Sync requested for scope %s", data.resource_name)
+                            if (
+                                data.resource_name != self.synced_scope
+                                and data.resource_name in self.scopes
+                            ):
+                                scope = self.scopes[data.resource_name]
+                                if con := scope.connected.value:
+                                    self.set_synced_scope(data.resource_name)
+                                    send_packet_data(
+                                        ScopeInfoPacketData(
+                                            resource_name=data.resource_name,
+                                            connected=con,
+                                            synced=True,
+                                            idn=scope.idn,
+                                            channel_count=scope.channel_count,
+                                        )
+                                    )
+                                else:
+                                    logger.warning(
+                                        "Scope %s not connected, sync ignored", data.resource_name
+                                    )
                         case _:
                             logger.error(f"Unknown action: {a}")
                 case MacroActionPacketData(action=a, slot=slot):
