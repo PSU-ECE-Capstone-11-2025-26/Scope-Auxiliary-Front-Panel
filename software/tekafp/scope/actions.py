@@ -223,7 +223,7 @@ class Action:
     @staticmethod
     def center_horizontal_position(scope: Scope) -> None:
         scope.resource.write("HORIZONTAL:POSITION 50")
-        logger.debug(f"horizontal position centered (%) -> 50.00")
+        logger.debug("horizontal position centered (%) -> 50.00")
 
     @staticmethod
     def adjust_horizontal_scale(scope: Scope, detents: int) -> None:

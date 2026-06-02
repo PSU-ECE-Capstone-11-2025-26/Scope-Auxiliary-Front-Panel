@@ -6,7 +6,6 @@ from typing import Iterable
 from tekafp.api_server import send_packet_data
 from tekafp.api_server.packets import MacroStatePacketData
 
-from .actions import Action
 from .commands import Command
 from .scope import Scope
 
