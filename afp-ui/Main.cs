@@ -81,8 +81,14 @@ public partial class Main : Control
 				    if (!si.Connected)
 				    {
 					    RemoveScope(si.ResourceName);
+					    Global.Logger.Log(LogLevel.Info, $"Disconnected from {si.ResourceName}", true);
+					    break;
 				    }
 				    _homeView.UpdateScope(si.ResourceName, si.Idn, si.ChannelCount, si.Synced);
+				    if (si.Synced)
+				    {
+					    Global.Logger.Log(LogLevel.Info, $"Synced to {si.ResourceName}", true);
+				    }
 				    List<string> lastUsed = Global.Instance.Config.LastUsedScopes;
 				    if (lastUsed.Count > 0)
 				    {
