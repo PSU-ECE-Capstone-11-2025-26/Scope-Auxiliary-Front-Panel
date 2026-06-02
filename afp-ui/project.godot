@@ -16,7 +16,7 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 
 config/name="afp-ui"
 config/description="Touchscreen friendly user interface for Tektronix Auxiliary Front Panel."
-config/version="2.1.0"
+config/version="2.2.0"
 run/main_scene="uid://c6068oplqakdp"
 config/use_custom_user_dir=true
 config/custom_user_dir_name="Tektronix/AFP"
