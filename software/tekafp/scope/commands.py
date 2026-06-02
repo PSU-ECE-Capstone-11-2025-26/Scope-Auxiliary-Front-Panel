@@ -6,7 +6,7 @@ from typing import ClassVar
 
 from .actions import Action
 from .scope import Scope
-from .state import Channel, TriggerEdgeSlope, TriggerMode
+from .state import Channel, ChannelState, TriggerEdgeSlope, TriggerMode
 
 
 _REGISTRY: dict[str, type[Command]] = {}
@@ -24,6 +24,13 @@ class Command:
 
     def execute(self, scope: Scope) -> None:
         raise NotImplementedError
+
+    def predict(self, scope: Scope) -> None:
+        """Immediately apply scope state changes to prevent desync.
+
+        Defaults to no-op for commands that don't change state.
+        """
+        return
 
     def to_dict(self) -> dict:
         return {"kind": self.kind} | dataclasses.asdict(self)
@@ -45,6 +52,16 @@ class SetChannel(Command, kind="set_channel"):
 
     def execute(self, scope: Scope) -> None:
         Action.set_channel(scope, Channel.from_label(self.channel), self.enabled)
+
+    def predict(self, scope: Scope) -> None:
+        ch = Channel.from_label(self.channel)
+        if ch not in scope.channels:
+            return
+        scope.channels[ch].value = ChannelState(enabled=self.enabled)
+        if self.enabled:
+            scope.source_channel.value = ch
+        elif scope.source_channel.value == ch:
+            scope.source_channel.value = Action._get_highest_enabled_channel(scope, exclude=ch)
 
 
 # Vertical
@@ -120,6 +137,9 @@ class SetTriggerSlope(Command, kind="set_trigger_slope"):
     def execute(self, scope: Scope) -> None:
         Action.set_trigger_slope(scope, TriggerEdgeSlope(self.slope))
 
+    def predict(self, scope: Scope) -> None:
+        scope.trigger_edge_slope.value = TriggerEdgeSlope(self.slope)
+
 
 @dataclass
 class SetTriggerMode(Command, kind="set_trigger_mode"):
@@ -127,6 +147,9 @@ class SetTriggerMode(Command, kind="set_trigger_mode"):
 
     def execute(self, scope: Scope) -> None:
         Action.set_trigger_mode(scope, TriggerMode(self.mode))
+
+    def predict(self, scope: Scope) -> None:
+        scope.trigger_mode.value = TriggerMode(self.mode)
 
 
 @dataclass
@@ -147,6 +170,9 @@ class SetRunStop(Command, kind="set_run_stop"):
     def execute(self, scope: Scope) -> None:
         Action.set_run_stop(scope, self.enabled)
 
+    def predict(self, scope: Scope) -> None:
+        scope.run.value = self.enabled
+
 
 @dataclass
 class SetCursorMode(Command, kind="set_cursor_state"):
@@ -154,6 +180,9 @@ class SetCursorMode(Command, kind="set_cursor_state"):
 
     def execute(self, scope: Scope) -> None:
         Action.set_cursor_state(scope, self.enabled)
+
+    def predict(self, scope: Scope) -> None:
+        scope.cursors.value = self.enabled
 
 
 @dataclass
@@ -163,6 +192,10 @@ class SetFastAcquire(Command, kind="set_fast_acquire"):
     def execute(self, scope: Scope) -> None:
         Action.set_fast_acquire(scope, self.enabled)
 
+    def predict(self, scope: Scope) -> None:
+        if "fast_acquire" in scope.features:
+            scope.fast_acquire.value = self.enabled
+
 
 @dataclass
 class SetAcquireMode(Command, kind="set_acquire_mode"):
@@ -170,6 +203,10 @@ class SetAcquireMode(Command, kind="set_acquire_mode"):
 
     def execute(self, scope: Scope) -> None:
         Action.set_acquire_mode(scope, self.mode)
+
+    def predict(self, scope: Scope) -> None:
+        if "high_res" in scope.features:
+            scope.high_res.value = self.mode == "HIRES"
 
 
 @dataclass
@@ -200,6 +237,9 @@ class SetZoom(Command, kind="set_zoom"):
     def execute(self, scope: Scope) -> None:
         Action.set_zoom(scope, self.enabled)
 
+    def predict(self, scope: Scope) -> None:
+        scope.zoom.value = self.enabled
+
 
 @dataclass
 class AdjustZoomScale(Command, kind="adjust_zoom_scale"):
@@ -226,6 +266,10 @@ class SetTouchEnabled(Command, kind="set_touch_enabled"):
 
     def execute(self, scope: Scope) -> None:
         Action.set_touch_enabled(scope, self.enabled)
+
+    def predict(self, scope: Scope) -> None:
+        if "touch" in scope.features:
+            scope.touch_enabled.value = self.enabled
 
 
 # Navigation

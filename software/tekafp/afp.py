@@ -377,6 +377,7 @@ class TekAfp:
                 cmd = FpanelTurn(knob="GPKNOB2", detents=mult * int(val))
 
         if cmd:
+            cmd.predict(synced)
             for scope in self.scopes.values():
                 if scope.connected.value:
                     try:
