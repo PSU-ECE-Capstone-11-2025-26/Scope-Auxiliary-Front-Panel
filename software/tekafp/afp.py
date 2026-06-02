@@ -1,6 +1,5 @@
 import argparse
 import logging
-import os
 from pathlib import Path
 import socket
 import threading
@@ -9,7 +8,6 @@ import time
 import pyvisa
 from pyvisa import VisaIOError
 from pyvisa.resources import MessageBasedResource
-from scope.commands import SetCursorMode
 
 from tekafp import __version__
 from tekafp.api_server import (
@@ -52,6 +50,7 @@ from tekafp.scope.commands import (
     RunDefaultSetup,
     SetAcquireMode,
     SetChannel,
+    SetCursorMode,
     SetFastAcquire,
     SetRunStop,
     SetTouchEnabled,

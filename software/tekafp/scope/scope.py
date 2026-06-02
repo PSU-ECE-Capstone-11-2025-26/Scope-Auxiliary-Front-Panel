@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 
 from pyvisa.resources import MessageBasedResource
-from util import parse_channel_count
 
 from tekafp.scope.state import Channel, ChannelState, TriggerEdgeSlope, TriggerMode, TriggerState
+from tekafp.util import parse_channel_count
 from tekafp.util.observable import ObservableVariable
 
 
