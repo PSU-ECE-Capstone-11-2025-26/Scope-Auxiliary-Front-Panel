@@ -483,6 +483,7 @@ class TekAfp:
             self._unregister_led_callbacks(self.scopes[self.synced_scope])
         self.synced_scope = resource_name
         self._register_led_callbacks(self.scopes[self.synced_scope])
+        Action.sync(self.scopes[self.synced_scope])
         self._force_leds(self.scopes[self.synced_scope])
 
     def _register_led_callbacks(self, scope: Scope) -> None:
