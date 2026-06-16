@@ -1,4 +1,4 @@
-# AFP
+# AFP - Tektronix Open-Source Auxiliary Front Panel
 An Auxiliary Front Panel for Tektronix Oscilloscopes.
 
 PSU ECE Capstone Team 11 -- Sponsored by Tektronix, Inc.
