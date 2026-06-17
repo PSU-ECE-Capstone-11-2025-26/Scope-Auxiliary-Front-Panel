@@ -1,11 +1,15 @@
+from enum import Enum
 import logging
 import math
 import re
+from typing import Optional
 
 from pyvisa.resources import MessageBasedResource
 
 from tekafp.input import Input
 from tekafp.scope.constants import (
+    GP_KNOB_COARSE_SCALE,
+    GP_KNOB_FINE_SCALE,
     HORIZ_MANTISSAS,
     HORIZ_MAX_IDX,
     HORIZ_MIN_IDX,
@@ -35,6 +39,60 @@ def _scale_val_to_idx(v: float) -> int:
     return round(math.log10(v) * 3)
 
 
+class Channel(Enum):
+    """Represents a channel.
+
+    Usage: `Channel.MATH.label -> "MATH"`
+    `Channel.CH1.number -> 1`
+    """
+
+    NONE = (0, "NONE")
+    CH1 = (1, "CH1")
+    CH2 = (2, "CH2")
+    CH3 = (3, "CH3")
+    CH4 = (4, "CH4")
+    CH5 = (5, "CH5")
+    CH6 = (6, "CH6")
+    CH7 = (7, "CH7")
+    CH8 = (8, "CH8")
+    MATH = (None, "MATH1")
+    BUS = (None, "BUS1")
+
+    def __init__(self, number: Optional[int], label: str) -> None:
+        self.number = number
+        self.label = label
+
+    @property
+    def is_numbered(self) -> bool:
+        return self.number is not None
+
+    @property
+    def display_label(self) -> str:
+        """The display label of the channel.
+
+        This can be used where the standard label is invalid. For example,
+        DISPLAY:SELECT:SOURCE needs BUS<x>, whereas DISPLAY:GLOBAL uses B<x>
+        """
+        if self == Channel.BUS:
+            return "B1"
+        else:
+            return self.label
+
+    @classmethod
+    def from_number(cls, n: int) -> "Channel":
+        for member in cls:
+            if member.number == n:
+                return member
+        raise ValueError(f"Invalid channel number: {n}")
+
+    @classmethod
+    def from_label(cls, label: str) -> "Channel":
+        for member in cls:
+            if member.label == label or label.startswith(member.label):
+                return member
+        raise ValueError(f"Invalid channel label: {label!r}")
+
+
 class Controller:
     def __init__(self, scope: MessageBasedResource, bridge: UARTBridge) -> None:
         self.scope: MessageBasedResource = scope
@@ -47,14 +105,46 @@ class Controller:
         self.channel_count = self._channels_from_idn(self.idn)
         logger.info("Connected ctrl: %s, channels=%d", self.idn, self.channel_count)
 
-        self._channels: dict[int, bool] = {ch: False for ch in range(1, self.channel_count + 1)}
-        self._source_channel: int = 0
+        self._channels: dict[Channel, bool] = {
+            Channel.from_number(ch): False for ch in range(1, self.channel_count + 1)
+        } | {Channel.MATH: False, Channel.BUS: False}
+        self._source_channel: Channel = Channel.NONE
         self._vert_fine: bool = False  # fine mode toggle for vertical scale
+        self._gp_a_fine: bool = False
+        self._gp_b_fine: bool = False
         self._fast_acquire: bool = False
         self._run_state: bool = False
         self._zoom: bool = False
         self._touch_state: bool = False
         self._high_res: bool = False
+
+    def _math_bus_exists(self, channel: Channel) -> bool:
+        """Whether any MATH/BUS instance is defined on the scope.
+
+        MATH/BUS can only be enabled/selected once they exist.
+        """
+        kind = "MATH" if channel is Channel.MATH else "BUS"
+        resp = self.scope.query(f"{kind}:LIST?").strip().strip('"')
+        return bool(resp) and resp.upper() != "NONE"
+
+    def _create_math_bus(self, channel: Channel) -> None:
+        """Create instance 1 of a MATH/BUS that doesn't exist yet.
+
+        Subsystem is MATH/BUS but the instance name uses the display label:
+        MATH:ADDNew "MATH1" / BUS:ADDNew "B1".
+        """
+        kind = "MATH" if channel is Channel.MATH else "BUS"
+        name = channel.display_label
+        self.scope.write(f'{kind}:ADDNew "{name}"')
+        logger.debug(f"Created {name}")
+
+    @property
+    def highest_enabled_channel(self) -> Channel:
+        highest = Channel.NONE
+        for ch, state in self._channels.items():
+            if state:
+                highest = ch
+        return highest
 
     def sync_zoom(self) -> None:
         resp: str = parse_resp(self.scope.query("DISPLAY:WAVEVIEW1:ZOOM:ZOOM1:STATE?"), str)
@@ -68,22 +158,22 @@ class Controller:
             return 1
         return int(m.group(1))
 
-    def get_scope_channel_state(self, channel: int) -> bool:
-        resp = self.scope.query(f"DISPLAY:GLOBAL:CH{channel}:STATE?").strip().upper()
-        return resp.endswith("1") or resp.endswith("ON")
+    def get_scope_channel_state(self, channel: Channel) -> bool:
+        # MATH/BUS report a state only once an instance exists; treat absent as off.
+        if channel in (Channel.MATH, Channel.BUS) and not self._math_bus_exists(channel):
+            return False
+        resp = parse_resp(self.scope.query(f"DISPLAY:GLOBAL:{channel.display_label}:STATE?"), str)
+        return resp not in ("OFF", "0")
 
     def sync_all_channels_from_scope(self) -> None:
-        highest = 0
-        for ch in range(1, self.channel_count + 1):
+        for ch in self._channels.keys():
             actual = self.get_scope_channel_state(ch)
             self._channels[ch] = actual
             self.send_channel_led(ch, actual)
-            if actual:
-                highest = ch
-            logger.debug(f"CH{ch} -> {actual}")
+            logger.debug(f"{ch.label} -> {actual}")
 
         # Chooses highest enabled channel as the active selected channel
-        self._source_channel = highest
+        self._source_channel = self.highest_enabled_channel
 
         self.set_scope_selected_source()
         self.send_selected_channel_leds()
@@ -93,27 +183,22 @@ class Controller:
     def sync_all_changed_channels_from_scope(self) -> None:
         any_changed = False
 
-        for ch in range(1, self.channel_count + 1):
+        for ch, state in self._channels.items():
             actual = self.get_scope_channel_state(ch)
-            if self._channels[ch] != actual:
+            if state != actual:
                 self._channels[ch] = actual
                 self.send_channel_led(ch, actual)
-                logger.debug(f"CH{ch} -> {actual}")
+                logger.debug(f"{ch.label} -> {actual}")
                 any_changed = True
 
                 if actual:
                     self._source_channel = ch
-                    self.scope.write(f"DISPLAY:SELECT:SOURCE CH{self._source_channel}")
+                    self.scope.write(f"DISPLAY:SELECT:SOURCE {self._source_channel.label}")
                     self.send_selected_channel_leds()
 
         # Keep selected source sane if current source is now off
-        if self._source_channel != 0 and not self._channels[self._source_channel]:
-            highest = 0
-            for k, v in self._channels.items():
-                if v:
-                    highest = k
-
-            self._source_channel = highest
+        if self._source_channel != Channel.NONE and not self._channels[self._source_channel]:
+            self._source_channel = self.highest_enabled_channel
 
             self.set_scope_selected_source()
             self.send_selected_channel_leds()
@@ -122,75 +207,49 @@ class Controller:
         if any_changed:
             logger.debug("Full channel sync pass complete")
 
-    # Per-channel RGB color (R,G,B)
-    CHANNEL_COLORS: dict[int, tuple[int, int, int]] = {
-        1: (1, 1, 0),  # Yellow
-        2: (0, 1, 1),  # Cyan
-        3: (1, 0, 0),  # Red
-        4: (0, 1, 0),  # Lime Green
-        5: (1, 1, 0),  # Orange approximation
-        6: (0, 0, 1),  # Blue
-        7: (1, 0, 1),  # Purple
-        8: (0, 1, 0),  # Forest Green approximation
-    }
-
-    def send_channel_led(self, channel: int, state: bool) -> None:
+    def send_channel_led(self, channel: Channel, state: bool) -> None:
         # Send indicator update back to Pico
-        if channel not in range(1, self.channel_count + 1):
+        if channel not in self._channels.keys():
             return
 
-        r, g, b = self.CHANNEL_COLORS[channel]
+        if channel is Channel.MATH:
+            self.bridge.queue_write(f"IVM0:{int(state)}\n".encode())
+        elif channel is Channel.BUS:
+            self.bridge.queue_write(f"IVB0:{int(state)}\n".encode())
+        else:
+            self.bridge.queue_write(f"IV{channel.number}0\n".encode())
 
-        if not state:
-            r, g, b = 0, 0, 0
-
-        msgs = [
-            f"IV{channel}0_R:{r}\n".encode("utf-8"),
-            f"IV{channel}0_G:{g}\n".encode("utf-8"),
-            f"IV{channel}0_B:{b}\n".encode("utf-8"),
-        ]
-
-        for msg in msgs:
-            self.bridge.write_sync(msg)
-            logger.debug(f"[UART->PICO] {msg.decode().strip()}")
+    @staticmethod
+    def _sel_led_id(channel: Channel) -> str:
+        """Translate channel to selected source LED ID"""
+        if channel is Channel.MATH:
+            return "ISEL_M"
+        if channel is Channel.BUS:
+            return "ISEL_B"
+        return f"ISEL{channel.number}"
 
     def send_selected_channel_leds(self) -> None:
-        # Two RGB LEDs used to show the active selected channel:
-        # VP1_RGB and VS1_RGB should always match the selected channel color
+        # ISEL indicators override each other, so one message suffices: the selected
+        # source on, or any id with value 0 to clear it when nothing is selected.
+        if self._source_channel is Channel.NONE:
+            msg = b"ISEL1:0\n"
+        else:
+            msg = f"{self._sel_led_id(self._source_channel)}:1\n".encode()
+        self.bridge.write_sync(msg)
+        logger.debug(f"[UART->PICO] {msg.decode().strip()}")
 
-        r, g, b = self.CHANNEL_COLORS.get(self._source_channel, (0, 0, 0))
-
-        msgs = [
-            f"IVP1_R:{r}\n".encode("utf-8"),
-            f"IVP1_G:{g}\n".encode("utf-8"),
-            f"IVP1_B:{b}\n".encode("utf-8"),
-            f"IVS1_R:{r}\n".encode("utf-8"),
-            f"IVS1_G:{g}\n".encode("utf-8"),
-            f"IVS1_B:{b}\n".encode("utf-8"),
-        ]
-
-        for msg in msgs:
-            self.bridge.write_sync(msg)
-            logger.debug(f"[UART->PICO] {msg.decode().strip()}")
-
-    def get_scope_selected_source(self) -> int:
-        resp = self.scope.query("DISPLAY:SELECT:SOURCE?").strip().upper()
-
-        if resp.endswith("NONE"):
-            return 0
-
-        for ch in range(1, self.channel_count + 1):
-            if resp.endswith(f"CH{ch}") or f"CH{ch}" in resp:
-                return ch
-
-        logger.error(f"Unknown selected source response: {resp}")
-        return self._source_channel
+    def get_scope_selected_source(self) -> Channel:
+        resp = parse_resp(self.scope.query("DISPLAY:SELECT:SOURCE?"), str)
+        actual = Channel.from_label(resp)
+        if actual != self._source_channel:
+            logger.debug(
+                f"[source] scope readback {resp!r} ({actual.label}) != local {self._source_channel.label}"  # noqa: E501
+            )
+        return actual
 
     def set_scope_selected_source(self) -> None:
-        if self._source_channel == 0:
-            self.scope.write("DISPLAY:SELECT:SOURCE NONE")
-        else:
-            self.scope.write(f"DISPLAY:SELECT:SOURCE CH{self._source_channel}")
+        logger.debug(f"[source] write DISPLAY:SELECT:SOURCE {self._source_channel.label}")
+        self.scope.write(f"DISPLAY:SELECT:SOURCE {self._source_channel.label}")
 
     def sync_selected_source_from_scope(self) -> None:
         actual_source = self.get_scope_selected_source()
@@ -198,76 +257,83 @@ class Controller:
         if actual_source != self._source_channel:
             self._source_channel = actual_source
             self.send_selected_channel_leds()
-            logger.debug(f"selected source -> CH{actual_source}")
+            logger.debug(f"selected source -> {actual_source.label}")
 
-    def set_channel_display(self, channel: int) -> None:
-        if channel not in range(1, self.channel_count + 1):
+    def set_channel_display(self, channel: Channel) -> None:
+        if channel not in self._channels.keys():
             return
+
+        # MATH/BUS can only be enabled if an instance exists; create one on first use.
+        if (
+            channel in (Channel.MATH, Channel.BUS)
+            and not self._channels[channel]
+            and not self._math_bus_exists(channel)
+        ):
+            self._create_math_bus(channel)
+
         last_state: bool = self._channels[channel]
 
-        if self._source_channel == channel:
-            # enabled and source => disable, select highest enabled as active
-            self._channels[channel] = False
-            highest: int = 0
-            for k, v in self._channels.items():
-                if v:
-                    highest = k
-            self._source_channel = highest
-        elif last_state:
-            # enabled => set as source
-            self._source_channel = channel
-        else:
+        if not last_state:
             # disabled => enable, set as source
             self._channels[channel] = True
+            self._source_channel = channel
+        elif self._source_channel == channel:
+            # enabled and source => disable, select highest enabled as active
+            self._channels[channel] = False
+            self._source_channel = self.highest_enabled_channel
+        else:
+            # enabled but not source => set as source
             self._source_channel = channel
 
         self.set_scope_selected_source()
         self.send_selected_channel_leds()
 
         if last_state != self._channels[channel]:
-            self.scope.write(f"DISPLAY:GLOBAL:CH{channel}:STATE {int(self._channels[channel])}")
+            self.scope.write(
+                f"DISPLAY:GLOBAL:{channel.display_label}:STATE {int(self._channels[channel])}"
+            )
             self.send_channel_led(channel, self._channels[channel])
 
         logger.debug(
-            f"CH{channel} display -> {self._channels[channel]} (source={self._source_channel})"  # noqa: E501
+            f"{channel.label} display -> {self._channels[channel]} (source={self._source_channel.label})"  # noqa: E501
         )
 
-    def force_channel_display(self, channel: int, desired: bool) -> None:
-        if channel not in range(1, self.channel_count + 1):
+    def force_channel_display(self, channel: Channel, desired: bool) -> None:
+        if channel not in self._channels.keys():
             return
 
         self._channels[channel] = desired
 
         if self._source_channel == channel and not desired:
-            self._source_channel = max((k for k, v in self._channels.items() if v), default=0)
+            self._source_channel = self.highest_enabled_channel
 
-        self.scope.write(f"DISPLAY:GLOBAL:CH{channel}:STATE {int(desired)}")
+        self.scope.write(f"DISPLAY:GLOBAL:{channel.display_label}:STATE {int(desired)}")
         self.send_channel_led(channel, desired)
 
-        logger.debug(f"CH{channel} forced -> {self._channels[channel]}")
+        logger.debug(f"{channel.label} forced -> {self._channels[channel]}")
 
     def adjust_vertical_position(self, detents: int) -> None:
         ch = self._source_channel
-        if ch == 0:
+        if ch == Channel.NONE:
             logger.debug("No active channel selected, ignoring vertical position.")
             return
-        cur = float(self.scope.query(f"CH{ch}:POSITION?").strip().split()[-1])
+        cur = float(self.scope.query(f"{ch.label}:POSITION?").strip().split()[-1])
 
         new = cur + detents * VERT_STEP_DIVS
         # No hard guarantee on min/max in the snippet we pulled, so clamp conservatively
         new = clamp(new, -10.0, 10.0)
 
-        self.scope.write(f"CH{ch}:POSITION {new}")
-        logger.debug(f"CH{ch} vertical position: {cur:.3f} -> {new:.3f}")
+        self.scope.write(f"{ch.label}:POSITION {new}")
+        logger.debug(f"{ch.label} vertical position: {cur:.3f} -> {new:.3f}")
 
     def center_vertical_position(self) -> None:
         ch = self._source_channel
-        if ch == 0:
+        if ch == Channel.NONE:
             return
 
-        cur = float(self.scope.query(f"CH{ch}:POSITION?").strip().split()[-1])
-        self.scope.write(f"CH{ch}:POSITION 0")
-        logger.debug(f"CH{ch} vertical position centered: {cur:.3f} -> 0.000")
+        cur = float(self.scope.query(f"{ch.label}:POSITION?").strip().split()[-1])
+        self.scope.write(f"{ch.label}:POSITION 0")
+        logger.debug(f"{ch.label} vertical position centered: {cur:.3f} -> 0.000")
 
     def adjust_horizontal_position(self, detents: int) -> None:
         # HORizontal:POSition is ~0..100 (% trigger position on screen)
@@ -286,9 +352,9 @@ class Controller:
 
     def adjust_vertical_scale(self, detents: int) -> None:
         ch = self._source_channel
-        if ch == 0:
+        if ch == Channel.NONE:
             return
-        cur = float(self.scope.query(f"CH{ch}:SCALE?").strip().split()[-1])
+        cur = float(self.scope.query(f"{ch.label}:SCALE?").strip().split()[-1])
 
         if self._vert_fine:
             # Fine mode: find the coarse step that owns the current value,
@@ -306,9 +372,9 @@ class Controller:
             new_idx = int(clamp(nearest + detents, VERT_MIN_IDX, VERT_MAX_IDX))
             new = _scale_idx_to_val(VERT_MANTISSAS, new_idx)
 
-        self.scope.write(f"CH{ch}:SCALE {new}")
+        self.scope.write(f"{ch.label}:SCALE {new}")
         mode = "fine" if self._vert_fine else "coarse"
-        logger.debug(f"CH{ch} vertical ({mode}): {cur:.3e} -> {new:.3e} V/div")
+        logger.debug(f"{ch.label} vertical ({mode}): {cur:.3e} -> {new:.3e} V/div")
 
     def adjust_horizontal_scale(self, detents: int) -> None:
         cur = float(self.scope.query("HORIZONTAL:MODE:SCALE?").strip().split()[-1])
@@ -354,12 +420,8 @@ class Controller:
 
     def sync_trigger_state(self) -> None:
         source: str = parse_resp(self.scope.query("TRIGGER:A:EDGE:SOURCE?"), str)
-        # FIXME the [2] index on this string is due to subchannels, e.g. for a digital probe
-        #  where channel 1 could have CH1_D0, CH1_D1, etc. source[2] gives just the channel (1)
-        r, g, b = self.CHANNEL_COLORS[int(source[2])]
-        self.bridge.write_sync(f"ITL1_R:{r}\n".encode())
-        self.bridge.write_sync(f"ITL1_G:{g}\n".encode())
-        self.bridge.write_sync(f"ITL1_B:{b}\n".encode())
+        channel = Channel.from_label(source)
+        self.bridge.queue_write(f"TL1_C{channel.number}\n".encode())
         cur: str = parse_resp(self.scope.query("TRIGGER:A:EDGE:SLOPE?"), str).upper()
         match cur:
             case "RISE":
@@ -480,7 +542,7 @@ class Controller:
 
     def get_touch_off_state(self) -> bool:
         resp = parse_resp(self.scope.query("TOUCHSCREEN:STATE?"), str)
-        touch_enabled = resp in ("OFF", "0")
+        touch_enabled = resp not in ("OFF", "0")
         return touch_enabled
 
     def send_touch_off_led(self, state: bool) -> None:
@@ -496,6 +558,7 @@ class Controller:
     def toggle_touch_off(self) -> None:
         new = self.get_touch_off_state()
         self.scope.write(f"TOUCHSCREEN:STATE {int(not new)}")
+        self.send_touch_off_led(new)
         self._touch_state = not new
 
     def get_high_res(self) -> bool:
@@ -517,6 +580,16 @@ class Controller:
         self._high_res = new
         self.send_high_res_led(new)
 
+    def navigate_prev(self) -> None:
+        current_search: str = parse_resp(self.scope.query("SEARCH:SELECTED?"), str)
+        if current_search != "NONE":
+            self.scope.write(f"SEARCH:{current_search}:NAVIGATE PREV")
+
+    def navigate_next(self) -> None:
+        current_search: str = parse_resp(self.scope.query("SEARCH:SELECTED?"), str)
+        if current_search != "NONE":
+            self.scope.write(f"SEARCH:{current_search}:NAVIGATE NEXT")
+
     def handle_input(self, inp: Input) -> None:
         """
         inp.id is expected to be strings like:
@@ -531,7 +604,11 @@ class Controller:
         match msg_id:
             # Channel Selection: 'V10' -> ch 1, 'V80' -> ch 8
             case "V10" | "V20" | "V30" | "V40" | "V50" | "V60" | "V70" | "V80":
-                self.set_channel_display(int(msg_id[1]))
+                self.set_channel_display(Channel.from_number(int(msg_id[1])))
+            case "VM0":
+                self.set_channel_display(Channel.MATH)
+            case "VB0":
+                self.set_channel_display(Channel.BUS)
 
             # Encoder VP1 rotation: vertical position of current active channel
             case "VP1":
@@ -634,3 +711,25 @@ class Controller:
             case "AX0":
                 if int(val) == 1:
                     self.clear()
+            case "HL0":
+                if not self._run_state:
+                    self.navigate_prev()
+            case "HR0":
+                if not self._run_state:
+                    self.navigate_next()
+            case "KA0":
+                if int(val) == 1:
+                    self._gp_a_fine = not self._gp_a_fine
+                    self.bridge.queue_write(f"IKA0:{int(self._gp_a_fine)}\n".encode())
+            case "KA1":
+                if detents := int(val):
+                    mult = GP_KNOB_FINE_SCALE if self._gp_a_fine else GP_KNOB_COARSE_SCALE
+                    self.scope.write(f"FPANEL:TURN GPKNOB1, {mult * detents}")
+            case "KB0":
+                if int(val) == 1:
+                    self._gp_b_fine = not self._gp_b_fine
+                    self.bridge.queue_write(f"IKB0:{int(self._gp_b_fine)}\n".encode())
+            case "KB1":
+                if detents := int(val):
+                    mult = GP_KNOB_FINE_SCALE if self._gp_a_fine else GP_KNOB_COARSE_SCALE
+                    self.scope.write(f"FPANEL:TURN GPKNOB2, {mult * detents}")
