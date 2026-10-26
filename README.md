@@ -5,7 +5,7 @@ An Auxiliary Front Panel for Tektronix Oscilloscopes.
 
 2026 PSU ECE Team 11: 
 - Team Lead + Interface Engineer: [Aaron Carlson](https://www.linkedin.com/in/aaron-davis-carlson-053984413/), GitHub Profile: acmoneyclip
-- Interface Engineer: Michael Ngo, GitHub Profile: mourir09
+- Interface Engineer: [Michael Ngo](https://www.linkedin.com/in/huy-ngo-36249a163/), GitHub Profile: mourir09
 - Hardware Engineer: [Nawaf Altalhi](https://www.linkedin.com/in/nawaf-altalhi-41834b232/), GitHub Profile: naltalhi
 - Hardware Engineer: [Rafael Cervantes](https://www.linkedin.com/in/rafael-cervantes-aab1a729b/), GitHub Profile: Rvfv0611
 - Software Engineer: [Andrew Stanton](https://www.linkedin.com/in/andrew-stanton-254697411/), GitHub Profile: sneakyaardvark
