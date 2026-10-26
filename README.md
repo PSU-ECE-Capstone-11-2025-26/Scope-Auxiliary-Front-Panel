@@ -1,9 +1,9 @@
 # AFP - Tektronix Open-Source Auxiliary Front Panel
 An Auxiliary Front Panel for Tektronix Oscilloscopes.
 
-PSU ECE Capstone Team 11 -- Sponsored by Tektronix, Inc.
+2026 PSU ECE Capstone Team 11 -- Sponsored by Tektronix, Inc.
 
-PSU ECE Team 11: 
+2026 PSU ECE Team 11: 
 - Team Lead + Interface Engineer: [Aaron Carlson](https://www.linkedin.com/in/aaron-davis-carlson-053984413/), GitHub Profile: acmoneyclip
 - Interface Engineer: Michael Ngo, GitHub Profile: mourir09
 - Hardware Engineer: [Nawaf Altalhi](https://www.linkedin.com/in/nawaf-altalhi-41834b232/), GitHub Profile: naltalhi
@@ -11,9 +11,9 @@ PSU ECE Team 11:
 - Software Engineer: [Andrew Stanton](https://www.linkedin.com/in/andrew-stanton-254697411/), GitHub Profile: sneakyaardvark
 - Software Engineer: [Antonio Hernandez Olivares](https://www.linkedin.com/in/antonio-hernandez-olivares-b56243381/), GitHub Profile: AntonioHernandezOlivares
 
-Faculty Advisor: [Roy Kravitz](https://www.pdx.edu/profile/roy-kravitz)
+2026 Faculty Advisor: [Roy Kravitz](https://www.pdx.edu/profile/roy-kravitz)
 
-Tektronix Sponsor Representative: [Anthony Bruno](https://www.linkedin.com/in/brunota/)
+2026 Tektronix Sponsor Representative: [Anthony Bruno](https://www.linkedin.com/in/brunota/)
 
 ## Repo structure
 This is a monorepo with all project files for the completed prototype.
